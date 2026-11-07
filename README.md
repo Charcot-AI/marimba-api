@@ -6,6 +6,13 @@ Pre-release. The inference package, live demo, framework integrations and public
 
 An open-source project by charcot.ai
 
+## Documentation and release scaffold
+
+Start with the [documentation index](docs/index.md), [executed notebooks](notebooks/README.md),
+[model card](hf/README.md), or [local-only Space scaffold](space/README.md).
+Decoder context above eight seconds is **unvalidated**. No real-time or Mac measurements
+are claimed. Weight redistribution licensing is [PENDING]; see the model card.
+
 ## Development interface
 
 Install with `uv sync --extra datasets`. Core installation does not install an inference engine.

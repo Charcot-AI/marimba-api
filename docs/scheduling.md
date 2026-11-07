@@ -50,8 +50,9 @@ There is no global lock around an entire decision, and no shared mutable feature
 cache. A decoder can serialize other decoders but cannot hold the encoder lock
 while generating. Device contention can still affect latency.
 
-Language and term quality is validated on eight-second windows only; longer
-context is not a new quality claim. Encoder/head windows remain eight seconds.
+Decoder evaluation evidence is limited to eight-second windows; decoder context
+above eight seconds is **unvalidated**. Term remains experimental and uncalibrated.
+Encoder/head windows remain eight seconds.
 Long-context generation allows a proportionally larger token budget, rather
 than retaining the short-window 128-token ceiling.
 
