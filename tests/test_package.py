@@ -182,6 +182,8 @@ def test_runtime_order(monkeypatch):
     info = {
         "extras": {"torch": True},
         "cuda": True,
+        "cuda_bf16_supported": False,
+        "cuda_fp16_supported": True,
         "mps": True,
         "providers": ("CoreMLExecutionProvider", "CPUExecutionProvider"),
         "cuda_free_memory": 1024**3,

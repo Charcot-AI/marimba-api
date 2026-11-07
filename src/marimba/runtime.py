@@ -32,6 +32,8 @@ def detect_runtime() -> dict[str, Any]:
         "cpu": platform.machine(),
         "extras": extras,
         "cuda": False,
+        "cuda_bf16_supported": False,
+        "cuda_fp16_supported": False,
         "mps": False,
         "providers": (),
         "free_memory": None,
@@ -46,6 +48,8 @@ def detect_runtime() -> dict[str, Any]:
         info["mps"] = torch.backends.mps.is_available()
         if info["cuda"]:
             info["cuda_free_memory"] = torch.cuda.mem_get_info()[0]
+            info["cuda_bf16_supported"] = torch.cuda.is_bf16_supported()
+            info["cuda_fp16_supported"] = torch.cuda.get_device_capability() >= (5, 3)
     if extras["onnxruntime"]:
         info["providers"] = tuple(importlib.import_module("onnxruntime").get_available_providers())
     return info
@@ -80,11 +84,19 @@ def select_backend(backend: str = "auto", device: str = "auto", dtype: str = "au
         memory = info.get("cuda_free_memory") if target == "cuda" else info["free_memory"]
         precision = dtype
         if dtype == "auto":
-            precision = (
-                "float16"
-                if target in ("cuda", "mps") and (memory is None or memory < 8 * 1024**3)
-                else "float32"
-            )
+            if engine == "torch" and target == "cuda":
+                if info["cuda_bf16_supported"]:
+                    precision = "bfloat16"
+                elif info["cuda_fp16_supported"]:
+                    precision = "float16"
+                else:
+                    precision = "float32"
+            else:
+                precision = (
+                    "float16"
+                    if target in ("cuda", "mps") and (memory is None or memory < 8 * 1024**3)
+                    else "float32"
+                )
         result = RuntimeInfo(engine, target, precision, providers)
         logging.getLogger(__name__).info("Selected runtime: %s", result)
         return result

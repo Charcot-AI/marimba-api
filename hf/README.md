@@ -91,11 +91,23 @@ Readout includes a raw-logit parity diagnostic. Part of the CPU baseline overlap
 development on a shared VM. Other scores all 30 languages and was not timed here.
 No real-time or measured Mac performance is claimed.
 
+Current torch CUDA auto dtype prefers bf16 when supported by torch, then fp16 on
+native-FP16 devices, then fp32; CPU auto stays fp32. MPS auto policy is unchanged.
+The table explicitly measures fp32, not the new auto policy. The earlier L4 auto
+benchmark used the old memory-based policy and selected fp32; its recorded results
+must not be relabeled as bf16 measurements. The speech head stays fp32 and the NumPy
+readout retains its existing precision for parity.
+
 Eligibility was absolute binary-lane AUROC change <=0.005 and unchanged LID accuracy
 versus CPU fp32. CUDA fp16/bf16 and CPU/CUDA beam2 passed. Encoder dynamic INT8 and
 CPU/CUDA greedy were not eligible. ONNX export failed on unsupported
 `aten::pad_sequence` at opset 17; ONNX logit difference and decision agreement
 are N/A. Teacher-forced term scoring is only a compute estimate, not implemented.
+
+Production beam/n-best defaults remain greedy plus four beam hypotheses. Encoder
+INT8 and greedy-only term variants are opt-in, quality-reducing report-only script
+options, not model-loading or bench CLI knobs: turn-end AUROC change -0.090 for
+encoder INT8 and term AUROC change -0.010 for greedy-only failed the parity gate.
 
 ## Reproducibility and limitations
 
