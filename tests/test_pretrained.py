@@ -1,6 +1,7 @@
 import hashlib
 import json
 import sys
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -32,6 +33,10 @@ class StubEngine:
     def language_scores(self, encoded, options):
         self.calls.append("language")
         return {option: -float(index + 1) for index, option in enumerate(options)}
+
+    def head_score(self, mask, text):
+        self.calls.append("head")
+        return 2.0
 
     term_score = staticmethod(exact_fraction)
 
@@ -80,6 +85,36 @@ def test_unavailable_and_empty(model):
     assert model(np.zeros(1, dtype=np.float32), [], 16000) == []
     with pytest.raises(ValueError, match="nonempty"):
         model(np.array([], dtype=np.float32), [question], 16000)
+
+
+def test_shared_speech_head(model):
+    model._capabilities["voice_activity"] = replace(
+        model.capabilities["voice_activity"], status="validated"
+    )
+    model._capabilities["same_speaker"] = replace(
+        model.capabilities["same_speaker"], status="experimental"
+    )
+    questions = [
+        Question.score("Has the speaker finished?"),
+        Question.noul("Is someone speaking?"),
+        Question.noul("Is this the same speaker?"),
+        Question.score("Is this the same speaker?"),
+        Question.choice("How many speakers?", ["0", "1", "2"]),
+    ]
+    decisions = model(np.zeros(16000, dtype=np.float32), questions, 16000)
+    assert model._engine.calls == ["encode", "turn_end", "head", "head", "head"]
+    assert [d.status for d in decisions] == [
+        "validated",
+        "validated",
+        "experimental",
+        "experimental",
+        "unavailable",
+    ]
+    assert decisions[1].score == 2.0
+    assert decisions[1].probability == pytest.approx(1 / (1 + np.exp(-2)))
+    assert decisions[1].value is True
+    assert decisions[3].value == decisions[3].probability
+    assert decisions[4].value is None
 
 
 def test_validation_before_encoder(model):

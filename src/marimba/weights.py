@@ -13,7 +13,7 @@ from huggingface_hub import HfApi, hf_hub_download
 ENCODER_REPO = "Qwen/Qwen3-ASR-0.6B"
 ENCODER_REVISION = "5eb144179a02acc5e5ba31e748d22b0cf3e303b0"
 DEFAULT_MODEL_REPO = "charcot-ai/marimba"
-DEFAULT_MODEL_REVISION = "76f5824f17efcb5c053ae506f29d884033cf4cdb"
+DEFAULT_MODEL_REVISION = "bc980b4e6eb34e7fea96ea8b0884c2093a845dc5"
 
 
 def load_manifest(repo: str, revision: str | None) -> tuple[dict[str, Any], dict[str, Path]]:

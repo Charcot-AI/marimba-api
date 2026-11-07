@@ -41,8 +41,11 @@ python_version = "3.10"
 strict = true
 files = ["src"]
 [[tool.mypy.overrides]]
-module = ["soundfile", "soxr", "torch", "onnxruntime", "qwen_asr", "qwen_asr.*"]
+module = ["soundfile", "soxr", "torch", "torch.*", "transformers", "onnxruntime", "qwen_asr", "qwen_asr.*"]
 ignore_missing_imports = true
+[[tool.mypy.overrides]]
+module = ["marimba._head"]
+disallow_subclassing_any = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ from qwen_asr import Qwen3ASRModel
 from qwen_asr.inference.utils import parse_asr_output
 from safetensors.numpy import load_file
 
+from ._head import SpeechReadout
 from .audio import AudioArray, Mask
 from .language import LANGUAGES
 from .lexical import exact_fraction
@@ -34,7 +36,19 @@ class QwenEngine:
         self.processor.tokenizer.padding_side = "left"
         self.thinker = self.asr.model.thinker
         self.taps: dict[int, Any] = {}
-        self._hooks = [self.thinker.audio_tower.layers[17].register_forward_hook(self._capture)]
+        self.raw_taps: dict[int, Any] = {}
+        self.head = (
+            SpeechReadout(paths, runtime.device)
+            if "speech_head/model.safetensors" in paths
+            else None
+        )
+        layers = (9, 18) if self.head is not None else (18,)
+        self._hooks = [
+            self.thinker.audio_tower.layers[layer - 1].register_forward_hook(
+                partial(self._capture, layer)
+            )
+            for layer in layers
+        ]
         self.readout = load_file(paths["turn_end/readout.safetensors"])
         config = json.loads(paths["turn_end/config.json"].read_text())
         if config != {
@@ -47,9 +61,11 @@ class QwenEngine:
         }:
             raise ValueError("Unsupported turn-end readout configuration")
 
-    def _capture(self, module: Any, inputs: Any, output: Any) -> None:
+    def _capture(self, layer: int, module: Any, inputs: Any, output: Any) -> None:
         hidden = output[0] if isinstance(output, tuple) else output
-        self.taps[18] = hidden.detach().to(torch.float16).float().cpu().numpy()
+        self.raw_taps[layer] = hidden.detach()
+        if layer == 18:
+            self.taps[18] = hidden.detach().to(torch.float16).float().cpu().numpy()
 
     def encode(self, window: AudioArray) -> Any:
         features = self.processor.feature_extractor(
@@ -62,6 +78,7 @@ class QwenEngine:
         inputs = features["input_features"].to(self.asr.model.device, self.asr.model.dtype)
         attention_mask = features["attention_mask"].to(self.asr.model.device)
         self.taps.clear()
+        self.raw_taps.clear()
         with torch.inference_mode():
             encoded = self.thinker.get_audio_features(inputs, feature_attention_mask=attention_mask)
         return encoded
@@ -81,6 +98,11 @@ class QwenEngine:
 
     def turn_end(self, mask: Mask) -> tuple[float, float]:
         return predict_readout(self.readout, pool_layer(self.taps[18], mask))
+
+    def head_score(self, mask: Mask, text: str) -> float:
+        if self.head is None:
+            raise ValueError("No speech head weights are installed")
+        return self.head.score(self.raw_taps[9], mask, text)
 
     def language_scores(self, encoded: Any, options: Sequence[str]) -> dict[str, float]:
         base = self.asr._build_text_prompt(context="", force_language=None) + "language"

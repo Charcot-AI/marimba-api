@@ -15,6 +15,7 @@ from .language import LANGUAGES
 from .lexical import normalize
 from .model import Marimba
 from .questions import Question, UnsupportedQuestion
+from .readout import sigmoid
 from .runtime import RuntimeInfo, select_backend
 from .weights import load_manifest
 
@@ -31,7 +32,7 @@ class PretrainedMarimba(Marimba):
             )
             for task, cap in super().capabilities.items()
         }
-        for task in ("turn_end", "language", "term"):
+        for task in ("turn_end", "language", "term", "voice_activity", "same_speaker"):
             lane = manifest["lanes"].get(task, {})
             if lane.get("status") not in ("validated", "experimental"):
                 continue
@@ -117,6 +118,14 @@ class PretrainedMarimba(Marimba):
                 elif task == "term":
                     probability = score = float(self._engine.term_score(question.term, hypotheses))
                     value = probability >= question.threshold
+                elif task in ("voice_activity", "same_speaker"):
+                    score = float(self._engine.head_score(mask, question.text))
+                    probability = sigmoid(score)
+                    value = (
+                        probability
+                        if question.kind == "score"
+                        else probability >= question.threshold
+                    )
             decisions.append(
                 Decision(
                     question,
