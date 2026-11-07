@@ -7,12 +7,10 @@ from dataclasses import replace
 from time import perf_counter
 from typing import Any
 
-import numpy as np
-
 from .audio import AudioArray, Mask
 from .capabilities import Capability
 from .decision import Decision
-from .language import LANGUAGES
+from .language import LANGUAGES, option_probabilities, resolve_options
 from .lexical import normalize
 from .model import Marimba
 from .questions import Question, UnsupportedQuestion
@@ -66,11 +64,7 @@ class PretrainedMarimba(Marimba):
             if question.task == "term" and (not question.term or not normalize(question.term)):
                 raise UnsupportedQuestion("Term questions require a nonempty quoted term")
             if question.task == "language":
-                unsupported = set(question.options or ()) - LANGUAGES.keys()
-                if unsupported:
-                    raise ValueError(
-                        f"Unsupported language option(s): {', '.join(sorted(unsupported))}"
-                    )
+                resolve_options(question.options or ())
 
     def _encode_snapshot(self, snapshot: WindowSnapshot) -> EncodedWindow:
         if not snapshot.mask.any():
@@ -149,9 +143,12 @@ class PretrainedMarimba(Marimba):
         start_s, end_s = snapshot.window_start_s, snapshot.window_end_s
         features, audio = encoded.features, encoded.audio_features
         turn = self._engine.turn_end(features, mask) if "turn_end" in active else None
+        resolved = {q: resolve_options(q.options or ()) for q in questions if q.task == "language"}
         options = sorted(
-            {option for q in questions if q.task == "language" for option in q.options or ()}
+            {code for mapping in resolved.values() for code in mapping.values() if code is not None}
         )
+        if any(None in mapping.values() for mapping in resolved.values()):
+            options = sorted(LANGUAGES)
         prefill = getattr(self._engine, "prefill", None)
         prefix = prefill(audio) if prefill is not None and {"language", "term"} <= active else None
         language = (
@@ -172,12 +169,8 @@ class PretrainedMarimba(Marimba):
                     score, probability = map(float, turn)
                     value = probability
                 elif task == "language":
-                    names = question.options or ()
-                    scores = np.array([language[name] for name in names], dtype=np.float64)
-                    weights = np.exp(scores - np.max(scores))
-                    weights /= weights.sum()
-                    probabilities = dict(zip(names, map(float, weights), strict=True))
-                    value = names[int(np.argmax(weights))]
+                    probabilities = option_probabilities(language, resolved[question])
+                    value = max(probabilities, key=lambda name: probabilities[name])
                     probability = probabilities[value]
                 elif task == "term":
                     probability = score = float(self._engine.term_score(question.term, hypotheses))
@@ -205,7 +198,7 @@ class PretrainedMarimba(Marimba):
                     status=cap.status,
                 )
             )
-        return decisions
+        return self._apply_calibrations(decisions)
 
 
 def load_pretrained(

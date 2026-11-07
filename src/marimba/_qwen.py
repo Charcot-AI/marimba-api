@@ -14,11 +14,13 @@ from typing import Any
 import numpy as np
 import torch
 from huggingface_hub import snapshot_download
-from qwen_asr import Qwen3ASRModel
-from qwen_asr.inference.utils import parse_asr_output
 from safetensors.numpy import load_file
 
 from ._head import SpeechReadout
+from ._vendor.qwen_asr.configuration_qwen3_asr import Qwen3ASRConfig
+from ._vendor.qwen_asr.modeling_qwen3_asr import Qwen3ASRForConditionalGeneration
+from ._vendor.qwen_asr.processing_qwen3_asr import Qwen3ASRProcessor
+from ._vendor.qwen_asr.utils import parse_asr_output
 from .audio import AudioArray, Mask
 from .language import LANGUAGES
 from .lexical import exact_fraction
@@ -27,14 +29,31 @@ from .runtime import RuntimeInfo
 from .weights import ENCODER_REPO, ENCODER_REVISION
 
 
-class QwenEngine:
-    def __init__(self, runtime: RuntimeInfo, paths: dict[str, Path]) -> None:
-        self.asr = Qwen3ASRModel.from_pretrained(
-            snapshot_download(ENCODER_REPO, revision=ENCODER_REVISION),
+class FrozenASR:
+    def __init__(self, path: str, runtime: RuntimeInfo) -> None:
+        self.model = Qwen3ASRForConditionalGeneration.from_pretrained(
+            path,
+            config=Qwen3ASRConfig.from_pretrained(path),
             dtype=getattr(torch, runtime.dtype),
             device_map=runtime.device,
             attn_implementation="sdpa",
         )
+        self.processor: Any = Qwen3ASRProcessor.from_pretrained(path, fix_mistral_regex=True)
+
+    def _build_text_prompt(self, context: str, force_language: str | None) -> str:
+        messages = [
+            {"role": "system", "content": context or ""},
+            {"role": "user", "content": [{"type": "audio", "audio": ""}]},
+        ]
+        prompt: str = self.processor.apply_chat_template(
+            messages, add_generation_prompt=True, tokenize=False
+        )
+        return prompt + f"language {force_language}<asr_text>" if force_language else prompt
+
+
+class QwenEngine:
+    def __init__(self, runtime: RuntimeInfo, paths: dict[str, Path]) -> None:
+        self.asr = FrozenASR(snapshot_download(ENCODER_REPO, revision=ENCODER_REVISION), runtime)
         self.asr.model.eval().requires_grad_(False)
         self.processor = self.asr.processor
         self.processor.tokenizer.padding_side = "left"

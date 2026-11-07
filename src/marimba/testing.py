@@ -125,4 +125,4 @@ class FakeMarimba(Marimba):
                     status="experimental",
                 )
             )
-        return decisions
+        return self._apply_calibrations(decisions)

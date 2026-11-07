@@ -17,9 +17,9 @@ from typing import Any
 import numpy as np
 import torch
 import transformers
-from qwen_asr.inference.utils import parse_asr_output
 
 from marimba import Marimba
+from marimba._vendor.qwen_asr.utils import parse_asr_output
 from marimba.lexical import exact_fraction
 from marimba.readout import pool_layer, sigmoid
 

@@ -84,6 +84,33 @@ def test_shared_lanes(model):
     assert "Uncalibrated" in model.capabilities["term"].evaluation
 
 
+def test_language_names_other_dispatch_and_calibration(model):
+    from marimba.language import LANGUAGES
+
+    requested = []
+
+    def scores(encoded, options, prefix=None):
+        requested.extend(options)
+        return dict.fromkeys(options, 0.0)
+
+    model._engine.language_scores = scores
+    named = Question.choice("What language?", ["English", "Portuguese", "Spanish", "Other"])
+    iso = Question.choice("Which language?", ["en", "pt"])
+    audio = np.zeros(128000, dtype=np.float32)
+    decisions = model(audio, [named, iso], 16000)
+    assert set(requested) == set(LANGUAGES) and len(requested) == 30
+    assert decisions[0].probabilities["Other"] == pytest.approx(0.9)
+    assert decisions[1].probabilities == {"en": 0.5, "pt": 0.5}
+    q = Question.score("Has the speaker finished?")
+    inputs = [{"array": audio, "sampling_rate": 16000}] * 100
+    cal = model.calibrate(inputs, [0, 1] * 50, q)
+    assert cal.created_with == model.revision
+    enc = model.encode(WindowSnapshot(audio, np.ones(128000, dtype=bool), 0, 8))
+    assert model.decide_encoded(enc, [q])[0].calibrated
+    with pytest.raises(ValueError, match="without probabilities"):
+        model.calibrate(inputs, [0, 1] * 50, Question.noul("Is someone speaking?"))
+
+
 def test_unavailable_and_empty(model):
     question = Question.noul("Is someone speaking?")
     decision = model(np.zeros(1, dtype=np.float32), [question], 16000)[0]

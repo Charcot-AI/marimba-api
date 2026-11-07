@@ -7,7 +7,6 @@ import pytest
 @pytest.fixture
 def bench():
     pytest.importorskip("torch")
-    pytest.importorskip("qwen_asr")
     path = Path(__file__).parents[1] / "scripts" / "latency_matrix.py"
     spec = importlib.util.spec_from_file_location("latency_matrix", path)
     module = importlib.util.module_from_spec(spec)

@@ -27,7 +27,9 @@ updates += stream.flush()
 `Question.score("Has the speaker finished?")` and
 `Question.choice("What language?", ["English", "French"])` select other result kinds.
 Pass `task=` for custom wording. Quoted terms are exposed as `question.term`.
-Real language inference takes ISO codes, for example `["en", "pt", "es"]`, not names.
+Real language inference takes ISO codes or full English names. An `Other` option
+collects the softmax mass of all supported languages not explicitly listed:
+`Question.choice("What language is being spoken?", ["English", "Portuguese", "Spanish", "Other"], task="language")`.
 `Decision.to_dict()` and `StreamUpdate.to_dict()` return JSON-safe dictionaries.
 
 `model.batch(audios, questions, batch_size=16)` accepts decoded audio mappings or files.
@@ -74,13 +76,18 @@ Each window runs the audio tower once. Its native L18 frames, quantized to float
 the readout extraction pipeline, feed valid-frame tail pooling over the last two seconds,
 a standardized linear readout, and Platt calibration. Language choices use the sum of
 native language-name token log probabilities, softmaxed within the supplied options.
-Unsupported ISO codes raise an error before inference.
+Unsupported options and duplicate aliases raise an error before inference.
+Without `Other`, probabilities are normalized within that question's choices;
+with `Other`, all 30 supported languages are scored before aggregation.
 
 All term questions share greedy decoding plus four beam hypotheses. Unicode normalization
 removes accents and punctuation, retains non-Latin letters, and matches exact token sequences.
 **Term probabilities are currently uncalibrated raw fractions of five hypotheses**, not
 Platt-calibrated probabilities; their capability is experimental and states this limitation.
 No calibration is fitted at inference time.
+
+See [Calibrate on your domain](docs/calibration.md) to fit and persist a per-question
+Platt map from your own binary labels. This does not train model weights.
 
 Voice activity uses a frozen question-conditioned head with English prompts and reports
 `validated`. The same head provides an `experimental` same-speaker score: public

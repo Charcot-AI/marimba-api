@@ -22,6 +22,7 @@ class Decision:
     window_end_s: float = 0.0
     latency_ms: float = 0.0
     status: str = "unavailable"
+    calibrated: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)

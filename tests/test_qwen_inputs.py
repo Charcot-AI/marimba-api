@@ -8,7 +8,6 @@ import pytest
 @pytest.fixture
 def engine():
     torch = pytest.importorskip("torch")
-    pytest.importorskip("qwen_asr")
     cls = importlib.import_module("marimba._qwen").QwenEngine
     model = cls.__new__(cls)
     model.asr = SimpleNamespace(_build_text_prompt=lambda **kwargs: "prompt")

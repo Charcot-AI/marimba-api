@@ -9,10 +9,11 @@ description = "Question-driven audio decisions with portable inference interface
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 dependencies = ["numpy>=1.24", "soundfile>=0.12", "soxr>=0.3", "huggingface_hub>=0.26", "safetensors>=0.4"]
 
 [project.optional-dependencies]
-torch = ["torch==2.8.0", "torchaudio==2.8.0", "transformers==4.57.6", "qwen-asr==0.0.6"]
+torch = ["torch==2.8.0", "torchaudio==2.8.0", "transformers==4.57.6", "accelerate==1.12.0"]
 onnx = ["onnxruntime>=1.20"]
 datasets = ["datasets>=3"]
 demo = ["gradio>=5"]
@@ -30,6 +31,8 @@ dev = ["pytest>=8.3", "ruff>=0.8", "mypy>=1.13"]
 packages = ["src/marimba"]
 
 [tool.ruff]
+extend-exclude = ["src/marimba/_vendor"]
+force-exclude = true
 target-version = "py310"
 line-length = 100
 
@@ -40,6 +43,9 @@ select = ["E", "F", "I", "UP", "B"]
 python_version = "3.10"
 strict = true
 files = ["src"]
+[[tool.mypy.overrides]]
+module = ["marimba._vendor.*"]
+ignore_errors = true
 [[tool.mypy.overrides]]
 module = ["soundfile", "soxr", "torch", "torch.*", "transformers", "onnxruntime", "qwen_asr", "qwen_asr.*"]
 ignore_missing_imports = true
