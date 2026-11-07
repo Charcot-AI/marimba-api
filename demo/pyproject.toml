@@ -29,4 +29,8 @@ target-version = "py310"
 
 [tool.mypy]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["marimba", "marimba.*"]
+follow_imports = "skip"
 check_untyped_defs = true
