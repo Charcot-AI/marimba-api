@@ -234,11 +234,12 @@ async function start(file?: File) {
             ? 'above 300 ms target / rolling 60 s'
             : 'target ≤ 300 ms / rolling 60 s';
         });
-      status(
-        data.coalesced_hops
-          ? 'Listening / all audio retained; slower inference coalesces decision ticks, not input.'
-          : 'Listening / decisions update as each window completes.',
-      );
+      if (active && !stopping)
+        status(
+          data.coalesced_hops
+            ? 'Listening / all audio retained; slower inference coalesces decision ticks, not input.'
+            : 'Listening / decisions update as each window completes.',
+        );
     };
     connection.onclose = () => {
       if (socket === connection && active && !stopping) {
@@ -264,7 +265,7 @@ async function start(file?: File) {
       player.start();
       player.onended = () => {
         endedTimer = setTimeout(() => {
-          if (active) void stop();
+          if (active) void stop('Stopped / last decisions retained.');
         }, 300);
       };
     } else {
@@ -294,8 +295,9 @@ async function start(file?: File) {
     await stop();
   }
 }
-async function stop() {
+async function stop(message?: string) {
   if (stopping) return;
+  if (message) status(message);
   stopping = true;
   active = false;
   clearTimeout(endedTimer);
@@ -344,8 +346,7 @@ async function stop() {
 }
 $('#start').onclick = () => void start();
 $('#stop').onclick = () => {
-  status('Stopped / last decisions retained.');
-  void stop();
+  void stop('Stopped / last decisions retained.');
 };
 $('#file').onchange = (event) => {
   const file = (event.target as HTMLInputElement).files?.[0];

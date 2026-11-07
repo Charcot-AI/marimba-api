@@ -24,7 +24,7 @@ From the repository root, install once:
 
 ```sh
 uv sync --project demo --python 3.12
-uv pip install --python demo/.venv/bin/python -e '.[torch]'
+uv pip install --python demo/.venv/bin/python -e '.[torch]' -e demo
 ```
 
 Then one command builds the lightweight frontend on first launch, loads the model,
@@ -34,7 +34,9 @@ starts Python on `127.0.0.1:8765`, and opens the page:
 uv run --project demo --no-sync marimba-demo
 ```
 
-`--no-sync` preserves the separately installed inference engine. The frontend uses
+Installing both editable projects together preserves the demo's dependency constraints
+when the inference engine resolves its optional dependencies. `--no-sync` then
+preserves the separately installed inference engine. The frontend uses
 Vite and TypeScript, with no UI framework. All fonts and brand assets are local;
 there is no CDN, analytics, audio upload, or remote model API in the default app.
 Model download may require access credentials until weights are released.
@@ -57,7 +59,7 @@ the previous session, its trail, and timing samples. Inputs are not auto-reconne
 The checkpoint's `model.capabilities` is authoritative. Unavailable tasks are
 omitted, not drawn with invented answers. Experimental tasks are explicitly marked.
 Uncalibrated term support is labelled **UNCALIBRATED / RAW N-BEST**, not presented
-as an honest probability percentage. The current language card is a closed set
+as a calibrated probability. The current language card is a closed set
 of the ISO codes `en`, `pt`, `es`; it does not claim an open-set "Other" detector.
 Depending on the checkpoint, this can be fewer than the eight candidate cards:
 
@@ -69,7 +71,7 @@ Depending on the checkpoint, this can be fewer than the eight candidate cards:
 | Same speaker | P(yes) needle; experimental when advertised |
 | Language | One thin horizontal probability bar per option |
 | Sound scene | Speech/music/noise bars, only if available |
-| Heard marimba | P(yes) needle |
+| Heard marimba | Support needle; explicitly labelled when uncalibrated |
 | Speakers | Per-option probability bars; experimental when advertised |
 
 Position on a shared scale and aligned bar lengths make small comparisons easier
@@ -106,7 +108,7 @@ up, the app stops explicitly instead of silently losing audio. A missing or
 duplicate sequence closes the session. Socket queues and timestamp history are bounded.
 
 For a lower-load CPU subset without lexical decoding, start with
-`marimba-demo --device cpu --tasks turn_end,voice_activity,language` (using the
+`marimba-demo --device cpu --tasks turn_end,language` (using the
 same `uv run --project demo --no-sync` prefix). Unsupported tasks are still
 omitted. This changes the workload; do not compare its timing to a full-grid run
 without listing the different questions.
@@ -115,9 +117,13 @@ For the package's isolated model-hop benchmark, use its CLI in this environment:
 
 ```sh
 uv run --project demo --no-sync marimba doctor
-uv run --project demo --no-sync marimba bench --questions 6 --hops 40 --warmup 5
+OMP_NUM_THREADS=4 MKL_NUM_THREADS=4 uv run --project demo --no-sync marimba bench --questions 2 --hops 40 --warmup 5
 ```
 
+The package benchmark has its own templates and synthetic silence input: this
+two-question example is not necessarily the demo's exact question/options set.
+It avoids the expensive lexical lane in the current package. Inspect its templates
+before comparing workloads; repeating a template does not create a new capability.
 Use `marimba bench --help` for supported device/backend/model/revision switches in
 your installed package. Record the model revision, question list, thread count,
 runtime, audio source, number of warmup/measured hops and whether samples were
