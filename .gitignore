@@ -1,0 +1,29 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+
+# Node
+node_modules/
+.next/
+
+# Environment and local checks
+.env*
+.public-check-terms
+
+# Audio and model artifacts
+*.wav
+*.flac
+*.mp3
+*.pt
+*.safetensors
+*.onnx
+
+# OS
+.DS_Store
