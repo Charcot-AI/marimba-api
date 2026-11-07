@@ -1,0 +1,6 @@
+local/
+marimba_demo/static/
+frontend/coverage/
+frontend/*.tsbuildinfo
+*.jsonl
+uv.lock

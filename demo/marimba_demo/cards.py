@@ -1,0 +1,70 @@
+"""The questions shown when the loaded model advertises support."""
+
+from dataclasses import asdict, dataclass
+from typing import Any
+
+
+@dataclass(frozen=True)
+class Card:
+    task: str
+    title: str
+    text: str
+    kind: str
+    options: tuple[str, ...] = ()
+    status: str = "unavailable"
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+CARDS = (
+    Card(
+        "turn_end", "Turn completion", "Has the speaker finished their turn?", "score"
+    ),
+    Card("voice_activity", "Speech present", "Is someone speaking?", "noul"),
+    Card("speaker_change", "Speaker change", "Has the speaker changed?", "noul"),
+    Card("same_speaker", "Same speaker", "Is this the same speaker?", "noul"),
+    Card(
+        "language",
+        "Language",
+        "What language is being spoken?",
+        "choice",
+        ("English", "Portuguese", "Spanish", "Other"),
+    ),
+    Card(
+        "audio_class",
+        "Sound scene",
+        "What kind of audio is this?",
+        "choice",
+        ("Speech", "Music", "Noise"),
+    ),
+    Card("term", "Heard marimba", 'Did someone say "marimba"?', "noul"),
+    Card(
+        "speaker_count",
+        "Speakers",
+        "How many speakers are audible?",
+        "choice",
+        ("0", "1", "2", "3+"),
+    ),
+)
+
+
+def available_cards(model: Any) -> list[Card]:
+    cards = []
+    for card in CARDS:
+        capability = model.capabilities.get(card.task)
+        if capability is None or capability.status == "unavailable":
+            continue
+        if card.kind not in capability.kinds:
+            continue
+        cards.append(Card(**{**asdict(card), "status": capability.status}))
+    return cards
+
+
+def questions_for(cards: list[Card], question_class: Any) -> list[Any]:
+    return [
+        getattr(question_class, card.kind)(card.text, card.options, task=card.task)
+        if card.kind == "choice"
+        else getattr(question_class, card.kind)(card.text, task=card.task)
+        for card in cards
+    ]
