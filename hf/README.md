@@ -23,7 +23,7 @@ audio understanding or speaker-verification system.
 ## License and release status
 
 - Package code: Apache-2.0, as recorded in the repository LICENSE.
-- Converted readout and head weights: **Apache-2.0**, as designated by the owner.
+- Converted readout and head weights: **Apache-2.0**.
 - **[PENDING] public weight distribution and release artifact location**.
   This scaffold does not announce a public checkpoint or hosted service.
 
@@ -43,6 +43,9 @@ audio understanding or speaker-verification system.
   Attribution 4.0 International and the card credits the audio contributors.
   Dataset licensing is separate from the converted weights' license; no dataset
   audio is distributed with this package.
+- **Voice-activity head training data:** attribution [PENDING].
+  Public pinned training source: `pipecat-ai/smart-turn-data-v3.2-train`, revision
+  `f8c95d284595defb6b88a715c356cbc5c31b7ad1`.
 
 ## Intended use
 
