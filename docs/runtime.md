@@ -24,17 +24,15 @@ For torch CUDA, `dtype="auto"` selects bfloat16 when
 FP16 arithmetic (compute capability 5.3 or newer), otherwise float32. CPU auto stays
 float32. MPS is unchanged: float16 when free memory is unknown or below 8 GiB,
 otherwise float32. Explicit dtype requests override auto. This is not a fastest-dtype
-or available-memory guarantee. ONNX discovery behavior is unchanged; these checkpoint
-lanes remain torch-only.
+or available-memory guarantee. ONNX discovery behavior is unchanged.
 
 doctor reports `cuda_bf16_supported`, `cuda_fp16_supported` and the resolved selection
 dtype. `model.runtime.dtype` and `RuntimeInfo.to_dict()["dtype"]` describe the resolved
 backbone dtype, not head/readout precision. The speech head stays fp32 and the NumPy
 readout keeps its existing precision.
 
-The historical L4 auto benchmark selected float32 under the previous memory-based
-policy. Its numbers are not a measurement of the new auto policy. Explicit fp16/bf16
-variants were measured separately. Core imports do not load an inference engine. Model loading
+Explicit fp16/bf16 variants were measured separately. Core imports do not load an
+inference engine. Model loading
 and doctor runtime probing may import torch; only model loading fetches weights.
 Core installation has no inference engine. The torch extra excludes Gradio;
 the demo extra is opt-in and brings its web dependencies.

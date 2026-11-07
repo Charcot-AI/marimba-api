@@ -23,13 +23,10 @@ This gate is not a production or calibrated-confidence recommendation.
 The package's beam/n-best defaults are unchanged: greedy plus four beam hypotheses.
 Encoder INT8 and greedy-only term generation are **opt-in, quality-reducing**
 variants exposed only by the report-only `scripts/latency_matrix.py --variant`
-interface, not public model-loading or bench CLI options. INT8 reduced turn-end
-AUROC by 0.090; greedy-only reduced term AUROC by 0.010. No new knobs were added.
+interface, not public model-loading or bench CLI options.
 
 Current torch CUDA auto dtype prefers bf16 when supported, then fp16 on native-FP16
-devices, then fp32; CPU auto is fp32. The earlier L4 auto run used the old
-memory-based policy and selected fp32. The explicit fp32/fp16/bf16 rows above keep
-their recorded meaning; this policy change is not a new latency measurement.
+devices, then fp32; CPU auto is fp32.
 
 ONNX 1.23.2 / ORT 1.31.1: legacy export (opset 17) failed on unsupported
 `aten::pad_sequence`. ORT INT8 was blocked; maximum absolute logit difference and
