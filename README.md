@@ -9,7 +9,6 @@ An open-source project by charcot.ai
 ## Development interface
 
 Install with `uv sync --extra datasets`. Core installation does not install an inference engine.
-Weights are not integrated yet: `Marimba.from_pretrained()` raises `NotImplementedError`.
 Use the deterministic synthetic model to build integrations without downloads:
 
 ```python
@@ -28,6 +27,7 @@ updates += stream.flush()
 `Question.score("Has the speaker finished?")` and
 `Question.choice("What language?", ["English", "French"])` select other result kinds.
 Pass `task=` for custom wording. Quoted terms are exposed as `question.term`.
+Real language inference takes ISO codes, for example `["en", "pt", "es"]`, not names.
 `Decision.to_dict()` and `StreamUpdate.to_dict()` return JSON-safe dictionaries.
 
 `model.batch(audios, questions, batch_size=16)` accepts decoded audio mappings or files.
@@ -46,5 +46,65 @@ excluding capture, decoding, and resampling. Batch currently uses sequential inf
 
 Run `marimba doctor` for optional runtime discovery, or
 `marimba bench --fake --questions 4 --hops 100 --warmup 10` for p50/p95 per-hop latency.
-Fake results are synthetic, not calibrated predictions. Capability metadata describes
-task evaluation, not the presence of weights in this scaffold.
+Fake results are synthetic, not calibrated predictions.
+
+## Pretrained torch lanes
+
+Install `marimba[torch]` (or `uv sync --extra torch`) and authenticate with Hugging Face
+using `HF_TOKEN` or `hf auth login` if your model repository requires access:
+
+```python
+from marimba import Marimba, Question
+
+model = Marimba.from_pretrained(backend="torch", device="cpu", dtype="float32")
+questions = [
+    Question.score("Has the speaker finished?"),
+    Question.choice("What language?", ["en", "pt", "es", "fr", "de"]),
+    Question.noul('Did someone say "hello"?'),
+]
+```
+
+The default manifest revision is pinned in `marimba.weights.DEFAULT_MODEL_REVISION`.
+An explicit `revision=` can be a commit, tag, or branch; it is resolved once to an immutable
+commit before fetching the manifest and SHA256-verified per-lane files. The frozen
+Qwen3-ASR-0.6B encoder revision is pinned separately. Only torch is supported for these
+lanes; selecting ONNX fails explicitly. Heavy imports and downloads happen only at load time.
+
+Each window runs the audio tower once. Its native L18 frames, quantized to float16 as in
+the readout extraction pipeline, feed valid-frame tail pooling over the last two seconds,
+a standardized linear readout, and Platt calibration. Language choices use the sum of
+native language-name token log probabilities, softmaxed within the supplied options.
+Unsupported ISO codes raise an error before inference.
+
+All term questions share greedy decoding plus four beam hypotheses. Unicode normalization
+removes accents and punctuation, retains non-Latin letters, and matches exact token sequences.
+**Term probabilities are currently uncalibrated raw fractions of five hypotheses**, not
+Platt-calibrated probabilities; their capability is experimental and states this limitation.
+No calibration is fitted at inference time.
+
+Voice activity, same-speaker, speaker-change, speaker-count, and audio-class lanes have no
+installed weights yet: their capabilities and decisions report `unavailable`, and decision
+values/probabilities are `None`. They do not receive synthetic fallback predictions.
+Empty real-model audio raises an error; silence with valid samples is supported.
+
+`marimba bench --questions 4 --backend torch --device cpu` benchmarks one turn-end question,
+one five-language choice, and two shared-decoder term questions on synthetic silence.
+Higher question counts repeat that workload. Warmup and model loading are excluded.
+Instances serialize inference because decoder state and layer taps are shared internally.
+Real-model tests require authentication/downloads and are excluded by default; run them
+explicitly with `uv run pytest -m real_model`.
+
+## Streaming on slow devices
+
+`stream.ingest(chunk) -> None` only updates the ring buffer. Call
+`stream.decide() -> StreamUpdate | None` to score the latest window on demand; it returns
+`None` until audio arrives. A decision snapshots the audio, valid mask, and timestamps
+under a lock, then releases the lock before inference, so another thread can keep ingesting.
+The returned timestamps always describe the snapshot, not audio received during inference.
+Repeated `decide()` calls can score the same window; each call restarts hop accounting.
+
+`model.stream(questions, coalesce=True)` makes `push()` emit at most one update: the latest
+due hop in that chunk. Trailing samples remain buffered for the next hop or `flush()`.
+Skipped hops never clear the context. The default `coalesce=False` still emits every hop.
+`ingest()` does not queue historical inference; switching back to `push()` resumes hop
+accounting from the retained partial hop. These APIs also work with `FakeMarimba`.

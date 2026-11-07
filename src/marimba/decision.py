@@ -13,7 +13,7 @@ class Decision:
     question: Question
     task: str
     kind: Kind
-    value: bool | float | str
+    value: bool | float | str | None
     probability: float | None = None
     probabilities: dict[str, float] | None = None
     score: float | None = None

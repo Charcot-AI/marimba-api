@@ -41,7 +41,17 @@ def main(argv: list[str] | None = None) -> int:
         if args.fake
         else Marimba.from_pretrained(backend=args.backend, device=args.device)
     )
-    stream = model.stream([Question.noul("Is someone speaking?")] * args.questions)
+    templates = (
+        [Question.noul("Is someone speaking?")]
+        if args.fake
+        else [
+            Question.score("Has the speaker finished?"),
+            Question.choice("What language?", ["en", "pt", "es", "fr", "de"]),
+            Question.noul('Did someone say "hello"?'),
+            Question.noul('Did someone say "thanks"?'),
+        ]
+    )
+    stream = model.stream([templates[index % len(templates)] for index in range(args.questions)])
     chunk = np.zeros(4000, dtype=np.float32)
     timings = []
     for index in range(args.warmup + args.hops):

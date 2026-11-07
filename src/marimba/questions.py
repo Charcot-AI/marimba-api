@@ -56,8 +56,12 @@ class Question:
 
     @property
     def term(self) -> str | None:
-        match = re.search(r"""["“'](.+?)["”']""", self.text)
-        return match.group(1) if self.task == "term" and match else None
+        match = re.search(r"""(?:"([^"]+)"|“([^”]+)”|'([^']+)')""", self.text)
+        return (
+            next(group for group in match.groups() if group is not None)
+            if (self.task == "term" and match)
+            else None
+        )
 
     @classmethod
     def noul(cls, text: str, *, task: str | None = None, threshold: float = 0.5) -> Question:

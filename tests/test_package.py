@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from marimba import Marimba, Question, UnsupportedQuestion
+from marimba import Question, UnsupportedQuestion
 from marimba.audio import decode_audio, right_aligned_window
 from marimba.cli import main
 from marimba.runtime import select_backend
@@ -115,8 +115,6 @@ def test_decision_json_and_model(sine):
     assert model.batch([], questions) == []
     with pytest.raises(ValueError):
         model.batch([], questions, batch_size=0)
-    with pytest.raises(NotImplementedError, match="weights"):
-        Marimba.from_pretrained()
     assert model(np.zeros(1, dtype=np.float32), [], 16000) == []
 
 

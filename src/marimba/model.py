@@ -28,9 +28,9 @@ class Marimba:
         backend: str = "auto",
         dtype: str = "auto",
     ) -> Marimba:
-        raise NotImplementedError(
-            "Model weights are not integrated yet. Use marimba.testing.FakeMarimba for development."
-        )
+        from .pretrained import load_pretrained
+
+        return load_pretrained(repo, revision, device, backend, dtype)
 
     @property
     def capabilities(self) -> dict[str, Capability]:
@@ -86,5 +86,6 @@ class Marimba:
         window_seconds: float = 8.0,
         hop_seconds: float = 0.25,
         sample_rate: int = 16000,
+        coalesce: bool = False,
     ) -> Stream:
-        return Stream(self, list(questions), window_seconds, hop_seconds, sample_rate)
+        return Stream(self, list(questions), window_seconds, hop_seconds, sample_rate, coalesce)
