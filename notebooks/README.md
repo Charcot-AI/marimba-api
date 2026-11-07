@@ -16,7 +16,7 @@ Install from the checkout with `pip install '.[torch,datasets]'`, then install
 Use an authenticated kernel when access is required; never paste tokens into cells.
 The pinned model revision is the package default:
 `bc980b4e6eb34e7fea96ea8b0884c2093a845dc5`.
-Weight redistribution licensing is [PENDING]; see the model card.
+Converted head/readout weights are Apache-2.0; see the model card.
 
 To execute again, start Jupyter with that environment's kernel and run all cells
 in order. For automated execution, use nbclient with that kernel. The datasets

@@ -1,4 +1,5 @@
 ---
+license: apache-2.0
 language:
 - en
 tags:
@@ -22,15 +23,26 @@ audio understanding or speaker-verification system.
 ## License and release status
 
 - Package code: Apache-2.0, as recorded in the repository LICENSE.
-- Upstream Qwen3-ASR modeling code and frozen backbone: Apache-2.0; upstream model
-  license checked at revision `5eb144179a02acc5e5ba31e748d22b0cf3e303b0`.
-  See THIRD_PARTY_NOTICES.md for vendored-code attribution.
-- Converted readout and head weights: **[PENDING] explicit redistribution license
-  and provenance approval**. The checkpoint manifest and existing model-card
-  metadata contain no weight-license declaration. Do not infer one from the
-  package's code license. No blanket model-card license tag is asserted.
+- Converted readout and head weights: **Apache-2.0**, as designated by the owner.
 - **[PENDING] public weight distribution and release artifact location**.
   This scaffold does not announce a public checkpoint or hosted service.
+
+## Third-party attribution
+
+- **Qwen/Qwen3-ASR-0.6B**, by the Qwen team: Apache-2.0. The pinned
+  [model card](https://huggingface.co/Qwen/Qwen3-ASR-0.6B/blob/5eb144179a02acc5e5ba31e748d22b0cf3e303b0/README.md)
+  declares `license: apache-2.0` at revision
+  `5eb144179a02acc5e5ba31e748d22b0cf3e303b0`. See THIRD_PARTY_NOTICES.md
+  for attribution and licensing of the vendored Qwen3-ASR modeling code.
+- **Smart Turn readout training data: `pipecat-ai/smart-turn-data-v3.2-train`**,
+  by Pipecat AI and the dataset card's credited contributors: **CC BY 4.0**.
+  The readout training configuration pins revision
+  `f8c95d284595defb6b88a715c356cbc5c31b7ad1`. Its
+  [dataset card](https://huggingface.co/datasets/pipecat-ai/smart-turn-data-v3.2-train/blob/f8c95d284595defb6b88a715c356cbc5c31b7ad1/README.md)
+  declares `license: cc-by-4.0`; the License section confirms Creative Commons
+  Attribution 4.0 International and the card credits the audio contributors.
+  Dataset licensing is separate from the converted weights' license; no dataset
+  audio is distributed with this package.
 
 ## Intended use
 

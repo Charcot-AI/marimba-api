@@ -11,7 +11,7 @@ An open-source project by charcot.ai
 Start with the [documentation index](docs/index.md), [executed notebooks](notebooks/README.md),
 [model card](hf/README.md), or [local-only Space scaffold](space/README.md).
 Decoder context above eight seconds is **unvalidated**. No real-time or Mac measurements
-are claimed. Weight redistribution licensing is [PENDING]; see the model card.
+are claimed. Converted head/readout weights are Apache-2.0; see the model card.
 
 ## Development interface
 

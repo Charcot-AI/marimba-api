@@ -8,7 +8,7 @@ marimba doctor
 ```
 
 Authenticate with `hf auth login` or set `HF_TOKEN` if your configured model
-repository requires access. Weight distribution permission is [PENDING]; see the
+repository requires access. Converted head/readout weights are Apache-2.0; see the
 [model card](../hf/README.md). Do not put credentials in notebooks or source.
 
 ```python

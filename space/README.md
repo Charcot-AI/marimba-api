@@ -15,7 +15,7 @@ private: true
 This directory is a local scaffold only. No Space or public model repository has
 been created or pushed. The private marker is descriptive metadata, **not access
 control**: any future Space must be explicitly created with private visibility.
-Weight redistribution approval is [PENDING]; see ../hf/README.md.
+Converted head/readout weights are Apache-2.0; see ../hf/README.md.
 
 From the source checkout root:
 
