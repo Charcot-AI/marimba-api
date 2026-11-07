@@ -25,6 +25,10 @@ def review_context(value: float | str) -> float:
     return seconds
 
 
+def review_pause(task: str, overrides: dict[str, float]) -> float:
+    return overrides.get(task, 4.0 if task == "term" else 2.0)
+
+
 class Scheduler:
     def __init__(
         self,
@@ -172,7 +176,7 @@ class Scheduler:
                     completed = asyncio.get_running_loop().time()
                     for q in questions:
                         previous[q.task] = snapshot.window_end_s
-                        due[q.task] = completed + self.intervals.get(q.task, 2.0)
+                        due[q.task] = completed + review_pause(q.task, self.intervals)
                     if not self.aborted:
                         await self.send(
                             {

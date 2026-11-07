@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 
 from marimba_demo.protocol import Frame
-from marimba_demo.scheduler import Scheduler, cadence_settings
+from marimba_demo.scheduler import Scheduler, cadence_settings, review_pause
 
 
 class Stream:
@@ -51,6 +51,12 @@ class Model:
 
 def packet(sequence):
     return Frame(sequence, sequence * 250.0, np.zeros(4000, dtype=np.int16))
+
+
+def test_default_completion_pauses_are_per_card_and_overridable():
+    assert review_pause("language", {}) == 2
+    assert review_pause("term", {}) == 4
+    assert review_pause("term", {"term": 1}) == 1
 
 
 def test_slow_review_does_not_block_live_or_lose_capture_provenance():

@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .cards import available_cards, questions_for
 from .protocol import SAMPLE_RATE, decode_frame
-from .scheduler import Scheduler, cadence_settings, review_context
+from .scheduler import Scheduler, cadence_settings, review_context, review_pause
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ def create_app(
             context_seconds=review_seconds
             if model.lane(question) == "decoder"
             else 8.0,
-            cadence_seconds=intervals.get(card.task, 2.0)
+            cadence_seconds=review_pause(card.task, intervals)
             if model.lane(question) == "decoder"
             else 0.25,
         )

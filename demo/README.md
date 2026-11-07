@@ -73,6 +73,13 @@ uv run --project demo --no-sync marimba-demo \
   --review-window 8 --review-intervals language=2,term=4
 ```
 
+The default completion pauses are 2 s for language and 4 s for term. These are
+conservative: measured standalone p95 on one public speech clip was 2,800/7,155 ms
+on a four-thread Linux CPU and 117/1,315 ms on an NVIDIA L4, respectively (fp32,
+5 warmups, 40 measured hops, encoder included). Those are model-only measurements,
+not Mac or browser capture-to-render results. Longer-context latency must be
+measured separately; the eight-second timings do not predict a 30-second review.
+
 `--review-window` accepts 8–30 seconds, subject to the inference package's context
 limit. Reviews wait until that much audio has actually accumulated. The eight-second
 context remains the validated workload. Larger contexts are opt-in experiments,
