@@ -17,12 +17,15 @@ interface Config {
   cards: Card[];
   runtime: { backend: string; device: string; dtype: string };
   stt: boolean;
+  review_seconds: number;
 }
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `<div class="shell"><header><a class="brand" href="https://charcot.ai" aria-label="Charcot AI"><img src="/marimba.svg" alt="marimba"></a><span class="edition">charcot.ai / live instruments</span><button id="theme" aria-label="Switch color theme">Dark ↗</button></header>
 <section class="intro"><div><p class="eyebrow">AUDIO → TYPED DECISIONS</p><h1>Listen. Decide. Repeat.</h1><p class="subtitle">One audio stream. Parallel questions. Continuous answers.</p></div><div class="latency"><span class="eyebrow">CAPTURE → RENDER · P95</span><div><span id="p95">—</span><span class="unit">ms</span></div><span id="target">target ≤ 300 ms / rolling 60 s</span></div></section>
 <section class="source" aria-label="Audio input"><div class="source-label"><span id="live-dot"></span><span id="source-name">INPUT / IDLE</span></div><canvas id="wave" width="720" height="72" aria-label="Live audio amplitude"></canvas><span id="clock">00:00</span><label class="file-button">Open audio<input type="file" id="file" accept="audio/*"></label><button id="start" class="primary">Start microphone ↗</button><button id="stop" disabled>Stop ■</button></section>
-<p id="status" role="status">Loading local model capabilities…</p><section id="cards" class="cards" aria-label="Live decision cards"></section>
+<p id="status" role="status">Loading local model capabilities…</p>
+<section id="live-section"><div class="section-heading"><span class="eyebrow">LIVE SIGNALS</span><span>8 s rolling context / every encoder tick</span></div><div id="cards" class="cards live-cards" aria-label="Live decision cards"></div></section>
+<section id="review-section" hidden><div class="section-heading"><div><span class="eyebrow">BUFFERED REVIEWS</span><p id="review-notice"></p></div><div class="review-timing">WINDOW END → RENDER · P95 <span id="review-p95">—</span> ms</div></div><div id="review-cards" class="cards review-cards" aria-label="Buffered audio reviews"></div></section>
 <section id="transcript" class="transcript" hidden><div class="eyebrow">LIVE TRANSCRIPT / OPTIONAL ADAPTER</div><p id="words" aria-live="polite"></p></section>
 <footer><span id="runtime">LOCAL INFERENCE</span><span>8 s window / 250 ms ingest</span><span id="dropped">0 coalesced decisions</span><span>Audio is not saved locally.</span></footer></div>`;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) =>
@@ -55,7 +58,8 @@ let sequence = 0,
   started = 0,
   lastResult = 0,
   lastPaint = 0;
-let latency: { time: number; ms: number }[] = [];
+let latency: { time: number; ms: number; lane: string }[] = [];
+const reviewsRunning = new Set<string>();
 let amplitudes: number[] = [];
 let transcriptEvents = new Map<string, Transcript>();
 let localConfig: Record<string, unknown> = {};
@@ -67,8 +71,12 @@ function renderCards(now: number) {
     const state = states.get(card.task)!;
     const element = document.getElementById(`card-${card.task}`)!;
     const d = state.decision;
+    const review = card.lane === 'decoder';
+    const contextSeconds = card.context_seconds ?? 8;
+    const stale =
+      !!d && now - state.receivedAt > Math.max(2500, (card.cadence_seconds ?? 0.25) * 2000);
     element.classList.toggle('crossed', now - state.crossedAt < 650);
-    element.classList.toggle('stale', !!d && now - state.receivedAt > 2500);
+    element.classList.toggle('stale', stale);
     element.querySelector('.reading')!.textContent = !d
       ? '—'
       : card.kind === 'noul'
@@ -79,8 +87,23 @@ function renderCards(now: number) {
           ? scalar(d).toFixed(2)
           : String(d.value);
     element.querySelector('.card-latency')!.textContent = d
-      ? `${d.latency_ms.toFixed(0)} ms / model`
+      ? `${(d.window_latency_ms ?? d.latency_ms).toFixed(0)} ms / model`
       : 'awaiting audio';
+    element.querySelector('.card-interval')!.textContent = d
+      ? `UPDATE ${state.intervalMs === undefined ? '—' : `${state.intervalMs.toFixed(0)} ms`} / AGE ${((now - state.receivedAt) / 1000).toFixed(1)} s`
+      : review && active
+        ? `COLLECTING ${contextSeconds} s OF AUDIO`
+        : `${contextSeconds} s CONTEXT`;
+    element.querySelector('.card-window')!.textContent = d
+      ? `AUDIO ${(d.window_start_s ?? Math.max(0, d.window_end_s - contextSeconds)).toFixed(2)}–${d.window_end_s.toFixed(2)} s`
+      : review
+        ? `MIN PAUSE ${card.cadence_seconds ?? 2} s AFTER COMPLETION`
+        : 'EVERY ENCODER TICK';
+    element.querySelector('.review-progress')!.textContent = reviewsRunning.has(card.task)
+      ? 'COMPUTING / PREVIOUS RESULT RETAINED'
+      : review && contextSeconds > 8
+        ? 'UNVALIDATED CONTEXT'
+        : '';
     element.querySelector('.instrument')!.innerHTML = instrument(card, state, now);
     element.querySelectorAll('[data-option]').forEach((el, i) => {
       el.textContent = card.options[i];
@@ -89,7 +112,7 @@ function renderCards(now: number) {
       ? card.kind === 'choice'
         ? 'OPTION PROBABILITIES'
         : 'THRESHOLD / 0.50'
-      : now - state.receivedAt > 2500
+      : stale
         ? 'STALE / WAITING FOR MODEL'
         : card.kind === 'score'
           ? '5 SECOND TRAIL'
@@ -102,15 +125,31 @@ function renderCards(now: number) {
 }
 function makeCards() {
   $('#cards').replaceChildren();
+  $('#review-cards').replaceChildren();
+  $('#live-section').hidden = !config.cards.some((card) => card.lane !== 'decoder');
+  $('#review-section').hidden = !config.cards.some((card) => card.lane === 'decoder');
+  $('#review-notice').textContent =
+    config.review_seconds > 8
+      ? `${config.review_seconds} s audio context · UNVALIDATED beyond 8 s · separate from live signals`
+      : '8 s audio context · independently scheduled, not a live-update promise';
   config.cards.forEach((card, index) => {
     states.set(card.task, initialState());
     const el = document.createElement('article');
     el.id = `card-${card.task}`;
     el.className = 'card';
-    el.innerHTML = `<div class="card-top"><span class="number">${String(index + 1).padStart(2, '0')} / ${card.kind.toUpperCase()}</span><span class="badge">${card.uncalibrated ? 'UNCALIBRATED' : card.status === 'experimental' ? 'EXPERIMENTAL' : 'LIVE'}</span></div><h2></h2><div class="reading-row"><span class="reading">—</span><span class="card-latency">awaiting audio</span></div><div class="instrument"></div><div class="card-bottom"></div>`;
+    const review = card.lane === 'decoder';
+    const unvalidated = review && (card.context_seconds ?? 8) > 8;
+    const badge = unvalidated
+      ? 'UNVALIDATED WINDOW'
+      : card.status === 'experimental'
+        ? 'EXPERIMENTAL'
+        : review
+          ? 'BUFFERED'
+          : 'LIVE';
+    el.innerHTML = `<div class="card-top"><span class="number">${String(index + 1).padStart(2, '0')} / ${card.kind.toUpperCase()}</span><span class="badge">${badge}${card.uncalibrated ? ' / UNCALIBRATED' : ''}</span></div><h2></h2><div class="reading-row"><span class="reading">—</span><span class="card-latency">awaiting audio</span></div><div class="instrument"></div><div class="card-bottom"></div><div class="card-interval"></div><div class="card-window"></div><div class="review-progress"></div>`;
     el.title = card.evaluation ?? '';
     el.querySelector('h2')!.textContent = card.title;
-    $('#cards').append(el);
+    $(review ? '#review-cards' : '#cards').append(el);
   });
   renderCards(performance.now());
 }
@@ -149,10 +188,13 @@ function sendPcm(pcm: Int16Array, capturedAt: number) {
 }
 function armTimeout() {
   clearTimeout(timeout);
+  const seconds = config.cards.some((card) => card.lane !== 'decoder')
+    ? 30
+    : config.review_seconds + 60;
   timeout = setTimeout(() => {
-    status('Model timed out after 30 seconds. Restart the input.');
+    status(`Model timed out after ${seconds} seconds. Restart the input.`);
     void stop();
-  }, 30000);
+  }, seconds * 1000);
 }
 async function start(file?: File) {
   if (active || stopping) return;
@@ -162,6 +204,8 @@ async function start(file?: File) {
     active = true;
     sequence = 0;
     latency = [];
+    reviewsRunning.clear();
+    $('#review-p95').textContent = '—';
     amplitudes = [];
     transcriptEvents.clear();
     makeCards();
@@ -206,6 +250,9 @@ async function start(file?: File) {
         decision_interval_ms: number;
         coalesced_hops: number;
         decisions: Decision[];
+        lane: 'encoder' | 'decoder';
+        tasks: string[];
+        running: boolean;
       };
       if (data.type === 'error') {
         status(data.message ?? 'Inference error');
@@ -216,23 +263,41 @@ async function start(file?: File) {
         connection.close();
         return;
       }
-      if (active && !stopping) armTimeout();
+      if (data.type === 'review_status') {
+        for (const task of data.tasks) {
+          if (data.running) reviewsRunning.add(task);
+          else reviewsRunning.delete(task);
+        }
+        return;
+      }
+      if (data.type !== 'update') return;
+      const live = data.lane === 'encoder';
+      if (active && !stopping && (live || !config.cards.some((card) => card.lane !== 'decoder')))
+        armTimeout();
       const now = performance.now();
-      lastResult = now;
-      $('#dropped').textContent =
-        `${data.decision_interval_ms.toFixed(0)} ms decision interval / ${data.coalesced_hops} coalesced`;
+      if (live || !config.cards.some((card) => card.lane !== 'decoder')) lastResult = now;
+      if (live) {
+        $('#dropped').textContent =
+          `${data.decision_interval_ms.toFixed(0)} ms live interval / ${data.coalesced_hops} coalesced`;
+      }
       for (const d of data.decisions)
         if (states.has(d.task)) states.set(d.task, reduceCard(states.get(d.task)!, d, now));
       if (data.decisions.length)
         requestAnimationFrame(() => {
           renderCards(performance.now());
-          latency.push({ time: performance.now(), ms: performance.now() - data.captured_at_ms });
+          latency.push({
+            time: performance.now(),
+            ms: performance.now() - data.captured_at_ms,
+            lane: data.lane,
+          });
           latency = latency.filter((p) => p.time >= performance.now() - 60000);
-          $('#p95').textContent = (percentile(latency.map((p) => p.ms)) ?? 0).toFixed(0);
-          const miss = (percentile(latency.map((p) => p.ms)) ?? 0) > 300;
-          $('#target').textContent = miss
-            ? 'above 300 ms target / rolling 60 s'
-            : 'target ≤ 300 ms / rolling 60 s';
+          const p95 = percentile(latency.filter((p) => p.lane === data.lane).map((p) => p.ms));
+          $(live ? '#p95' : '#review-p95').textContent = (p95 ?? 0).toFixed(0);
+          if (live)
+            $('#target').textContent =
+              (p95 ?? 0) > 300
+                ? 'above 300 ms target / rolling 60 s'
+                : 'live target ≤ 300 ms / rolling 60 s';
         });
       if (active && !stopping)
         status(
@@ -337,6 +402,7 @@ async function stop(message?: string) {
     status('Transcript adapter did not finish cleanly.');
   }
   stt = undefined;
+  reviewsRunning.clear();
   $('#live-dot').classList.remove('active');
   $('#source-name').textContent = 'INPUT / STOPPED';
   $('#start').removeAttribute('disabled');
@@ -367,10 +433,14 @@ function paint(now: number) {
       $('#clock').textContent = `${Math.floor(seconds / 60)
         .toString()
         .padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
-      if (now - lastResult > 3000)
+      if (now - lastResult > 3000) {
+        const reviewOnly = !config.cards.some((card) => card.lane !== 'decoder');
         status(
-          'Waiting for the model / audio context is retained; inference runs on the latest window.',
+          reviewOnly && seconds < config.review_seconds
+            ? `Collecting ${config.review_seconds} seconds of audio for a buffered review.`
+            : 'Waiting for the model / audio context is retained; inference runs on the latest window.',
         );
+      }
     }
     const canvas = $<HTMLCanvasElement>('#wave');
     const ctx = canvas.getContext('2d')!;

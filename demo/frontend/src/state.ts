@@ -5,9 +5,12 @@ export interface Card {
   text: string;
   kind: Kind;
   options: string[];
-  status: 'validated' | 'experimental';
+  status: 'validated' | 'experimental' | 'unvalidated';
   evaluation?: string;
   uncalibrated?: boolean;
+  lane?: 'encoder' | 'decoder';
+  context_seconds?: number;
+  cadence_seconds?: number;
 }
 export interface Decision {
   task: string;
@@ -19,13 +22,16 @@ export interface Decision {
   score: number | null;
   threshold: number | null;
   window_end_s: number;
+  window_start_s?: number;
   latency_ms: number;
+  window_latency_ms?: number;
 }
 export interface CardState {
   decision?: Decision;
   trail: { time: number; value: number }[];
   crossedAt: number;
   receivedAt: number;
+  intervalMs?: number;
 }
 export const initialState = (): CardState => ({
   trail: [],
@@ -45,6 +51,7 @@ export function reduceCard(state: CardState, decision: Decision, now: number): C
   return {
     decision,
     receivedAt: now,
+    intervalMs: state.decision ? now - state.receivedAt : undefined,
     trail: [
       ...state.trail.filter((p) => p.time >= now - 5000),
       { time: now, value: scalar(decision) },

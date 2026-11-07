@@ -5,8 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from collections import OrderedDict
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .cards import available_cards, questions_for
 from .protocol import SAMPLE_RATE, decode_frame
+from .scheduler import Scheduler, cadence_settings, review_context
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +29,33 @@ def create_app(
     port: int = 8765,
     stt_config: dict[str, Any] | None = None,
     tasks: set[str] | None = None,
+    review_seconds: float = 8.0,
+    review_intervals: dict[str, float] | None = None,
 ) -> FastAPI:
+    review_seconds = review_context(review_seconds)
     cards = available_cards(model)
     if tasks is not None:
         cards = [card for card in cards if card.task in tasks]
     questions = questions_for(cards, question_class)
+    intervals = cadence_settings(review_intervals)
+    cards = [
+        replace(
+            card,
+            status="unvalidated"
+            if model.lane(question) == "decoder" and review_seconds > 8
+            else card.status,
+            lane=model.lane(question),
+            context_seconds=review_seconds
+            if model.lane(question) == "decoder"
+            else 8.0,
+            cadence_seconds=intervals.get(card.task, 2.0)
+            if model.lane(question) == "decoder"
+            else 0.25,
+        )
+        for card, question in zip(cards, questions, strict=True)
+    ]
+    if set(intervals) - {card.task for card in cards if card.lane == "decoder"}:
+        raise ValueError("Review intervals must name selected decoder tasks.")
     hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
     origins = {f"http://{host}" for host in hosts}
     busy = asyncio.Lock()
@@ -64,6 +86,7 @@ def create_app(
             "sample_rate": SAMPLE_RATE,
             "hop_seconds": 0.25,
             "window_seconds": 8,
+            "review_seconds": review_seconds,
             "stt": (local / "stt_adapter.js").is_file(),
         }
 
@@ -97,11 +120,8 @@ def create_app(
             return
         async with busy:
             readers: list[asyncio.Task] = []
-            finished = False
             connected = True
-            aborted = False
-            changed = asyncio.Event()
-            captures: OrderedDict[float, tuple[int, float]] = OrderedDict()
+            scheduler: Scheduler | None = None
             send_lock = asyncio.Lock()
 
             async def send(data):
@@ -109,18 +129,17 @@ def create_app(
                     await socket.send_json(data)
 
             try:
-                stream = model.stream(
+                scheduler = Scheduler(
+                    model,
                     questions,
-                    window_seconds=8.0,
-                    hop_seconds=0.25,
-                    sample_rate=SAMPLE_RATE,
-                    coalesce=True,
+                    send,
+                    review_seconds=review_seconds,
+                    intervals=intervals,
                 )
 
                 async def receive():
-                    nonlocal finished, connected
+                    nonlocal connected
                     previous = -1
-                    count = 0
                     try:
                         while True:
                             message = await socket.receive()
@@ -135,64 +154,14 @@ def create_app(
                             if frame.sequence != previous + 1:
                                 raise ValueError("Audio sequence must be continuous.")
                             previous = frame.sequence
-                            count += 1
-                            captures[count * 0.25] = (
-                                frame.sequence,
-                                frame.captured_at_ms,
-                            )
-                            if len(captures) > 128:
-                                captures.popitem(last=False)
-                            stream.ingest(frame.pcm)
-                            changed.set()
+                            scheduler.ingest(frame)
                     finally:
-                        finished = True
-                        changed.set()
-
-                async def decide():
-                    previous_end = 0.0
-                    coalesced = 0
-                    while True:
-                        await changed.wait()
-                        changed.clear()
-                        if aborted or not connected:
-                            return
-                        if not captures or next(reversed(captures)) <= previous_end:
-                            if finished:
-                                return
-                            continue
-                        update = (
-                            await asyncio.to_thread(stream.decide) if captures else None
-                        )
-                        if aborted or not connected:
-                            return
-                        if update is not None:
-                            capture = captures.get(round(update.window_end_s, 6))
-                            if capture is None:
-                                raise RuntimeError(
-                                    "Inference exceeded capture timestamp history."
-                                )
-                            sequence, timestamp = capture
-                            interval = update.window_end_s - previous_end
-                            coalesced += max(0, round(interval / 0.25) - 1)
-                            previous_end = update.window_end_s
-                            await send(
-                                {
-                                    "type": "update",
-                                    "sequence": sequence,
-                                    "captured_at_ms": timestamp,
-                                    "decision_interval_ms": interval * 1000,
-                                    "coalesced_hops": coalesced,
-                                    "decisions": [
-                                        d.to_dict() for d in update.decisions
-                                    ],
-                                }
-                            )
-                        if finished and not changed.is_set():
-                            return
+                        scheduler.finish(aborted=not connected)
 
                 readers = [
                     asyncio.create_task(receive()),
-                    asyncio.create_task(decide()),
+                    asyncio.create_task(scheduler.live()),
+                    asyncio.create_task(scheduler.review()),
                 ]
                 done, _ = await asyncio.wait(
                     readers, return_when=asyncio.FIRST_COMPLETED
@@ -206,13 +175,15 @@ def create_app(
             except WebSocketDisconnect:
                 pass
             except (ValueError, TypeError, KeyError):
-                aborted = True
+                if scheduler:
+                    scheduler.finish(aborted=True)
                 await send(
                     {"type": "error", "message": "Invalid audio protocol message."}
                 )
                 await socket.close(code=1003)
             except RuntimeError as error:
-                aborted = True
+                if scheduler:
+                    scheduler.finish(aborted=True)
                 logger.error("Inference failure: %s", type(error).__name__)
                 await send(
                     {
@@ -222,9 +193,8 @@ def create_app(
                 )
                 await socket.close(code=1011)
             finally:
-                aborted = True
-                finished = True
-                changed.set()
+                if scheduler:
+                    scheduler.finish(aborted=True)
                 if readers:
                     readers[0].cancel()
                     await asyncio.gather(*readers, return_exceptions=True)

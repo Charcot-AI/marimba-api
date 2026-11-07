@@ -33,6 +33,13 @@ describe('card state', () => {
     const first = reduceCard(initialState(), decision(0.1, 20), 100);
     expect(reduceCard(first, decision(0.8, 20), 200)).toBe(first);
   });
+  it('measures each card update interval without treating another lane as stale', () => {
+    const live = reduceCard(initialState(), decision(0.1, 20), 100);
+    const review = reduceCard(initialState(), { ...decision(0.8, 8), task: 'term' }, 250);
+    expect(review.decision?.window_end_s).toBe(8);
+    expect(live.intervalMs).toBeUndefined();
+    expect(reduceCard(live, decision(0.2, 21), 700).intervalMs).toBe(600);
+  });
   it('does not interpret choice probabilities as binary crossings', () => {
     const first = reduceCard(initialState(), { ...decision(0.1), kind: 'choice' }, 100);
     expect(reduceCard(first, { ...decision(0.8, 2), kind: 'choice' }, 200).crossedAt).toBe(

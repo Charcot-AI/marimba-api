@@ -10,7 +10,21 @@ from pathlib import Path
 
 import uvicorn
 
+from .scheduler import cadence_settings, review_context
 from .server import create_app
+
+
+def parse_intervals(value: str) -> dict[str, float]:
+    try:
+        pairs = [item.split("=") for item in value.split(",")]
+        values = {task: float(interval) for task, interval in pairs}
+        if len(values) != len(pairs):
+            raise ValueError("Duplicate tasks.")
+        return cadence_settings(values)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(
+            "Use task=seconds pairs, each at least 0.25 seconds."
+        ) from error
 
 
 def main() -> None:
@@ -21,6 +35,17 @@ def main() -> None:
     parser.add_argument("--backend", default="auto")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--no-open", action="store_true")
+    parser.add_argument(
+        "--review-window",
+        type=review_context,
+        default=8.0,
+        help="Buffered review context, 8–30 seconds; above 8 is unvalidated",
+    )
+    parser.add_argument(
+        "--review-intervals",
+        type=parse_intervals,
+        help="Per-card minimum pause after completion, e.g. language=2,term=4",
+    )
     parser.add_argument(
         "--tasks",
         help="Comma-separated supported tasks; defaults to all available cards",
@@ -68,6 +93,8 @@ def main() -> None:
         port=args.port,
         stt_config=json.loads(os.environ.get("MARIMBA_STT_CONFIG", "{}")),
         tasks=set(args.tasks.split(",")) if args.tasks else None,
+        review_seconds=args.review_window,
+        review_intervals=args.review_intervals,
     )
     if not args.no_open:
         threading.Timer(

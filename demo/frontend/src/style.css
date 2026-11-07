@@ -269,6 +269,52 @@ h2 {
   color: var(--muted);
   white-space: nowrap;
 }
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  font:
+    10px Mono,
+    monospace;
+  color: var(--muted);
+}
+.section-heading .eyebrow {
+  color: var(--ink);
+}
+.section-heading p {
+  margin: 10px 0 0;
+}
+.live-cards {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+#review-section {
+  margin-top: 30px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.review-cards {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 0;
+  gap: 20px;
+}
+.review-cards .card {
+  border: 1px solid var(--line);
+}
+.card-interval,
+.card-window,
+.review-progress {
+  font:
+    8px Mono,
+    monospace;
+  color: var(--muted);
+  margin-top: 10px;
+}
+.review-progress {
+  min-height: 10px;
+  color: var(--ink);
+}
 .instrument {
   height: 83px;
   margin-top: 8px;
@@ -484,5 +530,14 @@ a {
 @media (prefers-reduced-motion: reduce) {
   .vu-track i {
     transition: none;
+  }
+}
+@media (max-width: 520px) {
+  .cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .section-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

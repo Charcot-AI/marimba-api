@@ -14,6 +14,9 @@ class Card:
     status: str = "unavailable"
     evaluation: str = ""
     uncalibrated: bool = False
+    lane: str = "encoder"
+    context_seconds: float = 8.0
+    cadence_seconds: float = 0.25
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

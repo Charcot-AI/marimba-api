@@ -44,6 +44,7 @@ class ProtocolModel:
         self.sessions += 1
         assert kwargs == {
             "window_seconds": 8.0,
+            "context_seconds": 8.0,
             "hop_seconds": 0.25,
             "sample_rate": 16000,
             "coalesce": True,
@@ -52,6 +53,19 @@ class ProtocolModel:
         self.streams.append(stream)
         self.created.set()
         return stream
+
+    def lane(self, question):
+        return "encoder"
+
+    def encode(self, snapshot):
+        stream = snapshot.stream
+        stream.decide_calls += 1
+        stream.started.set()
+        assert stream.release.wait(5)
+        return SimpleNamespace(snapshot=snapshot, encoder_latency_ms=0.0)
+
+    def decide_encoded(self, encoded, questions):
+        return []
 
 
 class ProtocolStream:
@@ -83,6 +97,16 @@ class ProtocolStream:
         self.started.set()
         assert self.release.wait(5)
         return SimpleNamespace(window_end_s=count * 0.25, decisions=[])
+
+    def snapshot(self, seconds=None):
+        with self.lock:
+            if not self.count:
+                return None
+            return SimpleNamespace(
+                stream=self,
+                window_start_s=max(0, self.count * 0.25 - (seconds or 8)),
+                window_end_s=self.count * 0.25,
+            )
 
 
 @pytest.fixture
@@ -128,6 +152,26 @@ def test_capability_gating(client):
     assert client.get("/local/stt_adapter.js").status_code == 404
 
 
+def test_long_context_is_excluded_from_validated_cards(tmp_path):
+    model = ProtocolModel()
+    model.capabilities = {
+        "term": SimpleNamespace(
+            status="validated", kinds=("noul",), evaluation="Raw n-best; UNCALIBRATED"
+        )
+    }
+    model.lane = lambda question: "decoder"
+    (tmp_path / "index.html").write_text("<title>Test</title>")
+    app = create_app(
+        model, Question, static=tmp_path, local=tmp_path, review_seconds=30
+    )
+    with TestClient(app, headers={"host": "127.0.0.1:8765"}) as client:
+        card = client.get("/api/config").json()["cards"][0]
+    assert card["status"] == "unvalidated"
+    assert card["context_seconds"] == 30
+    assert card["uncalibrated"] is True
+    assert card["lane"] == "decoder"
+
+
 def test_host_and_origin_protection(client):
     client, _ = client
     assert (
@@ -160,6 +204,7 @@ def test_decision_echoes_its_capture_timestamp(client):
         socket.send_bytes(frame())
         assert socket.receive_json() == {
             "type": "update",
+            "lane": "encoder",
             "sequence": 0,
             "captured_at_ms": 100.0,
             "decision_interval_ms": 250.0,
@@ -286,6 +331,23 @@ def test_malformed_pcm_closes_socket(client):
         assert error.value.code == 1003
 
 
+def test_model_validation_error_is_not_reported_as_invalid_audio(client):
+    client, model = client
+
+    def fail(snapshot):
+        raise ValueError("Synthetic model failure")
+
+    model.encode = fail
+    with client.websocket_connect(
+        "/api/stream", headers={"origin": "http://127.0.0.1:8765"}
+    ) as socket:
+        socket.send_bytes(frame())
+        assert socket.receive_json()["message"].startswith("Inference failed.")
+        with pytest.raises(WebSocketDisconnect) as error:
+            socket.receive_json()
+        assert error.value.code == 1011
+
+
 def test_transcript_config_is_not_embedded_in_public_bundle(client):
     client, _ = client
     response = client.get("/api/local-config")
@@ -297,6 +359,8 @@ def test_transcript_config_is_not_embedded_in_public_bundle(client):
 
 def test_real_contract_serialization_when_package_installed(tmp_path):
     package = pytest.importorskip("marimba")
+    if not hasattr(package.Marimba, "encode"):
+        pytest.skip("Split-lane inference API is not installed yet")
     testing = pytest.importorskip("marimba.testing")
     (tmp_path / "index.html").write_text("<title>Test</title>")
     app = create_app(

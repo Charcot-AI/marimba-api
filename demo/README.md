@@ -2,9 +2,9 @@
 
 A loopback-only app for microphone or file audio, with parallel decision cards.
 The browser sends mono PCM16 at 16 kHz; the server calls the inference package's
-`model.stream(questions, window_seconds=8, hop_seconds=0.25, sample_rate=16000,
-coalesce=True)`. Its cheap `ingest()` retains every packet in the ring buffer;
-`decide()` snapshots the latest window and runs inference in a worker thread.
+`model.stream(questions, window_seconds=8, context_seconds=review_window,
+hop_seconds=0.25, sample_rate=16000, coalesce=True)`. Cheap `ingest()` retains every
+packet; independent workers score live snapshots and buffered reviews.
 It does not save audio or transcripts. A user-installed transcript adapter can
 send audio to another service; check that service's retention policy separately.
 
@@ -51,8 +51,40 @@ CPU fallback as an Apple GPU result. `--no-open` suppresses opening the browser;
 Click **Start microphone** or **Open audio**. File audio is played audibly and paced
 in real time; it is decoded locally and sent through the same worklet and socket.
 Use headphones to avoid recording playback back into the microphone. Stop retains
-the last decisions, which dim after 2.5 seconds without a new result. Restart clears
+the last decisions, which dim when stale (2.5 s or twice the review pause). Restart clears
 the previous session, its trail, and timing samples. Inputs are not auto-reconnected.
+
+## Live signals and buffered reviews
+
+The **Live signals** grid contains encoder-lane cards only. Each encoder tick
+scores the latest eight-second window with `encode()` and `decide_encoded()`.
+Decoder work runs independently through `decide_snapshot()`; it must not hold the
+encoder/head lock. One review batch runs at a time, coalescing to the latest audio
+instead of building a backlog. Language and term questions due together share a
+snapshot and the decoder's audio prefix where the package supports it.
+
+The separate **Buffered reviews** section retains older results while computing,
+shows each card's observed update interval, result age, exact audio span and its
+own model timing. Its p95 is separate from the live target. A minimum pause after
+each card completes is configurable; this is not a promise of that update rate:
+
+```sh
+uv run --project demo --no-sync marimba-demo \
+  --review-window 8 --review-intervals language=2,term=4
+```
+
+`--review-window` accepts 8–30 seconds, subject to the inference package's context
+limit. Reviews wait until that much audio has actually accumulated. The eight-second
+context remains the validated workload. Larger contexts are opt-in experiments,
+visibly **UNVALIDATED WINDOW**; their cards/results are not labelled validated and
+are outside the live grid. Successful execution is not an accuracy validation.
+Do not claim that a longer buffer improves language or term detection without a
+matched public-validation evaluation. Same-speaker remains experimental: it scores
+a single window, not identity against a reference voice.
+
+The package must expose `snapshot`, `encode`, `decide_encoded`, `decide_snapshot`
+and `lane` for this split scheduling. Stop/disconnect discards further results;
+the current model call may need to finish before another session acquires the model.
 
 ## Cards and visual language
 
@@ -85,21 +117,28 @@ IBM Plex, thin geometry, a grid, black/white or warm white, no bold, shadows or 
 
 ## Timing: measure on your own machine
 
-There are two different measurements. Do not compare them as if they were the same:
+These measurements have different boundaries:
 
-- **Per-card model ms:** the package's wall-clock hop inference duration, including
-  encoder, heads, lexical lane and accelerator synchronization. Capture, resampling,
-  socket round trip and rendering are excluded. Parallel cards may share this number.
-- **Capture → render p95:** nearest-rank p95 over the last 60 seconds of received
-  decision updates. It includes the 250 ms packetization interval, socket round trip,
+- **Per-card model ms:** server-observed wall time around the relevant encoder and
+  lane call, including the package's accelerator synchronization, but excluding
+  capture, transport and paint. Cards in one batch may share the number. The
+  package's additive APIs separately report lane-only `Decision.latency_ms`; the
+  demo's `window_latency_ms` includes the relevant encoder, avoiding a head-only
+  timing being presented as the whole model duration.
+- **Live capture → render p95:** nearest-rank p95 over the last 60 seconds of live
+  updates only. It includes the 250 ms packetization interval, socket round trip,
   inference and next animation frame. Capture start is estimated from the worklet
   audio timestamp minus 250 ms; microphone hardware/OS buffering is not directly measured.
   Worklet delivery is mapped to the AudioContext timeline, so main-thread queueing
   is included. This is an app-observed estimate, not a hardware-loopback acoustic measurement.
+- **Review window end → render p95:** the same capture-packet estimate for buffered
+  review updates only. It excludes collecting the preceding 8–30 s context; the
+  exact audio span and context length are shown separately. It is not subject to
+  the live ≤300 ms target.
 
 The ≤300 ms end-to-end target is a target, not a guarantee. A missed target is
 labelled explicitly. Startup/model download is excluded; allow several warmup hops.
-Only one inference call runs at a time. Audio ingest continues while it computes,
+One live worker and one review worker run independently. Audio ingest continues,
 so slow inference never repeatedly resets the context or concatenates separated
 audio as if continuous. The footer reports the actual spacing of scored windows
 and counts coalesced decision ticks, not dropped input. There is no promise of a
@@ -108,10 +147,14 @@ up, the app stops explicitly instead of silently losing audio. A missing or
 duplicate sequence closes the session. Socket queues and timestamp history are bounded.
 
 For a lower-load CPU subset without lexical decoding, start with
-`marimba-demo --device cpu --tasks turn_end,language` (using the
+`marimba-demo --device cpu --tasks turn_end,voice_activity` (using the
 same `uv run --project demo --no-sync` prefix). Unsupported tasks are still
 omitted. This changes the workload; do not compare its timing to a full-grid run
 without listing the different questions.
+Add `same_speaker` only if an explicitly experimental single-window output is useful.
+Language and term both use the slower decoder; removing term alone does not make
+language cheap. Choose thread counts/backends from measured results, not assumptions;
+do not substitute quantized or alternate-runtime variants without parity validation.
 
 For the package's isolated model-hop benchmark, use its CLI in this environment:
 
@@ -166,6 +209,9 @@ python3 scripts/check_public.py
 The server protocol tests use a contract double, not a live demo model. Frontend
 unit tests cover threshold crossing, five-second trails, out-of-order/duplicate
 updates, p95 and binary encoding. No fake-model launcher is shipped.
+Scheduler tests block a synthetic decoder while live windows advance, verify
+bounded work and preserved capture provenance beyond timestamp-history eviction,
+and require the full longer context before the first buffered review.
 
 For an installable wheel, run the frontend build before `uv build --project demo`.
 The wheel includes the built frontend; users then need only Python and the
