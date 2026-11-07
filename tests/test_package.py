@@ -136,7 +136,7 @@ def test_stream_invariance(chunk_size):
         expected = model(audio[start:end], questions, 16000)[0]
         assert update.decisions[0].probability == expected.probability
         assert json.loads(json.dumps(update.to_dict())) == update.to_dict()
-    assert stream.buffer.size == 8000
+    assert stream.buffer.size == 128000
 
 
 def test_stream_int16_and_errors():

@@ -178,7 +178,7 @@ class SpeechReadout:
         with torch.inference_mode():
             self.option = self.model.text_options(ids.to(device), mask.to(device))
         self.option_mask = mask.to(device)
-        self.question_features = lru_cache(maxsize=128)(self._question_features)
+        self.question_features = self._question_features
 
     def _question_features(self, text: str) -> tuple[Tensor, Tensor]:
         encoded = self.tokenizer([text])

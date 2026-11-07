@@ -4,20 +4,55 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import replace
+from threading import RLock
 from time import perf_counter
-from typing import Any
+from typing import Any, Literal
 
 from .audio import SAMPLE_RATE, AudioArray, Mask, decode_audio, right_aligned_window
 from .capabilities import DEFAULT_CAPABILITIES, Capability
 from .decision import Decision
-from .questions import Question
+from .questions import Question, UnsupportedQuestion
 from .runtime import RuntimeInfo, select_backend, synchronize
 from .stream import Stream
+from .windows import MAX_DECODER_SECONDS, EncodedWindow, WindowSnapshot
 
 
 class Marimba:
     def __init__(self, runtime: RuntimeInfo | None = None) -> None:
         self.runtime = runtime if runtime is not None else select_backend()
+        self._encoder_lock = RLock()
+        self._decoder_lock = RLock()
+
+    def lane(self, question: Question) -> Literal["encoder", "decoder"]:
+        if question.task not in self.capabilities:
+            raise UnsupportedQuestion(f"Unsupported task {question.task!r}")
+        return "decoder" if question.task in ("language", "term") else "encoder"
+
+    def _encode_snapshot(self, snapshot: WindowSnapshot) -> EncodedWindow:
+        raise NotImplementedError("Implement snapshot encoding in a model backend")
+
+    def encode(self, snapshot: WindowSnapshot) -> EncodedWindow:
+        if len(snapshot.audio) != 128000:
+            raise ValueError("Encoder lanes require exactly an eight-second snapshot")
+        return self._encode_snapshot(snapshot)
+
+    def decide_encoded(
+        self, encoded: EncodedWindow, questions: Sequence[Question]
+    ) -> list[Decision]:
+        raise NotImplementedError("Implement encoded decisions in a model backend")
+
+    def decide_snapshot(
+        self, snapshot: WindowSnapshot, questions: Sequence[Question]
+    ) -> list[Decision]:
+        if any(self.lane(question) != "decoder" for question in questions):
+            raise ValueError("decide_snapshot accepts decoder questions only")
+        if not 0 < snapshot.seconds <= MAX_DECODER_SECONDS or not snapshot.mask.any():
+            raise ValueError(
+                f"Decoder snapshots must contain audio and be <= {MAX_DECODER_SECONDS} seconds"
+            )
+        if not questions:
+            return []
+        return self.decide_encoded(self._encode_snapshot(snapshot), questions)
 
     @classmethod
     def from_pretrained(
@@ -87,5 +122,18 @@ class Marimba:
         hop_seconds: float = 0.25,
         sample_rate: int = 16000,
         coalesce: bool = False,
+        context_seconds: float = 8.0,
+        decoder_hop_seconds: float | None = None,
+        decoder_context_seconds: float | None = None,
     ) -> Stream:
-        return Stream(self, list(questions), window_seconds, hop_seconds, sample_rate, coalesce)
+        return Stream(
+            self,
+            list(questions),
+            window_seconds,
+            hop_seconds,
+            sample_rate,
+            coalesce,
+            context_seconds,
+            decoder_hop_seconds,
+            decoder_context_seconds,
+        )

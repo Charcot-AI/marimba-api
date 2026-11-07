@@ -51,7 +51,7 @@ def test_coalesce_latest_due_hop_retains_context():
     assert final.window_end_s == 19000 / 16000
     assert final.decisions[0].probability == regular.flush()[0].decisions[0].probability
     assert coalesced.flush() == []
-    assert coalesced.buffer.size == 8000
+    assert coalesced.buffer.size == 128000
 
 
 def test_coalesce_waits_for_hop():

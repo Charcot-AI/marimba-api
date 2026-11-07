@@ -1,12 +1,14 @@
 import hashlib
 import json
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from threading import Event
 
 import numpy as np
 import pytest
 
-from marimba import Marimba, Question, RuntimeInfo, UnsupportedQuestion
+from marimba import Marimba, Question, RuntimeInfo, UnsupportedQuestion, WindowSnapshot
 from marimba.audio import right_aligned_window
 from marimba.lexical import exact_fraction, normalize
 from marimba.pretrained import PretrainedMarimba
@@ -20,21 +22,27 @@ class StubEngine:
 
     def encode(self, window):
         self.calls.append("encode")
-        return object()
+        return {
+            "features": {
+                9: np.zeros((100, 2), dtype=np.float32),
+                18: np.zeros((100, 2), dtype=np.float32),
+            },
+            "audio_features": np.zeros((100, 2), dtype=np.float32),
+        }
 
-    def turn_end(self, mask):
+    def turn_end(self, features, mask):
         self.calls.append("turn_end")
         return 0.6, 0.7
 
-    def hypotheses(self, encoded):
+    def hypotheses(self, encoded, prefix=None):
         self.calls.append("hypotheses")
         return ["Hello world"] * 4 + ["World"]
 
-    def language_scores(self, encoded, options):
+    def language_scores(self, encoded, options, prefix=None):
         self.calls.append("language")
         return {option: -float(index + 1) for index, option in enumerate(options)}
 
-    def head_score(self, mask, text):
+    def head_score(self, features, mask, text):
         self.calls.append("head")
         return 2.0
 
@@ -136,6 +144,37 @@ def test_encoder_failure_propagates(model, monkeypatch):
     monkeypatch.setattr(model._engine, "encode", fail)
     with pytest.raises(RuntimeError, match="synthetic backend"):
         model(np.zeros(1, dtype=np.float32), [Question.score("Has the speaker finished?")], 16000)
+
+
+def test_pretrained_split_locks_and_owned_features(model, monkeypatch):
+    entered, release = Event(), Event()
+    term = Question.noul('Did someone say "hello"?')
+    turn = Question.score("Has the speaker finished?")
+    snapshot = WindowSnapshot(np.ones(128000, dtype=np.float32), np.ones(128000, dtype=bool), 0, 8)
+    encoded = model.encode(snapshot)
+    previous = encoded.l18.copy()
+    original = model._engine.hypotheses
+
+    def slow(*args, **kwargs):
+        entered.set()
+        assert release.wait(5)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(model._engine, "hypotheses", slow)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        decoder = pool.submit(model.decide_encoded, encoded, [term])
+        try:
+            assert entered.wait(5)
+
+            def encoder_work():
+                return model.decide_encoded(model.encode(snapshot), [turn])
+
+            assert pool.submit(encoder_work).result(1)[0].probability == 0.7
+            np.testing.assert_array_equal(encoded.l18, previous)
+            assert not decoder.done()
+        finally:
+            release.set()
+        assert decoder.result(5)[0].probability == 0.8
 
 
 def test_lexical_normalization():

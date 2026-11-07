@@ -94,10 +94,14 @@ Speaker-change, speaker-count, and audio-class remain `unavailable`, with decisi
 values/probabilities set to `None`. They do not receive synthetic fallback predictions.
 Empty real-model audio raises an error; silence with valid samples is supported.
 
-`marimba bench --questions 4 --backend torch --device cpu` benchmarks one turn-end question,
-one five-language choice, and two shared-decoder term questions on synthetic silence.
-Higher question counts repeat that workload. Warmup and model loading are excluded.
-Instances serialize inference because decoder state and layer taps are shared internally.
+`marimba bench --per-question --audio public_speech.wav --json bench.json` measures
+the five available demo cards, each card alone, and the encoder. Warmup and model
+loading are excluded. Language options are `en`, `pt`, and `es`.
+
+See [lane scheduling and long context](docs/scheduling.md) for immutable snapshots,
+reusable encoded windows, independent encoder/decoder locks, decoder cadence,
+and contexts up to `MAX_DECODER_SECONDS`. Direct lane APIs report lane-only
+decision latency; `model()` and stream updates retain total-window latency.
 Real-model tests require authentication/downloads and are excluded by default; run them
 explicitly with `uv run pytest -m real_model`.
 
