@@ -24,9 +24,9 @@ app.innerHTML = `<div class="shell"><header><a class="brand" href="https://charc
 <section class="intro"><div><p class="eyebrow">AUDIO → TYPED DECISIONS</p><h1>Listen. Decide. Repeat.</h1><p class="subtitle">One audio stream. Parallel questions. Continuous answers.</p></div><div class="latency"><span class="eyebrow">CAPTURE → RENDER · P95</span><div><span id="p95">—</span><span class="unit">ms</span></div><span id="target">target ≤ 300 ms / rolling 60 s</span></div></section>
 <section class="source" aria-label="Audio input"><div class="source-label"><span id="live-dot"></span><span id="source-name">INPUT / IDLE</span></div><canvas id="wave" width="720" height="72" aria-label="Live audio amplitude"></canvas><span id="clock">00:00</span><label class="file-button">Open audio<input type="file" id="file" accept="audio/*"></label><button id="start" class="primary">Start microphone ↗</button><button id="stop" disabled>Stop ■</button></section>
 <p id="status" role="status">Loading local model capabilities…</p>
-<section id="live-section"><div class="section-heading"><span class="eyebrow">LIVE SIGNALS</span><span>8 s rolling context / every encoder tick</span></div><div id="cards" class="cards live-cards" aria-label="Live decision cards"></div></section>
+<div id="decision-groups"><section id="live-section"><div class="section-heading"><span class="eyebrow">LIVE SIGNALS</span><span>8 s rolling context / every encoder tick</span></div><div id="cards" class="cards live-cards" aria-label="Live decision cards"></div></section>
 <section id="review-section" hidden><div class="section-heading"><div><span class="eyebrow">BUFFERED REVIEWS</span><p id="review-notice"></p></div><div class="review-timing">WINDOW END → RENDER · P95 <span id="review-p95">—</span> ms</div></div><div id="review-cards" class="cards review-cards" aria-label="Buffered audio reviews"></div></section>
-<section id="transcript" class="transcript" hidden><div class="eyebrow">LIVE TRANSCRIPT / OPTIONAL ADAPTER</div><p id="words" aria-live="polite"></p></section>
+</div><section id="transcript" class="transcript" hidden><div class="eyebrow">LIVE TRANSCRIPT / OPTIONAL ADAPTER</div><p id="words" aria-live="polite"></p></section>
 <footer><span id="runtime">LOCAL INFERENCE</span><span>8 s window / 250 ms ingest</span><span id="dropped">0 coalesced decisions</span><span>Audio is not saved locally.</span></footer></div>`;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) =>
   document.querySelector<T>(selector)!;
@@ -128,6 +128,10 @@ function makeCards() {
   $('#review-cards').replaceChildren();
   $('#live-section').hidden = !config.cards.some((card) => card.lane !== 'decoder');
   $('#review-section').hidden = !config.cards.some((card) => card.lane === 'decoder');
+  $('#decision-groups').classList.toggle(
+    'single-group',
+    $('#live-section').hidden || $('#review-section').hidden,
+  );
   $('#review-notice').textContent =
     config.review_seconds > 8
       ? `${config.review_seconds} s audio context · UNVALIDATED beyond 8 s · separate from live signals`
