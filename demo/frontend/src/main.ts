@@ -4,7 +4,9 @@ import { instrument } from './instruments';
 import {
   encodeFrame,
   initialState,
+  PACKET_DURATION_MS,
   percentile,
+  renderLatency,
   reduceCard,
   scalar,
   type Card,
@@ -287,13 +289,16 @@ async function start(file?: File) {
       }
       for (const d of data.decisions)
         if (states.has(d.task))
-          states.set(d.task, reduceCard(states.get(d.task)!, d, now, data.captured_at_ms + 250));
+          states.set(
+            d.task,
+            reduceCard(states.get(d.task)!, d, now, data.captured_at_ms + PACKET_DURATION_MS),
+          );
       if (data.decisions.length)
         requestAnimationFrame(() => {
           renderCards(performance.now());
           latency.push({
             time: performance.now(),
-            ms: performance.now() - data.captured_at_ms,
+            ms: renderLatency(data.captured_at_ms, performance.now(), data.lane),
             lane: data.lane,
           });
           latency = latency.filter((p) => p.time >= performance.now() - 60000);

@@ -89,10 +89,22 @@ Do not claim that a longer buffer improves language or term detection without a
 matched public-validation evaluation. Same-speaker remains experimental: it scores
 a single window, not identity against a reference voice.
 
+A controlled check used nine 30-second same-language sequences (English, Portuguese
+and Spanish) built from the [FLEURS validation split](https://huggingface.co/datasets/google/fleurs)
+(CC BY 4.0, dataset revision `70bb2e84b976b7e960aa89f1c648e09c59f894dd`,
+converted-Parquet revision `168de341b3db6859a9bac1c50a2ef5e3b47647e0`).
+Language was correct on 9/9 sequences at each of 8, 16 and 30 seconds. All nine
+early terms scored 0 outside the 8/16-second controls and 1 inside the 30-second
+context. At the raw-support threshold of 0.5, present-term hits were 8/9, 8/9 and
+18/18, respectively; no absent term crossed it. These paired checks are too small
+for release validation or calibration. Speaker identity is unverified, possibly
+mixed; the sequences were not used for speaker metrics.
+
 The package must expose `snapshot`, `encode`, `decide_encoded`, `decide_snapshot`
-and `lane` for this split scheduling. Stop/disconnect discards further results;
+and `lane` for this split scheduling. Disconnect/abort discards further results;
 the current model call may need to finish before another session acquires the model.
-Stop ends capture immediately, then keeps the controls disabled while current work
+Graceful Stop may retain a final in-flight result. It ends capture immediately,
+then keeps the controls disabled while current work
 drains (bounded to 30–90 s). Transcription flushes independently. A forced disconnect
 does not cancel an in-flight model call; wait or restart the server if it remains busy.
 The card's **RECEIVED** age is time since delivery; **AUDIO AGE** starts at the
@@ -143,8 +155,9 @@ These measurements have different boundaries:
   audio timestamp minus 250 ms; microphone hardware/OS buffering is not directly measured.
   Worklet delivery is mapped to the AudioContext timeline, so main-thread queueing
   is included. This is an app-observed estimate, not a hardware-loopback acoustic measurement.
-- **Review window end → render p95:** the same capture-packet estimate for buffered
-  review updates only. It excludes collecting the preceding 8–30 s context; the
+- **Review window end → render p95:** starts at the estimated end of the captured
+  packet (capture-start timestamp plus 250 ms), for buffered review updates only.
+  It excludes packetization and collecting the preceding 8–30 s context; the
   exact audio span and context length are shown separately. It is not subject to
   the live ≤300 ms target.
 

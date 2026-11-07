@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { encodeFrame, initialState, percentile, reduceCard, type Decision } from './state';
+import {
+  encodeFrame,
+  initialState,
+  percentile,
+  reduceCard,
+  renderLatency,
+  type Decision,
+} from './state';
 
 const decision = (p: number, end = 1): Decision => ({
   task: 'voice_activity',
@@ -53,6 +60,13 @@ describe('card state', () => {
   });
 });
 describe('latency and wire format', () => {
+  it('measures live latency from capture start and reviews from the packet endpoint', () => {
+    expect(renderLatency(1000, 36000, 'encoder')).toBe(35000);
+    expect(renderLatency(1000, 36000, 'decoder')).toBe(34750);
+  });
+  it('does not display a negative duration if estimated capture time is ahead', () => {
+    expect(renderLatency(1000, 1240, 'decoder')).toBe(0);
+  });
   it('uses nearest rank p95 without inventing empty measurements', () => {
     expect(percentile([])).toBeNull();
     expect(percentile(Array.from({ length: 20 }, (_, i) => i + 1))).toBe(19);

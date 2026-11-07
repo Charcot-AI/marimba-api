@@ -1,4 +1,5 @@
 export type Kind = 'noul' | 'score' | 'choice';
+export const PACKET_DURATION_MS = 250;
 export interface Card {
   task: string;
   title: string;
@@ -69,6 +70,14 @@ export function reduceCard(
 export function percentile(values: number[], fraction = 0.95): number | null {
   if (!values.length) return null;
   return [...values].sort((a, b) => a - b)[Math.max(0, Math.ceil(values.length * fraction) - 1)];
+}
+export function renderLatency(
+  capturedAt: number,
+  renderedAt: number,
+  lane: 'encoder' | 'decoder',
+): number {
+  const origin = capturedAt + (lane === 'decoder' ? PACKET_DURATION_MS : 0);
+  return Math.max(0, renderedAt - origin);
 }
 export function encodeFrame(pcm: Int16Array, sequence: number, capturedAt: number): ArrayBuffer {
   const buffer = new ArrayBuffer(12 + pcm.length * 2);
