@@ -92,6 +92,11 @@ a single window, not identity against a reference voice.
 The package must expose `snapshot`, `encode`, `decide_encoded`, `decide_snapshot`
 and `lane` for this split scheduling. Stop/disconnect discards further results;
 the current model call may need to finish before another session acquires the model.
+Stop ends capture immediately, then keeps the controls disabled while current work
+drains (bounded to 30–90 s). Transcription flushes independently. A forced disconnect
+does not cancel an in-flight model call; wait or restart the server if it remains busy.
+The card's **RECEIVED** age is time since delivery; **AUDIO AGE** starts at the
+estimated end of its captured window, including compute and transport delay.
 
 ## Cards and visual language
 

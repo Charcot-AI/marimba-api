@@ -32,6 +32,7 @@ export interface CardState {
   crossedAt: number;
   receivedAt: number;
   intervalMs?: number;
+  windowEndAt?: number;
 }
 export const initialState = (): CardState => ({
   trail: [],
@@ -40,7 +41,12 @@ export const initialState = (): CardState => ({
 });
 export const scalar = (d: Decision): number =>
   d.kind === 'score' ? (d.score ?? 0) : (d.probability ?? 0);
-export function reduceCard(state: CardState, decision: Decision, now: number): CardState {
+export function reduceCard(
+  state: CardState,
+  decision: Decision,
+  now: number,
+  windowEndAt = now,
+): CardState {
   if (state.decision && decision.window_end_s <= state.decision.window_end_s) return state;
   const previous = state.decision;
   const crossed =
@@ -52,6 +58,7 @@ export function reduceCard(state: CardState, decision: Decision, now: number): C
     decision,
     receivedAt: now,
     intervalMs: state.decision ? now - state.receivedAt : undefined,
+    windowEndAt,
     trail: [
       ...state.trail.filter((p) => p.time >= now - 5000),
       { time: now, value: scalar(decision) },

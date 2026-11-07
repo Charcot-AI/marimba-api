@@ -12,6 +12,7 @@ import {
   type Decision,
 } from './state';
 import type { SttAdapter, SttFactory, Transcript } from './stt';
+import { drainSocket } from './socket';
 
 interface Config {
   cards: Card[];
@@ -90,12 +91,12 @@ function renderCards(now: number) {
       ? `${(d.window_latency_ms ?? d.latency_ms).toFixed(0)} ms / model`
       : 'awaiting audio';
     element.querySelector('.card-interval')!.textContent = d
-      ? `UPDATE ${state.intervalMs === undefined ? '—' : `${state.intervalMs.toFixed(0)} ms`} / AGE ${((now - state.receivedAt) / 1000).toFixed(1)} s`
+      ? `UPDATE ${state.intervalMs === undefined ? '—' : `${state.intervalMs.toFixed(0)} ms`} / RECEIVED ${((now - state.receivedAt) / 1000).toFixed(1)} s AGO`
       : review && active
         ? `COLLECTING ${contextSeconds} s OF AUDIO`
         : `${contextSeconds} s CONTEXT`;
     element.querySelector('.card-window')!.textContent = d
-      ? `AUDIO ${(d.window_start_s ?? Math.max(0, d.window_end_s - contextSeconds)).toFixed(2)}–${d.window_end_s.toFixed(2)} s`
+      ? `AUDIO ${(d.window_start_s ?? Math.max(0, d.window_end_s - contextSeconds)).toFixed(2)}–${d.window_end_s.toFixed(2)} s / AGE ${(Math.max(0, now - (state.windowEndAt ?? state.receivedAt)) / 1000).toFixed(1)} s`
       : review
         ? `MIN PAUSE ${card.cadence_seconds ?? 2} s AFTER COMPLETION`
         : 'EVERY ENCODER TICK';
@@ -285,7 +286,8 @@ async function start(file?: File) {
           `${data.decision_interval_ms.toFixed(0)} ms live interval / ${data.coalesced_hops} coalesced`;
       }
       for (const d of data.decisions)
-        if (states.has(d.task)) states.set(d.task, reduceCard(states.get(d.task)!, d, now));
+        if (states.has(d.task))
+          states.set(d.task, reduceCard(states.get(d.task)!, d, now, data.captured_at_ms + 250));
       if (data.decisions.length)
         requestAnimationFrame(() => {
           renderCards(performance.now());
@@ -366,9 +368,11 @@ async function start(file?: File) {
 }
 async function stop(message?: string) {
   if (stopping) return;
-  if (message) status(message);
+  const finishing = 'Stopped / finishing current model work; audio capture has ended.';
+  if (message) status(finishing);
   stopping = true;
   active = false;
+  $('#stop').setAttribute('disabled', '');
   clearTimeout(endedTimer);
   if (source instanceof AudioBufferSourceNode) {
     source.onended = null;
@@ -381,31 +385,22 @@ async function stop(message?: string) {
   mic = undefined;
   await context?.close();
   context = undefined;
-  if (socket?.readyState === WebSocket.OPEN) {
-    const closing = socket;
-    await new Promise<void>((resolve) => {
-      const timer = setTimeout(() => {
-        closing.close();
-        resolve();
-      }, 2000);
-      closing.addEventListener(
-        'close',
-        () => {
-          clearTimeout(timer);
-          resolve();
-        },
-        { once: true },
-      );
-      closing.send(JSON.stringify({ type: 'stop' }));
-    });
-  } else socket?.close();
-  socket = undefined;
-  try {
-    await stt?.stop();
-  } catch {
-    status('Transcript adapter did not finish cleanly.');
-  }
+  const transcript = stt;
   stt = undefined;
+  const finishingTranscript = (async () => {
+    try {
+      await transcript?.stop();
+    } catch {
+      status('Transcript adapter did not finish cleanly.');
+    }
+  })();
+  const drained = await drainSocket(socket, Math.max(30, (config?.review_seconds ?? 8) * 3) * 1000);
+  socket = undefined;
+  await finishingTranscript;
+  if (message && $('#status').textContent === finishing)
+    status(
+      drained ? message : 'Stopped / the model is still busy. Wait or restart the local server.',
+    );
   reviewsRunning.clear();
   $('#live-dot').classList.remove('active');
   $('#source-name').textContent = 'INPUT / STOPPED';
