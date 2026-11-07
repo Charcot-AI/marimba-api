@@ -12,6 +12,8 @@ class Card:
     kind: str
     options: tuple[str, ...] = ()
     status: str = "unavailable"
+    evaluation: str = ""
+    uncalibrated: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -29,7 +31,7 @@ CARDS = (
         "Language",
         "What language is being spoken?",
         "choice",
-        ("English", "Portuguese", "Spanish", "Other"),
+        ("en", "pt", "es"),
     ),
     Card(
         "audio_class",
@@ -57,7 +59,17 @@ def available_cards(model: Any) -> list[Card]:
             continue
         if card.kind not in capability.kinds:
             continue
-        cards.append(Card(**{**asdict(card), "status": capability.status}))
+        evaluation = getattr(capability, "evaluation", "") or ""
+        cards.append(
+            Card(
+                **{
+                    **asdict(card),
+                    "status": capability.status,
+                    "evaluation": evaluation,
+                    "uncalibrated": "uncalibrat" in evaluation.casefold(),
+                }
+            )
+        )
     return cards
 
 

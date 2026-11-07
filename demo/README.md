@@ -56,6 +56,9 @@ the previous session, its trail, and timing samples. Inputs are not auto-reconne
 
 The checkpoint's `model.capabilities` is authoritative. Unavailable tasks are
 omitted, not drawn with invented answers. Experimental tasks are explicitly marked.
+Uncalibrated term support is labelled **UNCALIBRATED / RAW N-BEST**, not presented
+as an honest probability percentage. The current language card is a closed set
+of the ISO codes `en`, `pt`, `es`; it does not claim an open-set "Other" detector.
 Depending on the checkpoint, this can be fewer than the eight candidate cards:
 
 | Task | Instrument |

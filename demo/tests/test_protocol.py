@@ -58,6 +58,7 @@ class ProtocolStream:
     def __init__(self, block=False):
         self.count = 0
         self.decided = 0
+        self.decide_calls = 0
         self.lock = threading.Lock()
         self.started = threading.Event()
         self.received_three = threading.Event()
@@ -74,6 +75,7 @@ class ProtocolStream:
 
     def decide(self):
         with self.lock:
+            self.decide_calls += 1
             if self.count <= self.decided:
                 return None
             count = self.count
@@ -169,6 +171,7 @@ def test_decision_echoes_its_capture_timestamp(client):
         assert model.sessions == 1
         socket.send_json({"type": "stop"})
         assert socket.receive_json()["type"] == "stopped"
+        assert model.streams[0].decide_calls == 2
 
 
 def test_duplicate_sequence_is_rejected(client):

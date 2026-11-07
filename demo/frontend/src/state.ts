@@ -6,6 +6,8 @@ export interface Card {
   kind: Kind;
   options: string[];
   status: 'validated' | 'experimental';
+  evaluation?: string;
+  uncalibrated?: boolean;
 }
 export interface Decision {
   task: string;

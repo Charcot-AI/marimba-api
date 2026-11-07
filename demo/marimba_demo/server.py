@@ -156,6 +156,10 @@ def create_app(
                         changed.clear()
                         if aborted or not connected:
                             return
+                        if not captures or next(reversed(captures)) <= previous_end:
+                            if finished:
+                                return
+                            continue
                         update = (
                             await asyncio.to_thread(stream.decide) if captures else None
                         )

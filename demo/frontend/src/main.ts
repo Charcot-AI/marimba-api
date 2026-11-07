@@ -94,8 +94,10 @@ function renderCards(now: number) {
         : card.kind === 'score'
           ? '5 SECOND TRAIL'
           : card.kind === 'noul'
-            ? `P(YES) / ${(d.probability ?? 0).toFixed(3)}`
-            : 'OPTION PROBABILITIES';
+            ? `${card.uncalibrated ? 'RAW N-BEST' : 'P(YES)'} / ${(d.probability ?? 0).toFixed(3)}`
+            : card.task === 'language'
+              ? 'EN/PT/ES CLOSED SET'
+              : 'OPTION PROBABILITIES';
   }
 }
 function makeCards() {
@@ -105,7 +107,8 @@ function makeCards() {
     const el = document.createElement('article');
     el.id = `card-${card.task}`;
     el.className = 'card';
-    el.innerHTML = `<div class="card-top"><span class="number">${String(index + 1).padStart(2, '0')} / ${card.kind.toUpperCase()}</span><span class="badge">${card.status === 'experimental' ? 'EXPERIMENTAL' : 'LIVE'}</span></div><h2></h2><div class="reading-row"><span class="reading">—</span><span class="card-latency">awaiting audio</span></div><div class="instrument"></div><div class="card-bottom"></div>`;
+    el.innerHTML = `<div class="card-top"><span class="number">${String(index + 1).padStart(2, '0')} / ${card.kind.toUpperCase()}</span><span class="badge">${card.uncalibrated ? 'UNCALIBRATED' : card.status === 'experimental' ? 'EXPERIMENTAL' : 'LIVE'}</span></div><h2></h2><div class="reading-row"><span class="reading">—</span><span class="card-latency">awaiting audio</span></div><div class="instrument"></div><div class="card-bottom"></div>`;
+    el.title = card.evaluation ?? '';
     el.querySelector('h2')!.textContent = card.title;
     $('#cards').append(el);
   });
