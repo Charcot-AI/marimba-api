@@ -194,7 +194,8 @@ class SpeechReadout:
             .float()
             .to(self.device)
         )
-        mask = torch.from_numpy(sample_mask.reshape(100, -1).any(axis=1)[None]).to(self.device)
+        frame_mask = np.asarray(sample_mask.reshape(100, -1).any(axis=1), dtype=np.bool_)
+        mask = torch.from_numpy(frame_mask[None]).to(self.device)
         with torch.inference_mode():
             question, question_mask = self.question_features(text)
             logit = self.model.head(

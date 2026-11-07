@@ -168,7 +168,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.json_path is not None and not args.json_path.parent.is_dir():
         parser.error("JSON output parent directory must exist")
     if args.audio is None:
-        audio = np.zeros(128000, dtype=np.float32)
+        audio: AudioArray = np.zeros(128000, dtype=np.float32)
     else:
         try:
             audio = decode_audio(args.audio)
