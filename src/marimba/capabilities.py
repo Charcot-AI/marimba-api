@@ -24,7 +24,9 @@ DEFAULT_CAPABILITIES = {
             "validated",
             "head",
             ("noul",),
-            "English prompts; AMI AUROC 0.995, VoxConverse 0.9996",
+            "validated with Portuguese prompts and held-out Arabic, Hindi, Korean and Russian "
+            "prompts; recognized questions use the canonical prompt; "
+            "AMI AUROC 0.995, VoxConverse 0.9996",
         ),
         Capability(
             "language",
@@ -36,19 +38,19 @@ DEFAULT_CAPABILITIES = {
         Capability("term", "validated", "decoder", ("noul",), "Torch only; public AUROC 0.92–0.97"),
         Capability(
             "same_speaker",
-            "experimental",
+            "unavailable",
             "head",
             ("noul", "score"),
-            "Public performance near chance",
+            "Not a released output",
         ),
         Capability(
             "speaker_change",
-            "experimental",
+            "unavailable",
             "head",
             ("noul", "score"),
-            "Public performance near chance",
+            "Not a released output",
         ),
-        Capability("speaker_count", "experimental", "head", ("choice",), "Not publicly validated"),
+        Capability("speaker_count", "unavailable", "head", ("choice",), "Not a released output"),
         Capability("audio_class", "unavailable", "head", ("choice",), "Not evaluated"),
     )
 }

@@ -1,17 +1,19 @@
 # Capability reference
 
 Statuses describe the installed frozen checkpoint, not every possible question.
-Use English prompts; task= explicitly routes custom wording but does not validate it.
+Voice activity is validated with Portuguese prompts and held-out Arabic, Hindi, Korean and
+Russian prompts; recognized questions use the canonical prompt; custom wording passes
+through unchanged but is not automatically validated.
 
 | Task | Kind | Lane | Installed status | Evidence / limitation |
 |---|---|---|---|---|
 | turn_end | score | encoder / readout | validated | AUROC 0.930 on Smart Turn v3.2 evaluation; 0.716 out of domain |
-| voice_activity | noul | encoder / head | validated | English prompts; AMI AUROC 0.995, VoxConverse 0.9996 |
+| voice_activity | noul | encoder / head | validated | validated with Portuguese prompts and held-out Arabic, Hindi, Korean and Russian prompts; recognized questions use the canonical prompt; AMI AUROC 0.995, VoxConverse 0.9996 |
 | language | choice | decoder | validated | Native Qwen LID, 30 supported languages; closed-set FLEURS 100%, Common Voice 93% (300 each) |
 | term | noul | decoder | experimental | Greedy + four beam hypotheses; raw exact-match fraction, no fitted lexical Platt map |
-| same_speaker | noul / score | encoder / head | experimental | Public discrimination near chance; single-window score, not reference-pair verification |
-| speaker_change | noul / score | encoder / head | unavailable | No installed lane |
-| speaker_count | choice | encoder / head | unavailable | No installed lane |
+| same_speaker | noul / score | encoder / head | unavailable | Not a released output |
+| speaker_change | noul / score | encoder / head | unavailable | Not a released output |
+| speaker_count | choice | encoder / head | unavailable | Not a released output |
 | audio_class | choice | encoder / head | unavailable | No installed lane; no speech/music/noise claim |
 
 This is the installed-model table; generic capability metadata alone does not

@@ -2,7 +2,7 @@
 
 `model.lane(question)` returns `"encoder"` for head/readout tasks and `"decoder"`
 for language and term tasks. Capability status still applies: routing does not
-make an unavailable task available. Same-speaker remains experimental.
+make an unavailable task available. Same-speaker is unavailable.
 
 ```python
 import numpy as np

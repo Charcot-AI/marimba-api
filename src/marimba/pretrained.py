@@ -13,11 +13,13 @@ from .decision import Decision
 from .language import LANGUAGES, option_probabilities, resolve_options
 from .lexical import normalize
 from .model import Marimba
-from .questions import Question, UnsupportedQuestion
+from .questions import Question, UnsupportedQuestion, matches_template
 from .readout import sigmoid
 from .runtime import RuntimeInfo, select_backend, synchronize
 from .weights import load_manifest
 from .windows import EncodedWindow, WindowSnapshot
+
+_CANONICAL_VAD_PROMPT = "Há fala humana neste áudio?"
 
 
 class PretrainedMarimba(Marimba):
@@ -31,13 +33,19 @@ class PretrainedMarimba(Marimba):
             )
             for task, cap in super().capabilities.items()
         }
-        for task in ("turn_end", "language", "term", "voice_activity", "same_speaker"):
+        for task in ("turn_end", "language", "term", "voice_activity"):
             lane = manifest["lanes"].get(task, {})
             if lane.get("status") not in ("validated", "experimental"):
                 continue
             cap = super().capabilities[task]
             self._capabilities[task] = replace(
-                cap, status=lane["status"], evaluation=lane.get("evaluation", cap.evaluation)
+                cap,
+                status=lane["status"],
+                evaluation=(
+                    cap.evaluation
+                    if task == "voice_activity"
+                    else lane.get("evaluation", cap.evaluation)
+                ),
             )
             if task in ("language", "term"):
                 self._capabilities[task] = replace(
@@ -175,8 +183,13 @@ class PretrainedMarimba(Marimba):
                 elif task == "term":
                     probability = score = float(self._engine.term_score(question.term, hypotheses))
                     value = probability >= question.threshold
-                elif task in ("voice_activity", "same_speaker"):
-                    score = float(self._engine.head_score(features, mask, question.text))
+                elif task == "voice_activity":
+                    prompt = (
+                        _CANONICAL_VAD_PROMPT
+                        if matches_template("voice_activity", question.text)
+                        else question.text
+                    )
+                    score = float(self._engine.head_score(features, mask, prompt))
                     probability = sigmoid(score)
                     value = (
                         probability

@@ -8,6 +8,28 @@ from typing import Literal
 
 Kind = Literal["noul", "score", "choice"]
 
+_TEMPLATES = {
+    "voice_activity": r"(is (someone|anyone) (speaking|talking)|is there speech)",
+    "turn_end": (
+        r"(has (the speaker|someone) finished( speaking)?|"
+        r"is (the )?turn (over|finished)|is it (the )?end of (the )?turn)"
+    ),
+    "term": r"""did (someone|anyone) say ["“'].+?["”']""",
+    "language": r"(what|which) language( is (being )?spoken| is this)?",
+}
+_UNAVAILABLE_TEMPLATES = {
+    "same_speaker": r"(is (this|it) the same speaker|are (they|these) the same speaker)",
+    "speaker_count": r"how many speakers( are there| are speaking)?",
+}
+
+
+def matches_template(task: str, text: str) -> bool:
+    pattern = (_TEMPLATES | _UNAVAILABLE_TEMPLATES).get(task)
+    return (
+        pattern is not None
+        and re.fullmatch(pattern, text.lower().strip().rstrip("?.!")) is not None
+    )
+
 
 class UnsupportedQuestion(ValueError):
     """The question has no supported routing template."""
@@ -31,22 +53,8 @@ class Question:
                 raise ValueError("Choice questions require distinct, nonempty options")
             object.__setattr__(self, "options", tuple(self.options))
         if self.task is None:
-            text = self.text.lower().strip().rstrip("?.!")
-            templates = {
-                "voice_activity": r"(is (someone|anyone) (speaking|talking)|is there speech)",
-                "turn_end": (
-                    r"(has (the speaker|someone) finished( speaking)?|"
-                    r"is (the )?turn (over|finished)|is it (the )?end of (the )?turn)"
-                ),
-                "term": r"""did (someone|anyone) say ["“'].+?["”']""",
-                "language": r"(what|which) language( is (being )?spoken| is this)?",
-                "same_speaker": (
-                    r"(is (this|it) the same speaker|are (they|these) the same speaker)"
-                ),
-                "speaker_count": r"how many speakers( are there| are speaking)?",
-            }
-            for task, pattern in templates.items():
-                if re.fullmatch(pattern, text):
+            for task in _TEMPLATES | _UNAVAILABLE_TEMPLATES:
+                if matches_template(task, self.text):
                     object.__setattr__(self, "task", task)
                     break
             else:

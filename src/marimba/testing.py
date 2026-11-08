@@ -71,7 +71,9 @@ class FakeMarimba(Marimba):
     @property
     def capabilities(self) -> dict[str, Capability]:
         return {
-            task: Capability(
+            task: cap
+            if cap.status == "unavailable"
+            else Capability(
                 task,
                 "experimental",
                 "synthetic",
@@ -94,7 +96,23 @@ class FakeMarimba(Marimba):
                 Event().wait(self.slow_decoder_seconds)
         energy = float(np.mean(window[mask] ** 2)) if mask.any() else 0.0
         decisions = []
+        capabilities = self.capabilities
         for question in questions:
+            cap = capabilities.get(question.task or "")
+            if cap is not None and cap.status == "unavailable":
+                decisions.append(
+                    Decision(
+                        question,
+                        question.task or "",
+                        question.kind,
+                        None,
+                        threshold=question.threshold,
+                        window_start_s=start_s,
+                        window_end_s=end_s,
+                        status="unavailable",
+                    )
+                )
+                continue
             offset = (
                 int.from_bytes(hashlib.sha256(question.text.encode()).digest()[:4], "big") / 2**32
             )
