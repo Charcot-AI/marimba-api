@@ -86,8 +86,7 @@ context remains the validated workload. Larger contexts are opt-in experiments,
 visibly **UNVALIDATED WINDOW**; their cards/results are not labelled validated and
 are outside the live grid. Successful execution is not an accuracy validation.
 Do not claim that a longer buffer improves language or term detection without a
-matched public-validation evaluation. Same-speaker remains experimental: it scores
-a single window, not identity against a reference voice.
+matched public-validation evaluation.
 
 A controlled check used nine 30-second same-language sequences (English, Portuguese
 and Spanish) built from the [FLEURS validation split](https://huggingface.co/datasets/google/fleurs)
@@ -117,18 +116,16 @@ omitted, not drawn with invented answers. Experimental tasks are explicitly mark
 Uncalibrated term support is labelled **UNCALIBRATED / RAW N-BEST**, not presented
 as a calibrated probability. The current language card is a closed set
 of the ISO codes `en`, `pt`, `es`; it does not claim an open-set "Other" detector.
-Depending on the checkpoint, this can be fewer than the eight candidate cards:
+The demo requests only the four released tasks below, numbered 01–04 without gaps.
+Capability gating can reduce this set further; unreleased tasks are not requested.
+The two live signals and two buffered reviews reflow into equal-width groups.
 
 | Task | Instrument |
 |---|---|
 | Turn completion | 0–1 ruler, pointer, trailing positions from the last five seconds |
 | Speech present | P(yes) needle and a yes/no reading |
-| Speaker change | P(yes) needle; experimental when advertised |
-| Same speaker | P(yes) needle; experimental when advertised |
 | Language | One thin horizontal probability bar per option |
-| Sound scene | Speech/music/noise bars, only if available |
 | Heard marimba | Support needle; explicitly labelled when uncalibrated |
-| Speakers | Per-option probability bars; experimental when advertised |
 
 Position on a shared scale and aligned bar lengths make small comparisons easier
 than interpreting colored areas or angles. See Cleveland and McGill,
@@ -176,7 +173,6 @@ For a lower-load CPU subset without lexical decoding, start with
 same `uv run --project demo --no-sync` prefix). Unsupported tasks are still
 omitted. This changes the workload; do not compare its timing to a full-grid run
 without listing the different questions.
-Add `same_speaker` only if an explicitly experimental single-window output is useful.
 Language and term both use the slower decoder; removing term alone does not make
 language cheap. Choose thread counts/backends from measured results, not assumptions;
 do not substitute quantized or alternate-runtime variants without parity validation.

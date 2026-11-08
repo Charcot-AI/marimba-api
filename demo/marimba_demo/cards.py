@@ -27,8 +27,6 @@ CARDS = (
         "turn_end", "Turn completion", "Has the speaker finished their turn?", "score"
     ),
     Card("voice_activity", "Speech present", "Is someone speaking?", "noul"),
-    Card("speaker_change", "Speaker change", "Has the speaker changed?", "noul"),
-    Card("same_speaker", "Same speaker", "Is this the same speaker?", "noul"),
     Card(
         "language",
         "Language",
@@ -36,21 +34,7 @@ CARDS = (
         "choice",
         ("en", "pt", "es"),
     ),
-    Card(
-        "audio_class",
-        "Sound scene",
-        "What kind of audio is this?",
-        "choice",
-        ("Speech", "Music", "Noise"),
-    ),
     Card("term", "Heard marimba", 'Did someone say "marimba"?', "noul"),
-    Card(
-        "speaker_count",
-        "Speakers",
-        "How many speakers are audible?",
-        "choice",
-        ("0", "1", "2", "3+"),
-    ),
 )
 
 

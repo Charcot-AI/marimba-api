@@ -8,7 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from marimba_demo.cards import available_cards
+from marimba_demo.cards import available_cards, questions_for
 from marimba_demo.protocol import decode_frame
 from marimba_demo.server import create_app
 
@@ -24,6 +24,14 @@ class Question:
     @staticmethod
     def noul(text, *, task):
         return SimpleNamespace(text=text, task=task)
+
+    @staticmethod
+    def score(text, *, task):
+        return SimpleNamespace(text=text, task=task)
+
+    @staticmethod
+    def choice(text, options, *, task):
+        return SimpleNamespace(text=text, options=options, task=task)
 
 
 class ProtocolModel:
@@ -296,14 +304,46 @@ def test_unavailable_and_wrong_kind_cards_are_omitted():
     model.capabilities.update(
         {
             "turn_end": SimpleNamespace(status="validated", kinds=("noul",)),
-            "speaker_change": SimpleNamespace(status="unavailable", kinds=("noul",)),
-            "same_speaker": SimpleNamespace(status="experimental", kinds=("noul",)),
+            "language": SimpleNamespace(status="unavailable", kinds=("choice",)),
         }
     )
     cards = available_cards(model)
     assert [(card.task, card.status) for card in cards] == [
         ("voice_activity", "validated"),
-        ("same_speaker", "experimental"),
+    ]
+
+
+def test_demo_only_requests_four_released_tasks(tmp_path):
+    model = ProtocolModel()
+    model.capabilities = {
+        task: SimpleNamespace(status="validated", kinds=("score", "noul", "choice"))
+        for task in (
+            "turn_end",
+            "voice_activity",
+            "same_speaker",
+            "speaker_change",
+            "language",
+            "audio_class",
+            "term",
+            "speaker_count",
+        )
+    }
+    model.lane = lambda question: (
+        "decoder" if question.task in ("language", "term") else "encoder"
+    )
+    expected = ["turn_end", "voice_activity", "language", "term"]
+    cards = available_cards(model)
+    assert [card.task for card in cards] == expected
+    assert [question.task for question in questions_for(cards, Question)] == expected
+    app = create_app(model, Question, static=tmp_path, local=tmp_path)
+    with TestClient(app, headers={"host": "127.0.0.1:8765"}) as client:
+        configured = client.get("/api/config").json()["cards"]
+    assert [card["task"] for card in configured] == expected
+    assert [card["lane"] for card in configured] == [
+        "encoder",
+        "encoder",
+        "decoder",
+        "decoder",
     ]
 
 
