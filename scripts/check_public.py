@@ -23,9 +23,7 @@ def configured_patterns(root: Path) -> list[tuple[str, str]]:
     sources: list[tuple[str, str]] = []
     environment = os.environ.get("PUBLIC_CHECK_TERMS", "")
     if environment:
-        sources.extend(
-            ("PUBLIC_CHECK_TERMS", line) for line in environment.splitlines()
-        )
+        sources.extend(("PUBLIC_CHECK_TERMS", line) for line in environment.splitlines())
 
     local_file = root / ".public-check-terms"
     if local_file.is_file():
@@ -96,9 +94,7 @@ def main() -> int:
         for line_number, line in enumerate(text.splitlines(), start=1):
             for pattern, expression in compiled:
                 if expression.search(line):
-                    findings.append(
-                        f"{path.relative_to(root)}:{line_number}: {pattern}"
-                    )
+                    findings.append(f"{path.relative_to(root)}:{line_number}: {pattern}")
 
     if findings:
         print("\n".join(findings), file=sys.stderr)
