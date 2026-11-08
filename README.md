@@ -133,3 +133,4 @@ due hop in that chunk. Trailing samples remain buffered for the next hop or `flu
 Skipped hops never clear the context. The default `coalesce=False` still emits every hop.
 `ingest()` does not queue historical inference; switching back to `push()` resumes hop
 accounting from the retained partial hop. These APIs also work with `FakeMarimba`.
+For Pipecat, set `UserTurnStrategies(stop=[TurnAnalyzerUserTurnStopStrategy(turn_analyzer=MarimbaTurnAnalyzer())])`; see [Pipecat turn analyzer](docs/streaming.md#pipecat-turn-analyzer).
