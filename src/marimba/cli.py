@@ -29,7 +29,6 @@ def demo_questions() -> list[Question]:
     return [
         Question.score("Has the speaker finished their turn?", task="turn_end"),
         Question.noul("Is someone speaking?"),
-        Question.noul("Is this the same speaker?"),
         Question.choice("What language is being spoken?", ["en", "pt", "es"]),
         Question.noul('Did someone say "marimba"?'),
     ]
@@ -135,7 +134,7 @@ def main(argv: list[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("doctor")
     bench = commands.add_parser("bench")
-    bench.add_argument("--questions", type=int, default=5, help="Count from the five demo cards")
+    bench.add_argument("--questions", type=int, default=4, help="Count from the four demo cards")
     bench.add_argument("--hops", type=int, default=40)
     bench.add_argument("--warmup", type=int, default=5)
     bench.add_argument("--backend", default="auto")

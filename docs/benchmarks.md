@@ -50,3 +50,56 @@ Teacher-forced term scoring is not implemented. A rough LID-suffix compute proxy
 suggested 82–245 ms CPU or 35–105 ms L4 incremental compute, plus encoder/prefix if
 uncached. This is an estimate, not measured term scoring: term-token likelihood is
 not term-occurrence probability and needs its own evaluation and calibration.
+
+## End-to-end per-path latency, L4 bf16
+
+Full public-API calls on one NVIDIA L4, batch one, eight-second windows,
+`dtype="auto"` asserted to resolve to bf16. Package code is frozen at
+`a38383ecc73c6192dbffaf9950289189929600df`; model and Qwen revisions are recorded in
+the [JSON report](../benchmarks/l4_e2e_latency.json), alongside resolved RuntimeInfo,
+versions, raw call latencies and job duration/cost.
+
+Milliseconds; the final column is the bootstrap 95% confidence interval for p95.
+
+| Path | n | p50 | p95 | p95 95% CI |
+|---|---:|---:|---:|---:|
+| Turn-end (L18 readout) | 300 | 12.23 | 13.31 | 13.04–14.08 |
+| Voice activity (question-conditioned head) | 300 | 14.40 | 15.77 | 15.47–15.97 |
+| Language (native LID) | 300 | 153.67 | 160.80 | 159.23–163.55 |
+| Term (default n-best) | 200 | 1399.44 | 2349.14 | 2136.89–2443.73 |
+
+Twenty warmup calls per path were discarded. Timed calls were interleaved
+turn-end → voice activity → language → term, omitting term after call 200 and
+continuing the other paths to 300. Each timer wraps exactly one
+`model(audio, [question])`, with CUDA synchronization before starting and before
+stopping, after the Decision list returns. This includes input normalization,
+encoder and lane work; there is no cross-question sharing. Model loading and
+corpus loading are excluded.
+
+The existing left-padded, 16 kHz float32 matrix windows were preloaded as public
+audio mappings. The public API constructs its own mask from each full eight-second
+input; the matrix's original masks are retained only as provenance. Per-lane clips
+are unchanged: 100 Smart Turn train for turn-end, 50 FLEURS validation plus 50
+synthetic negatives for voice activity, and 100 FLEURS validation for each decoder
+path. Clips cycle in their matrix order; measurement continues at clip 20 after
+warmup. [Clip IDs, pinned revisions and window hashes](../benchmarks/l4_e2e_clip_ids.json)
+are committed, with the file's SHA256 in the report. No audio or transcripts are
+distributed here.
+
+Language options are `en, pt, es, fr, de`. The fixed term is `"marimba"`;
+greedy plus four-beam n-best defaults are unchanged. Percentiles use NumPy's linear
+method. The p95 intervals are percentile bootstrap intervals over calls: 1,000
+resamples, `numpy.random.default_rng(42)` reset per path, and 2.5th/97.5th
+percentiles of resampled p95 values. They are not intervals over independent clips.
+
+The reusable runner is [scripts/l4_e2e_latency.py](../scripts/l4_e2e_latency.py).
+With the original corpus files and the frozen package installed on an L4:
+
+```sh
+python scripts/l4_e2e_latency.py \
+  --corpus matrix_corpus.npz --records matrix_corpus.json \
+  --corpus-sha256 7cda39dde5231a59701036a3d71f9931ee23a9dd47ade4674fce01d62d000408 \
+  --code-commit a38383ecc73c6192dbffaf9950289189929600df \
+  --package-sha256 "$(sha256sum package.tar.gz | cut -d ' ' -f 1)" \
+  --output l4_e2e_latency.json --clip-ids l4_e2e_clip_ids.json
+```
