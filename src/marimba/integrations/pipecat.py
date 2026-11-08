@@ -34,7 +34,7 @@ class MarimbaTurnAnalyzer(BaseSmartTurn):
         self._model = model
         self._threshold = threshold
 
-    def _predict_endpoint(self, audio_array: np.ndarray) -> dict[str, Any]:
+    def _predict_endpoint(self, audio_array: np.ndarray[Any, Any]) -> dict[str, Any]:
         audio_array = np.asarray(audio_array, dtype=np.float32)
         input_rate = self.sample_rate or SAMPLE_RATE
         if input_rate != SAMPLE_RATE:

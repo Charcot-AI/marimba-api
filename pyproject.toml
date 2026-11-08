@@ -54,6 +54,9 @@ ignore_missing_imports = true
 module = ["pipecat.*"]
 ignore_missing_imports = true
 [[tool.mypy.overrides]]
+module = ["marimba.integrations.pipecat"]
+disallow_subclassing_any = false
+[[tool.mypy.overrides]]
 module = ["marimba._head"]
 disallow_subclassing_any = false
 
