@@ -50,7 +50,8 @@ audio understanding or speaker-verification system.
 ## Intended use
 
 Research and application prototyping on short audio windows, with human review
-where decisions matter. English head prompts are the evaluated interface.
+where decisions matter. Voice activity is validated with Portuguese prompts and held-out
+Arabic, Hindi, Korean and Russian prompts; recognized questions use the canonical prompt.
 Not intended for diagnosis, surveillance, identity verification or safety-critical
 automation. Obtain consent and appropriate rights for submitted audio.
 
@@ -59,7 +60,7 @@ automation. Obtain consent and appropriate rights for submitted audio.
 | Task | Kind | Lane | Status | Evidence / limitation |
 |---|---|---|---|---|
 | turn_end | score | encoder/readout | validated | Public AUROC 0.930; domain shift matters |
-| voice_activity | noul | encoder/head | validated | English prompts; AMI 0.995 and VoxConverse 0.9996 AUROC |
+| voice_activity | noul | encoder/head | validated | validated with Portuguese prompts and held-out Arabic, Hindi, Korean and Russian prompts; recognized questions use the canonical prompt; AMI 0.995 and VoxConverse 0.9996 AUROC |
 | language | choice | decoder | validated | Native 30-language LID; closed-set FLEURS 100%, Common Voice 93% (300 each) |
 | term | noul | decoder | experimental | Raw exact-match fraction of greedy + four beam hypotheses; uncalibrated |
 | same_speaker | noul / score | encoder/head | unavailable | Not a released output |

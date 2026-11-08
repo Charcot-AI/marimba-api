@@ -19,6 +19,8 @@ from .runtime import RuntimeInfo, select_backend, synchronize
 from .weights import load_manifest
 from .windows import EncodedWindow, WindowSnapshot
 
+_CANONICAL_VAD_PROMPT = "Há fala humana neste áudio?"
+
 
 class PretrainedMarimba(Marimba):
     def __init__(self, runtime: RuntimeInfo, engine: Any, manifest: dict[str, Any]) -> None:
@@ -37,7 +39,13 @@ class PretrainedMarimba(Marimba):
                 continue
             cap = super().capabilities[task]
             self._capabilities[task] = replace(
-                cap, status=lane["status"], evaluation=lane.get("evaluation", cap.evaluation)
+                cap,
+                status=lane["status"],
+                evaluation=(
+                    cap.evaluation
+                    if task == "voice_activity"
+                    else lane.get("evaluation", cap.evaluation)
+                ),
             )
             if task in ("language", "term"):
                 self._capabilities[task] = replace(
@@ -89,7 +97,7 @@ class PretrainedMarimba(Marimba):
         self._validate(questions)
         if any(self.lane(q) == "encoder" for q in questions) and encoded.snapshot.seconds != 8:
             raise ValueError("Encoder lanes require an eight-second snapshot")
-        results: dict[Question, Decision] = {}
+        results: dict[int, Decision] = {}
         for lane in ("encoder", "decoder"):
             group = [q for q in questions if self.lane(q) == lane]
             if not group:
@@ -99,8 +107,8 @@ class PretrainedMarimba(Marimba):
                     decisions = self._timed_decide(encoded, group)
             else:
                 decisions = self._timed_decide(encoded, group)
-            results.update(zip(group, decisions, strict=True))
-        return [results[q] for q in questions]
+            results.update((id(q), decision) for q, decision in zip(group, decisions, strict=True))
+        return [results[id(q)] for q in questions]
 
     def _timed_decide(self, encoded: EncodedWindow, questions: list[Question]) -> list[Decision]:
         synchronize(self.runtime)
@@ -176,7 +184,8 @@ class PretrainedMarimba(Marimba):
                     probability = score = float(self._engine.term_score(question.term, hypotheses))
                     value = probability >= question.threshold
                 elif task == "voice_activity":
-                    score = float(self._engine.head_score(features, mask, question.text))
+                    prompt = _CANONICAL_VAD_PROMPT if question._template_routed else question.text
+                    score = float(self._engine.head_score(features, mask, prompt))
                     probability = sigmoid(score)
                     value = (
                         probability

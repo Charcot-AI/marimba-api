@@ -96,9 +96,10 @@ No calibration is fitted at inference time.
 See [Calibrate on your domain](docs/calibration.md) to fit and persist a per-question
 Platt map from your own binary labels. This does not train model weights.
 
-Voice activity uses a frozen question-conditioned head with English prompts and reports
-`validated`. It uses L9 features interpolated to 100 frames from the same encoder pass
-as turn-end.
+Voice activity uses a frozen question-conditioned head, validated with Portuguese prompts
+and held-out Arabic, Hindi, Korean and Russian prompts; recognized questions use the
+canonical prompt. Explicit task= text passes through unchanged. It uses L9 features
+interpolated to 100 frames from the same encoder pass as turn-end.
 The head uses the physical valid-frame mask, a frozen Whisper question embedding, a small
 text tower, grapheme-encoded English `yes`, and sigmoid on the head logit. Its probabilities
 are not additionally temperature-calibrated.

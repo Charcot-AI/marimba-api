@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Literal
+from typing import ClassVar, Literal
 
 Kind = Literal["noul", "score", "choice"]
 
@@ -20,6 +20,7 @@ class Question:
     options: tuple[str, ...] | None = None
     task: str | None = None
     threshold: float = 0.5
+    _template_routed: ClassVar[bool] = False
 
     def __post_init__(self) -> None:
         if not self.text.strip() or not 0 <= self.threshold <= 1:
@@ -30,6 +31,7 @@ class Question:
             if not self.options or len(set(self.options)) != len(self.options):
                 raise ValueError("Choice questions require distinct, nonempty options")
             object.__setattr__(self, "options", tuple(self.options))
+        object.__setattr__(self, "_template_routed", self.task is None)
         if self.task is None:
             text = self.text.lower().strip().rstrip("?.!")
             templates = {

@@ -19,6 +19,7 @@ from marimba.weights import DEFAULT_MODEL_REVISION, ENCODER_REPO, ENCODER_REVISI
 class StubEngine:
     def __init__(self):
         self.calls = []
+        self.head_texts = []
 
     def encode(self, window):
         self.calls.append("encode")
@@ -44,6 +45,7 @@ class StubEngine:
 
     def head_score(self, features, mask, text):
         self.calls.append("head")
+        self.head_texts.append(text)
         return 2.0
 
     term_score = staticmethod(exact_fraction)
@@ -156,6 +158,77 @@ def test_shared_speech_head(model):
             is decision.score
             is None
         )
+
+
+@pytest.fixture
+def vad_model():
+    manifest = {
+        "resolved_revision": DEFAULT_MODEL_REVISION,
+        "lanes": {
+            "voice_activity": {"status": "validated", "evaluation": "English prompts"},
+            "term": {"calibration": "none"},
+        },
+    }
+    return PretrainedMarimba(RuntimeInfo("fake", "cpu", "float32"), StubEngine(), manifest)
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["Is someone speaking?", "Is anyone talking?", "Is there speech?", " IS SOMEONE SPEAKING! "],
+)
+def test_vad_recognized_prompt(vad_model, text):
+    question = Question.noul(text)
+    decision = vad_model(np.zeros(16000, dtype=np.float32), [question], 16000)[0]
+    assert vad_model._engine.head_texts == ["Há fala humana neste áudio?"]
+    assert decision.question is question
+    assert decision.question.text == text
+    assert decision.status == "validated"
+    evaluation = vad_model.capabilities["voice_activity"].evaluation
+    assert "English prompts" not in evaluation
+    assert "validated with Portuguese prompts and held-out Arabic, Hindi, Korean and Russian" in (
+        evaluation
+    )
+
+
+@pytest.mark.parametrize("text", ["Custom voice detector wording", "Is someone speaking?"])
+def test_vad_explicit_prompt(vad_model, text):
+    question = Question.noul(text, task="voice_activity")
+    decision = vad_model(np.zeros(16000, dtype=np.float32), [question], 16000)[0]
+    assert vad_model._engine.head_texts == [text]
+    assert decision.question is question
+
+
+@pytest.mark.parametrize("streaming", [False, True])
+def test_vad_routing_provenance_keeps_equal_questions_distinct(vad_model, streaming):
+    inferred = Question.noul("Is someone speaking?")
+    explicit = Question.noul(inferred.text, task="voice_activity")
+    assert inferred == explicit and hash(inferred) == hash(explicit)
+    questions = [inferred, explicit]
+    if streaming:
+        stream = vad_model.stream(questions, decoder_hop_seconds=1.0)
+        decisions = stream.push(np.zeros(4000, dtype=np.float32))[0].decisions
+    else:
+        decisions = vad_model(np.zeros(16000, dtype=np.float32), questions, 16000)
+    assert vad_model._engine.head_texts == ["Há fala humana neste áudio?", inferred.text]
+    assert all(d.question is q for d, q in zip(decisions, questions, strict=True))
+    assert [d.to_dict()["question"] for d in decisions] == [
+        {
+            "text": "Is someone speaking?",
+            "kind": "noul",
+            "options": None,
+            "task": "voice_activity",
+            "threshold": 0.5,
+        }
+    ] * 2
+
+
+def test_vad_empty_questions_and_invalid_text(vad_model):
+    assert vad_model(np.zeros(16000, dtype=np.float32), [], 16000) == []
+    assert vad_model._engine.calls == []
+    with pytest.raises(ValueError, match="Question text"):
+        Question.noul("", task="voice_activity")
+    with pytest.raises(UnsupportedQuestion, match="No routing template"):
+        Question.noul("Unrecognized voice detector wording")
 
 
 @pytest.mark.parametrize(
