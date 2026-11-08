@@ -42,8 +42,6 @@ class MarimbaTurnAnalyzer(BaseSmartTurn):
 
         if len(audio_array) > _WINDOW_SAMPLES:
             audio_array = audio_array[-_WINDOW_SAMPLES:]
-        elif len(audio_array) < _WINDOW_SAMPLES:
-            audio_array = np.pad(audio_array, (_WINDOW_SAMPLES - len(audio_array), 0))
 
         model = self._model
         if model is None:

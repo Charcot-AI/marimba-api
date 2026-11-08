@@ -52,16 +52,15 @@ def test_prediction_and_probability_mapping(analyzer_class, probability, thresho
     assert model.sampling_rate == 16000
 
 
-def test_short_audio_is_left_padded(analyzer_class):
+def test_short_audio_is_passed_unpadded(analyzer_class):
     model = FakeModel()
     audio = np.array([0.25, -0.5], dtype=np.float32)
     analyzer = analyzer_class(model=model)
 
     analyzer._predict_endpoint(audio)
 
-    assert model.audio.shape == (128000,)
-    np.testing.assert_array_equal(model.audio[:127998], 0)
-    np.testing.assert_array_equal(model.audio[-2:], audio)
+    assert model.audio.shape == audio.shape
+    np.testing.assert_array_equal(model.audio, audio)
 
 
 def test_audio_is_truncated_to_last_eight_seconds(analyzer_class):
@@ -80,11 +79,10 @@ def test_audio_is_resampled_to_model_rate(analyzer_class):
     analyzer.set_sample_rate(8000)
     audio = np.linspace(-1, 1, 8000, dtype=np.float32)
     resampled = soxr.resample(audio, 8000, 16000, quality="HQ")
-    expected = np.pad(resampled, (128000 - len(resampled), 0))
 
     analyzer._predict_endpoint(audio)
 
-    np.testing.assert_allclose(model.audio, expected)
+    np.testing.assert_allclose(model.audio, resampled)
     assert model.sampling_rate == 16000
 
 

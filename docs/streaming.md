@@ -38,7 +38,8 @@ Install the optional dependency with `pip install 'marimba[pipecat]'` on Python
 3.11 or newer. The analyzer loads the default Marimba model on its first
 prediction unless you pass a model.
 Pipecat's turn analyzer setup supplies the input sample rate; the adapter resamples
-to 16 kHz, keeps the latest eight seconds, and left-pads shorter audio.
+to 16 kHz and keeps the latest eight seconds. The model right-aligns shorter audio
+and builds its validity mask.
 
 ```python
 from marimba.integrations.pipecat import MarimbaTurnAnalyzer
