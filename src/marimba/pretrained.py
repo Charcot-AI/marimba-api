@@ -31,7 +31,7 @@ class PretrainedMarimba(Marimba):
             )
             for task, cap in super().capabilities.items()
         }
-        for task in ("turn_end", "language", "term", "voice_activity", "same_speaker"):
+        for task in ("turn_end", "language", "term", "voice_activity"):
             lane = manifest["lanes"].get(task, {})
             if lane.get("status") not in ("validated", "experimental"):
                 continue
@@ -175,7 +175,7 @@ class PretrainedMarimba(Marimba):
                 elif task == "term":
                     probability = score = float(self._engine.term_score(question.term, hypotheses))
                     value = probability >= question.threshold
-                elif task in ("voice_activity", "same_speaker"):
+                elif task == "voice_activity":
                     score = float(self._engine.head_score(features, mask, question.text))
                     probability = sigmoid(score)
                     value = (

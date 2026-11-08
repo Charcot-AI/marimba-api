@@ -56,6 +56,9 @@ def model():
         "lanes": {
             "turn_end": {"status": "validated"},
             "language": {"status": "validated"},
+            "same_speaker": {"status": "experimental"},
+            "speaker_change": {"status": "experimental"},
+            "speaker_count": {"status": "experimental"},
             "term": {
                 "status": "experimental",
                 "calibration": "none",
@@ -126,9 +129,6 @@ def test_shared_speech_head(model):
     model._capabilities["voice_activity"] = replace(
         model.capabilities["voice_activity"], status="validated"
     )
-    model._capabilities["same_speaker"] = replace(
-        model.capabilities["same_speaker"], status="experimental"
-    )
     questions = [
         Question.score("Has the speaker finished?"),
         Question.noul("Is someone speaking?"),
@@ -137,19 +137,53 @@ def test_shared_speech_head(model):
         Question.choice("How many speakers?", ["0", "1", "2"]),
     ]
     decisions = model(np.zeros(16000, dtype=np.float32), questions, 16000)
-    assert model._engine.calls == ["encode", "turn_end", "head", "head", "head"]
+    assert model._engine.calls == ["encode", "turn_end", "head"]
     assert [d.status for d in decisions] == [
         "validated",
         "validated",
-        "experimental",
-        "experimental",
+        "unavailable",
+        "unavailable",
         "unavailable",
     ]
     assert decisions[1].score == 2.0
     assert decisions[1].probability == pytest.approx(1 / (1 + np.exp(-2)))
     assert decisions[1].value is True
-    assert decisions[3].value == decisions[3].probability
-    assert decisions[4].value is None
+    for decision in decisions[2:]:
+        assert (
+            decision.value
+            is decision.probability
+            is decision.probabilities
+            is decision.score
+            is None
+        )
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        Question.noul("Is this the same speaker?"),
+        Question.score("Are these the same speaker?"),
+        Question.noul("Custom", task="same_speaker"),
+        Question.noul("Custom", task="speaker_change"),
+        Question.choice("How many speakers?", ["0", "1", "2"]),
+        Question.choice("Custom", ["speech", "noise"], task="audio_class"),
+    ],
+)
+def test_unreleased_lanes_ignore_manifest_without_inference(model, question):
+    assert model.capabilities[question.task].status == "unavailable"
+    decision = model(np.zeros(16000, dtype=np.float32), [question], 16000)[0]
+    assert decision.status == "unavailable"
+    assert (
+        decision.value is decision.probability is decision.probabilities is decision.score is None
+    )
+    assert not decision.calibrated
+    assert decision.window_start_s == 0 and decision.window_end_s == 1
+    assert model._engine.calls == []
+    assert json.loads(json.dumps(decision.to_dict())) == decision.to_dict()
+    assert model.batch([], [question]) == []
+    with pytest.raises(ValueError, match="nonempty"):
+        model(np.array([], dtype=np.float32), [question], 16000)
+    assert model._engine.calls == []
 
 
 def test_validation_before_encoder(model):

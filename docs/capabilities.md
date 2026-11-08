@@ -9,9 +9,9 @@ Use English prompts; task= explicitly routes custom wording but does not validat
 | voice_activity | noul | encoder / head | validated | English prompts; AMI AUROC 0.995, VoxConverse 0.9996 |
 | language | choice | decoder | validated | Native Qwen LID, 30 supported languages; closed-set FLEURS 100%, Common Voice 93% (300 each) |
 | term | noul | decoder | experimental | Greedy + four beam hypotheses; raw exact-match fraction, no fitted lexical Platt map |
-| same_speaker | noul / score | encoder / head | experimental | Public discrimination near chance; single-window score, not reference-pair verification |
-| speaker_change | noul / score | encoder / head | unavailable | No installed lane |
-| speaker_count | choice | encoder / head | unavailable | No installed lane |
+| same_speaker | noul / score | encoder / head | unavailable | Not a released output |
+| speaker_change | noul / score | encoder / head | unavailable | Not a released output |
+| speaker_count | choice | encoder / head | unavailable | Not a released output |
 | audio_class | choice | encoder / head | unavailable | No installed lane; no speech/music/noise claim |
 
 This is the installed-model table; generic capability metadata alone does not

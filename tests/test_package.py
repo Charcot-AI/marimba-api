@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from marimba import Question, UnsupportedQuestion
+from marimba import Marimba, Question, UnsupportedQuestion
 from marimba.audio import decode_audio, right_aligned_window
 from marimba.cli import main
 from marimba.runtime import select_backend
@@ -99,6 +99,39 @@ def test_question_errors():
     with pytest.raises(ValueError):
         Question.noul("", task="voice_activity")
     assert Question.score("Custom", task="turn_end").task == "turn_end"
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        Question.noul("Is this the same speaker?"),
+        Question.score("Is it the same speaker?"),
+        Question.noul("Are they the same speaker?"),
+        Question.score("Are these the same speaker?"),
+        Question.noul("Custom", task="same_speaker"),
+        Question.noul("Custom", task="speaker_change"),
+        Question.choice("How many speakers?", ["1", "2"]),
+        Question.choice("Custom", ["speech", "noise"], task="audio_class"),
+    ],
+)
+def test_unavailable_capabilities_and_fake_decisions(question):
+    model = FakeMarimba()
+    assert Marimba(model.runtime).capabilities[question.task].status == "unavailable"
+    assert model.capabilities[question.task].status == "unavailable"
+    if question.task != "audio_class":
+        assert model.capabilities[question.task].evaluation == "Not a released output"
+    decision = model(np.zeros(16000, dtype=np.float32), [question], 16000)[0]
+    assert decision.status == "unavailable"
+    assert (
+        decision.value is decision.probability is decision.probabilities is decision.score is None
+    )
+    assert not decision.calibrated
+    assert decision.window_start_s == 0 and decision.window_end_s == 1
+    assert json.loads(json.dumps(decision.to_dict())) == decision.to_dict()
+    assert model.batch([], [question]) == []
+    assert model(np.zeros(1, dtype=np.float32), [], 16000) == []
+    stream = model.stream([question])
+    assert stream.push(np.zeros(4000, dtype=np.float32))[0].decisions[0].status == "unavailable"
 
 
 def test_decision_json_and_model(sine):

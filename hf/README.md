@@ -62,9 +62,9 @@ automation. Obtain consent and appropriate rights for submitted audio.
 | voice_activity | noul | encoder/head | validated | English prompts; AMI 0.995 and VoxConverse 0.9996 AUROC |
 | language | choice | decoder | validated | Native 30-language LID; closed-set FLEURS 100%, Common Voice 93% (300 each) |
 | term | noul | decoder | experimental | Raw exact-match fraction of greedy + four beam hypotheses; uncalibrated |
-| same_speaker | noul / score | encoder/head | experimental | Near-chance public discrimination; not reference-pair verification |
-| speaker_change | noul / score | encoder/head | unavailable | No installed lane |
-| speaker_count | choice | encoder/head | unavailable | No installed lane |
+| same_speaker | noul / score | encoder/head | unavailable | Not a released output |
+| speaker_change | noul / score | encoder/head | unavailable | Not a released output |
+| speaker_count | choice | encoder/head | unavailable | Not a released output |
 | audio_class | choice | encoder/head | unavailable | No speech/music/noise claim |
 
 Decoder context above eight seconds is **unvalidated**. The API accepts up to
@@ -132,7 +132,7 @@ latency_matrix.json / latency_matrix.md measurement artifacts.
 Accent, language, noise, overlap, microphone and domain changes can affect decisions.
 Closed-set LID percentages do not establish open-set detection: Other aggregates
 the unlisted supported languages, not all languages in the world. Lexical hypothesis
-fractions are not calibrated occurrence probabilities. Same-speaker is experimental.
+fractions are not calibrated occurrence probabilities. Same-speaker is unavailable.
 Unavailable capabilities return no prediction.
 
 **[PENDING] archival citation/DOI and public links for the historical evaluation

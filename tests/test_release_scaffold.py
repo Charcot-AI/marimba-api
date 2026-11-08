@@ -39,6 +39,17 @@ def test_space_invalid_questions(app_module, raw):
         app_module.parse_questions(raw)
 
 
+def test_space_same_speaker_is_unavailable(app_module, monkeypatch, tmp_path):
+    monkeypatch.setattr(app_module, "load_model", FakeMarimba)
+    audio = tmp_path / "silence.wav"
+    sf.write(audio, np.zeros(16000, dtype=np.float32), 16000)
+    decisions = app_module.decide(
+        str(audio), json.dumps([{"text": "Is this the same speaker?", "kind": "noul"}])
+    )
+    assert decisions[0]["status"] == "unavailable"
+    assert decisions[0]["value"] is decisions[0]["probability"] is decisions[0]["score"] is None
+
+
 def test_space_empty_audio_and_sanitized_failure(app_module, monkeypatch):
     with pytest.raises(app_module.gr.Error, match="Upload"):
         app_module.decide(None, app_module.DEFAULT_QUESTIONS)

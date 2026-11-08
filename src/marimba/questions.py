@@ -40,12 +40,14 @@ class Question:
                 ),
                 "term": r"""did (someone|anyone) say ["“'].+?["”']""",
                 "language": r"(what|which) language( is (being )?spoken| is this)?",
+            }
+            unavailable_templates = {
                 "same_speaker": (
                     r"(is (this|it) the same speaker|are (they|these) the same speaker)"
                 ),
                 "speaker_count": r"how many speakers( are there| are speaking)?",
             }
-            for task, pattern in templates.items():
+            for task, pattern in (templates | unavailable_templates).items():
                 if re.fullmatch(pattern, text):
                     object.__setattr__(self, "task", task)
                     break

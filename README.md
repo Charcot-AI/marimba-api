@@ -97,14 +97,13 @@ See [Calibrate on your domain](docs/calibration.md) to fit and persist a per-que
 Platt map from your own binary labels. This does not train model weights.
 
 Voice activity uses a frozen question-conditioned head with English prompts and reports
-`validated`. The same head provides an `experimental` same-speaker score: public
-discrimination is near chance, and the single-window score is not speaker verification.
-Both use L9 features interpolated to 100 frames from the same encoder pass as turn-end.
+`validated`. It uses L9 features interpolated to 100 frames from the same encoder pass
+as turn-end.
 The head uses the physical valid-frame mask, a frozen Whisper question embedding, a small
 text tower, grapheme-encoded English `yes`, and sigmoid on the head logit. Its probabilities
 are not additionally temperature-calibrated.
 
-Speaker-change, speaker-count, and audio-class remain `unavailable`, with decision
+Same-speaker, speaker-change, speaker-count, and audio-class are `unavailable`, with decision
 values/probabilities set to `None`. They do not receive synthetic fallback predictions.
 Empty real-model audio raises an error; silence with valid samples is supported.
 

@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
+from marimba import Question
 from marimba.cli import benchmark, demo_questions, main
 from marimba.testing import FakeMarimba
 
@@ -28,19 +29,34 @@ def test_benchmark_json_fake(tmp_path, capsys):
     )
     report = json.loads(output.read_text())
     assert report == json.loads(capsys.readouterr().out)
-    assert len(report["questions"]) == len(report["per_question"]) == 5
+    assert len(report["questions"]) == len(report["per_question"]) == 4
     assert [row["task"] for row in report["questions"]] == [
         "turn_end",
         "voice_activity",
-        "same_speaker",
         "language",
         "term",
     ]
-    assert report["questions"][3]["options"] == ["en", "pt", "es"]
+    assert all(q.task != "same_speaker" for q in demo_questions())
+    assert FakeMarimba().capabilities["same_speaker"].status == "unavailable"
+    assert report["questions"][2]["options"] == ["en", "pt", "es"]
     assert report["encoder_only"] is None
     assert report["full_set"]["window_end_s"] == [8.5, 8.75]
     assert len(report["full_set"]["samples_ms"]) == 2
     assert report["p50_ms"] <= report["p95_ms"]
+
+
+def test_bench_unavailable_same_speaker(capsys, monkeypatch):
+    def fail(*args, **kwargs):
+        pytest.fail("Unavailable benchmark cards must be rejected before inference")
+
+    monkeypatch.setattr(FakeMarimba, "decide_window", fail)
+    monkeypatch.setattr(
+        "marimba.cli.demo_questions", lambda: [Question.noul("Is this the same speaker?")]
+    )
+    with pytest.raises(SystemExit) as error:
+        main(["bench", "--fake"])
+    assert error.value.code == 2
+    assert "Benchmark cards unavailable in this revision: same_speaker" in capsys.readouterr().err
 
 
 def test_matching_card_windows_and_encoder(tmp_path, monkeypatch, capsys):
@@ -68,13 +84,25 @@ def test_matching_card_windows_and_encoder(tmp_path, monkeypatch, capsys):
     path = tmp_path / "speech.wav"
     sf.write(path, audio, 16000, subtype="FLOAT")
     assert (
-        main(["bench", "--audio", str(path), "--per-question", "--hops", "2", "--warmup", "1"]) == 0
+        main(
+            [
+                "bench",
+                "--audio",
+                str(path),
+                "--per-question",
+                "--hops",
+                "2",
+                "--warmup",
+                "1",
+            ]
+        )
+        == 0
     )
     report = json.loads(capsys.readouterr().out)
     assert report["revision"] == "test-revision"
-    assert len(model._engine.windows) == 7 * 3
+    assert len(model._engine.windows) == 6 * 3
     first = np.concatenate((audio[4000:], audio[:4000]))
-    for offset in range(0, 21, 3):
+    for offset in range(0, 18, 3):
         np.testing.assert_array_equal(model._engine.windows[offset], first)
     assert report["encoder_only"]["window_end_s"] == [8.5, 8.75]
     assert len(report["encoder_in_full_set"]["samples_ms"]) == 2

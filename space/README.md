@@ -34,7 +34,7 @@ Never paste credentials into questions. Do not enable public share links.
 The app is CPU float32 with one queued request at a time. Upload a file and edit
 the JSON list of supported Question constructor arguments. Decisions are JSON.
 Only the last eight seconds are scored, not an entire recording. Term decoding
-can be slow; same-speaker is experimental. Context above eight seconds is
+can be slow; same-speaker is unavailable. Context above eight seconds is
 **unvalidated**; no real-time or measured Mac performance is claimed.
 
 Do not upload sensitive recordings. Gradio caches uploads temporarily; this is
