@@ -34,9 +34,9 @@ starts Python on `127.0.0.1:8765`, and opens the page:
 uv run --project demo --no-sync marimba-demo
 ```
 
-Installing both editable projects together preserves the demo's dependency constraints
-when the inference engine resolves its optional dependencies. `--no-sync` then
-preserves the separately installed inference engine. The frontend uses
+Installing both editable projects from this repository root uses the in-repo
+inference engine and preserves the demo's dependency constraints. `--no-sync`
+keeps that combined installation intact. The frontend uses
 Vite and TypeScript, with no UI framework. All fonts and brand assets are local;
 there is no CDN, analytics, audio upload, or remote model API in the default app.
 Model download may require access credentials until weights are released.
