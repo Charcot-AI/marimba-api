@@ -170,8 +170,8 @@ class Stream:
                 )
                 if decoder_questions:
                     computed += model.decide_snapshot(decoder, decoder_questions)
-            by_question = {id(d.question): d for d in computed}
-            decisions = [by_question[id(q)] for q in selected if id(q) in by_question]
+            by_question = {d.question: d for d in computed}
+            decisions = [by_question[q] for q in selected if q in by_question]
         synchronize(self.model.runtime)
         latency = (perf_counter() - started) * 1000
         return StreamUpdate(

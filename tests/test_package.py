@@ -9,8 +9,29 @@ import soundfile as sf
 from marimba import Marimba, Question, UnsupportedQuestion
 from marimba.audio import decode_audio, right_aligned_window
 from marimba.cli import main
+from marimba.questions import matches_template
 from marimba.runtime import select_backend
 from marimba.testing import FakeMarimba
+
+
+@pytest.mark.parametrize(
+    ("task", "text", "expected"),
+    [
+        ("voice_activity", " IS SOMEONE SPEAKING?! ", True),
+        ("voice_activity", "Is someone speaking right now?", False),
+        ("voice_activity", "", False),
+        ("same_speaker", "Are these the same speaker?", True),
+        ("speaker_count", "How many speakers are there?", True),
+        ("turn_end", "Has someone finished speaking?", True),
+        ("language", "Which language is spoken?", True),
+        ("term", 'Did anyone say "hello"?', True),
+        ("unknown", "Is someone speaking?", False),
+    ],
+)
+def test_matches_template(task, text, expected):
+    assert matches_template(task, text) is expected
+    if expected:
+        assert Question.noul(text).task == task
 
 
 @pytest.fixture

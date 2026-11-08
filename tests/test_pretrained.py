@@ -176,8 +176,9 @@ def vad_model():
     "text",
     ["Is someone speaking?", "Is anyone talking?", "Is there speech?", " IS SOMEONE SPEAKING! "],
 )
-def test_vad_recognized_prompt(vad_model, text):
-    question = Question.noul(text)
+@pytest.mark.parametrize("task", [None, "voice_activity"])
+def test_vad_recognized_prompt(vad_model, text, task):
+    question = Question.noul(text, task=task)
     decision = vad_model(np.zeros(16000, dtype=np.float32), [question], 16000)[0]
     assert vad_model._engine.head_texts == ["Há fala humana neste áudio?"]
     assert decision.question is question
@@ -190,36 +191,14 @@ def test_vad_recognized_prompt(vad_model, text):
     )
 
 
-@pytest.mark.parametrize("text", ["Custom voice detector wording", "Is someone speaking?"])
+@pytest.mark.parametrize(
+    "text", ["Custom voice detector wording", "Is someone speaking right now?"]
+)
 def test_vad_explicit_prompt(vad_model, text):
     question = Question.noul(text, task="voice_activity")
     decision = vad_model(np.zeros(16000, dtype=np.float32), [question], 16000)[0]
     assert vad_model._engine.head_texts == [text]
     assert decision.question is question
-
-
-@pytest.mark.parametrize("streaming", [False, True])
-def test_vad_routing_provenance_keeps_equal_questions_distinct(vad_model, streaming):
-    inferred = Question.noul("Is someone speaking?")
-    explicit = Question.noul(inferred.text, task="voice_activity")
-    assert inferred == explicit and hash(inferred) == hash(explicit)
-    questions = [inferred, explicit]
-    if streaming:
-        stream = vad_model.stream(questions, decoder_hop_seconds=1.0)
-        decisions = stream.push(np.zeros(4000, dtype=np.float32))[0].decisions
-    else:
-        decisions = vad_model(np.zeros(16000, dtype=np.float32), questions, 16000)
-    assert vad_model._engine.head_texts == ["Há fala humana neste áudio?", inferred.text]
-    assert all(d.question is q for d, q in zip(decisions, questions, strict=True))
-    assert [d.to_dict()["question"] for d in decisions] == [
-        {
-            "text": "Is someone speaking?",
-            "kind": "noul",
-            "options": None,
-            "task": "voice_activity",
-            "threshold": 0.5,
-        }
-    ] * 2
 
 
 def test_vad_empty_questions_and_invalid_text(vad_model):

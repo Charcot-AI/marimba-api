@@ -13,7 +13,7 @@ from .decision import Decision
 from .language import LANGUAGES, option_probabilities, resolve_options
 from .lexical import normalize
 from .model import Marimba
-from .questions import Question, UnsupportedQuestion
+from .questions import Question, UnsupportedQuestion, matches_template
 from .readout import sigmoid
 from .runtime import RuntimeInfo, select_backend, synchronize
 from .weights import load_manifest
@@ -97,7 +97,7 @@ class PretrainedMarimba(Marimba):
         self._validate(questions)
         if any(self.lane(q) == "encoder" for q in questions) and encoded.snapshot.seconds != 8:
             raise ValueError("Encoder lanes require an eight-second snapshot")
-        results: dict[int, Decision] = {}
+        results: dict[Question, Decision] = {}
         for lane in ("encoder", "decoder"):
             group = [q for q in questions if self.lane(q) == lane]
             if not group:
@@ -107,8 +107,8 @@ class PretrainedMarimba(Marimba):
                     decisions = self._timed_decide(encoded, group)
             else:
                 decisions = self._timed_decide(encoded, group)
-            results.update((id(q), decision) for q, decision in zip(group, decisions, strict=True))
-        return [results[id(q)] for q in questions]
+            results.update(zip(group, decisions, strict=True))
+        return [results[q] for q in questions]
 
     def _timed_decide(self, encoded: EncodedWindow, questions: list[Question]) -> list[Decision]:
         synchronize(self.runtime)
@@ -184,7 +184,11 @@ class PretrainedMarimba(Marimba):
                     probability = score = float(self._engine.term_score(question.term, hypotheses))
                     value = probability >= question.threshold
                 elif task == "voice_activity":
-                    prompt = _CANONICAL_VAD_PROMPT if question._template_routed else question.text
+                    prompt = (
+                        _CANONICAL_VAD_PROMPT
+                        if matches_template("voice_activity", question.text)
+                        else question.text
+                    )
                     score = float(self._engine.head_score(features, mask, prompt))
                     probability = sigmoid(score)
                     value = (

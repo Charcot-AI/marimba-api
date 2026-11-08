@@ -2,8 +2,8 @@
 
 Statuses describe the installed frozen checkpoint, not every possible question.
 Voice activity is validated with Portuguese prompts and held-out Arabic, Hindi, Korean and
-Russian prompts; recognized questions use the canonical prompt. Explicit task= routes
-custom wording unchanged but does not validate it.
+Russian prompts; recognized questions use the canonical prompt; custom wording passes
+through unchanged but is not automatically validated.
 
 | Task | Kind | Lane | Installed status | Evidence / limitation |
 |---|---|---|---|---|
