@@ -1,11 +1,26 @@
 from concurrent.futures import ThreadPoolExecutor
 from threading import Event
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
-from marimba import Question
+from marimba import Question, Stream
 from marimba.testing import FakeMarimba
+
+
+def test_encoded_stream_adapter_without_question_aware_encoding():
+    model = FakeMarimba()
+    adapter = SimpleNamespace(
+        runtime=model.runtime,
+        encode=model.encode,
+        decide_encoded=model.decide_encoded,
+        decide_window=model.decide_window,
+    )
+    question = Question.score("Has the speaker finished?")
+    stream = Stream(adapter, [question])
+    stream.ingest(np.ones(16000, dtype=np.float32))
+    assert stream.decide().decisions[0].question == question
 
 
 def test_ingest_and_decide():

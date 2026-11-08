@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from contextvars import ContextVar
 from copy import deepcopy
 from functools import partial
@@ -15,10 +15,15 @@ import numpy as np
 import torch
 from huggingface_hub import snapshot_download
 from safetensors.numpy import load_file
+from torch import nn
+from torch.nn import functional as F
 
 from ._head import SpeechReadout
 from ._vendor.qwen_asr.configuration_qwen3_asr import Qwen3ASRConfig
-from ._vendor.qwen_asr.modeling_qwen3_asr import Qwen3ASRForConditionalGeneration
+from ._vendor.qwen_asr.modeling_qwen3_asr import (
+    Qwen3ASRForConditionalGeneration,
+    _get_feat_extract_output_lengths,
+)
 from ._vendor.qwen_asr.processing_qwen3_asr import Qwen3ASRProcessor
 from ._vendor.qwen_asr.utils import parse_asr_output
 from .audio import AudioArray, Mask
@@ -27,6 +32,8 @@ from .lexical import exact_fraction
 from .readout import pool_layer, predict_readout
 from .runtime import RuntimeInfo
 from .weights import ENCODER_REPO, ENCODER_REVISION
+
+_feature_lengths: Callable[[Any], Any] = _get_feat_extract_output_lengths
 
 
 class FrozenASR:
@@ -92,7 +99,73 @@ class QwenEngine:
                 hidden = hidden.to(torch.float16)
             captures[layer] = hidden.float().cpu().numpy().copy()
 
-    def encode(self, window: AudioArray) -> Any:
+    def _encode_truncated(self, inputs: Any, attention_mask: Any, depth: int) -> None:
+        tower = self.thinker.audio_tower
+        if len(tower.layers) != 18:
+            raise ValueError("Truncated encoding requires an eighteen-layer audio tower")
+        feature_lens = attention_mask.sum(dim=1)
+        for input_feature, feature_len in zip(inputs, feature_lens, strict=True):
+            input_features = input_feature[:, :feature_len]
+            lengths = feature_len.unsqueeze(0)
+            aftercnn_lens = _feature_lengths(lengths)
+            chunk_num = torch.ceil(lengths / (tower.n_window * 2)).long()
+            chunk_lengths = torch.tensor(
+                [tower.n_window * 2] * chunk_num.sum(),
+                dtype=torch.long,
+                device=lengths.device,
+            )
+            tail_chunk_index = F.pad(chunk_num, (1, 0), value=-1).cumsum(0)[1:]
+            chunk_lengths[tail_chunk_index] = lengths % (tower.n_window * 2)
+            chunk_lengths[chunk_lengths == 0] = tower.n_window * 2
+            chunk_list = input_features.T.split(chunk_lengths.tolist(), dim=0)
+            padded_feature: Any = nn.utils.rnn.pad_sequence(chunk_list, batch_first=True).transpose(
+                1, 2
+            )
+            feature_lens_after_cnn = _feature_lengths(chunk_lengths)
+            padded_mask_after_cnn = nn.utils.rnn.pad_sequence(
+                [
+                    torch.ones(length, dtype=torch.bool, device=padded_feature.device)
+                    for length in feature_lens_after_cnn
+                ],
+                batch_first=True,
+            )
+            padded_embeds = []
+            for chunk in padded_feature.unsqueeze(1).split(tower.conv_chunksize, dim=0):
+                padded_embed = F.gelu(tower.conv2d1(chunk))
+                padded_embed = F.gelu(tower.conv2d2(padded_embed))
+                padded_embeds.append(F.gelu(tower.conv2d3(padded_embed)))
+            padded_embed = torch.cat(padded_embeds, dim=0)
+            b, c, f, t = padded_embed.size()
+            padded_embed = tower.conv_out(
+                padded_embed.permute(0, 3, 1, 2).contiguous().view(b, t, c * f)
+            )
+            positional_embedding = (
+                tower.positional_embedding.positional_embedding[: padded_embed.shape[1], :]
+                .unsqueeze(0)
+                .to(padded_embed.dtype)
+            )
+            padded_embed = padded_embed + positional_embedding
+            hidden_states = padded_embed[padded_mask_after_cnn]
+            cu_chunk_lens = [0]
+            window_aftercnn = padded_mask_after_cnn.shape[-1] * (
+                tower.n_window_infer // (tower.n_window * 2)
+            )
+            for cnn_len in aftercnn_lens:
+                cu_chunk_lens += [window_aftercnn] * (cnn_len // window_aftercnn)
+                remainder = cnn_len % window_aftercnn
+                if remainder != 0:
+                    cu_chunk_lens += [remainder]
+            cu_seqlens = torch.tensor(cu_chunk_lens, device=lengths.device).cumsum(
+                -1, dtype=torch.int32
+            )
+            for index, layer in enumerate(tower.layers[:depth], 1):
+                hidden_states = layer(hidden_states, cu_seqlens)[0]
+                if index in (9, 18) and index not in self._captures.get():
+                    self._capture(index, layer, (), hidden_states)
+
+    def encode(self, window: AudioArray, depth: int | None = None) -> Any:
+        if depth not in (None, 9, 18):
+            raise ValueError("Encoder depth must be None, 9 or 18")
         features = self.processor.feature_extractor(
             [window],
             sampling_rate=16000,
@@ -107,12 +180,18 @@ class QwenEngine:
         token = self._captures.set(captures)
         try:
             with torch.inference_mode():
-                encoded = self.thinker.get_audio_features(
-                    inputs, feature_attention_mask=attention_mask
-                )
+                if depth is None:
+                    encoded = self.thinker.get_audio_features(
+                        inputs, feature_attention_mask=attention_mask
+                    )
+                else:
+                    self._encode_truncated(inputs, attention_mask, depth)
         finally:
             self._captures.reset(token)
-        return {"features": captures, "audio_features": encoded.detach().float().cpu().numpy()}
+        result = {"features": captures}
+        if depth is None:
+            result["audio_features"] = encoded.detach().float().cpu().numpy()
+        return result
 
     def _inputs(self, text: str, encoded: Any) -> dict[str, Any]:
         encoded = torch.from_numpy(np.array(encoded, copy=True))

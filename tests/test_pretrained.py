@@ -20,9 +20,11 @@ class StubEngine:
     def __init__(self):
         self.calls = []
         self.head_texts = []
+        self.depths = []
 
-    def encode(self, window):
+    def encode(self, window, depth=None):
         self.calls.append("encode")
+        self.depths.append(depth)
         return {
             "features": {
                 9: np.zeros((100, 2), dtype=np.float32),
@@ -211,6 +213,68 @@ def test_vad_empty_questions_and_invalid_text(vad_model):
 
 
 @pytest.mark.parametrize(
+    ("tasks", "depth"),
+    [
+        (["voice_activity"], 9),
+        (["turn_end"], 18),
+        (["turn_end", "voice_activity"], 18),
+        (["language"], None),
+        (["term"], None),
+        (["voice_activity", "term"], None),
+        (["turn_end", "language"], None),
+    ],
+)
+@pytest.mark.parametrize("path", ["call", "batch", "stream", "stream_decide", "cadence"])
+def test_question_aware_encoder_depth(model, tasks, depth, path):
+    model._capabilities["voice_activity"] = replace(
+        model.capabilities["voice_activity"], status="validated"
+    )
+    prompts = {
+        "voice_activity": Question.noul("Is someone speaking?"),
+        "turn_end": Question.score("Has the speaker finished?"),
+        "language": Question.choice("What language?", ["en", "pt"]),
+        "term": Question.noul('Did someone say "hello"?'),
+    }
+    qs = [prompts[task] for task in tasks]
+    qs.append(Question.noul("Is this the same speaker?"))
+    audio = np.zeros(16000, dtype=np.float32)
+    if path == "call":
+        model(audio, qs, 16000)
+    elif path == "batch":
+        model.batch([{"array": audio, "sampling_rate": 16000}] * 2, qs)
+    else:
+        stream = model.stream(qs, decoder_hop_seconds=1 if path == "cadence" else None)
+        if path == "stream_decide":
+            stream.ingest(audio)
+            stream.decide()
+        else:
+            stream.push(audio)
+    assert model._engine.depths[0] == depth
+    expected = {depth}
+    if path == "cadence" and depth is None and set(tasks) & {"turn_end", "voice_activity"}:
+        expected.add(18 if "turn_end" in tasks else 9)
+    assert set(model._engine.depths) == expected
+
+
+def test_public_encode_remains_full_and_decoder_usable(model):
+    snap = WindowSnapshot(np.zeros(128000, dtype=np.float32), np.ones(128000, dtype=bool), 0, 8)
+    encoded = model.encode(snap)
+    assert model._engine.depths == [None]
+    assert encoded.audio_features is not None
+    assert model.decide_encoded(encoded, [Question.noul('Did someone say "hello"?')])[0].value
+    model.decide_snapshot(snap, [Question.noul('Did someone say "hello"?')])
+    assert model._engine.depths == [None, None]
+
+
+def test_missing_encoded_features_rejected(vad_model):
+    from marimba import EncodedWindow
+
+    snap = WindowSnapshot(np.zeros(128000, dtype=np.float32), np.ones(128000, dtype=bool), 0, 8)
+    with pytest.raises(RuntimeError, match="lacks required lane features"):
+        vad_model.decide_encoded(EncodedWindow(snap), [Question.noul("Is someone speaking?")])
+
+
+@pytest.mark.parametrize(
     "question",
     [
         Question.noul("Is this the same speaker?"),
@@ -251,7 +315,7 @@ def test_validation_before_encoder(model):
 
 
 def test_encoder_failure_propagates(model, monkeypatch):
-    def fail(window):
+    def fail(window, depth=None):
         raise RuntimeError("synthetic backend failure")
 
     monkeypatch.setattr(model._engine, "encode", fail)

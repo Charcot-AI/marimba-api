@@ -74,16 +74,28 @@ class PretrainedMarimba(Marimba):
             if question.task == "language":
                 resolve_options(question.options or ())
 
-    def _encode_snapshot(self, snapshot: WindowSnapshot) -> EncodedWindow:
+    def _encode_for_questions(
+        self, snapshot: WindowSnapshot, questions: Sequence[Question]
+    ) -> EncodedWindow:
+        self._validate(questions)
+        active = {
+            q.task for q in questions if self._capabilities[q.task or ""].status != "unavailable"
+        }
+        if not active:
+            return EncodedWindow(snapshot)
+        depth = None if active & {"language", "term"} else (18 if "turn_end" in active else 9)
+        return self._encode_snapshot(snapshot, depth)
+
+    def _encode_snapshot(self, snapshot: WindowSnapshot, depth: int | None = None) -> EncodedWindow:
         if not snapshot.mask.any():
             raise ValueError("Expected a nonempty snapshot")
         with self._encoder_lock:
             synchronize(self.runtime)
             started = perf_counter()
-            data = self._engine.encode(snapshot.audio)
+            data = self._engine.encode(snapshot.audio, depth=depth)
             synchronize(self.runtime)
             latency = (perf_counter() - started) * 1000
-        return EncodedWindow(snapshot, data["features"], latency, data["audio_features"])
+        return EncodedWindow(snapshot, data["features"], latency, data.get("audio_features"))
 
     def decide_snapshot(
         self, snapshot: WindowSnapshot, questions: Sequence[Question]
@@ -134,8 +146,7 @@ class PretrainedMarimba(Marimba):
                 "Expected a nonempty right-aligned eight-second window with a valid mask"
             )
         snapshot = WindowSnapshot(window, mask, start_s, end_s)
-        active = any(self._capabilities[q.task or ""].status != "unavailable" for q in questions)
-        encoded = self.encode(snapshot) if active else EncodedWindow(snapshot)
+        encoded = self._encode_for_questions(snapshot, questions)
         return self.decide_encoded(encoded, questions)
 
     def _decide(
@@ -150,6 +161,13 @@ class PretrainedMarimba(Marimba):
         mask = snapshot.mask
         start_s, end_s = snapshot.window_start_s, snapshot.window_end_s
         features, audio = encoded.features, encoded.audio_features
+        required = ({9} if "voice_activity" in active else set()) | (
+            {18} if "turn_end" in active else set()
+        )
+        if not required <= features.keys() or (active & {"language", "term"} and audio is None):
+            raise RuntimeError(
+                "Encoded window lacks required lane features; encode a full snapshot"
+            )
         turn = self._engine.turn_end(features, mask) if "turn_end" in active else None
         resolved = {q: resolve_options(q.options or ()) for q in questions if q.task == "language"}
         options = sorted(

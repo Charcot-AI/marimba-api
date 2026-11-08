@@ -129,6 +129,11 @@ class Stream:
             self._last_decoder_end = snapshot.window_end_s
         return snapshot, decoder
 
+    def _encode(self, snapshot: WindowSnapshot, questions: list[Question]) -> Any:
+        model: Any = self.model
+        encode = getattr(model, "_encode_for_questions", None)
+        return encode(snapshot, questions) if encode is not None else model.encode(snapshot)
+
     def _score(
         self,
         snapshots: tuple[WindowSnapshot, WindowSnapshot | None],
@@ -147,7 +152,7 @@ class Stream:
                 and hasattr(self.model, "encode")
             ):
                 model: Any = self.model
-                decisions = model.decide_encoded(model.encode(snapshot), selected)
+                decisions = model.decide_encoded(self._encode(snapshot, selected), selected)
             else:
                 decisions = self.model.decide_window(
                     snapshot.audio, snapshot.mask, selected, start, end
@@ -160,11 +165,14 @@ class Stream:
             )
             if decoder is not None and decoder.seconds == snapshot.seconds:
                 computed = model.decide_encoded(
-                    model.encode(snapshot), encoder_questions + decoder_questions
+                    self._encode(snapshot, encoder_questions + decoder_questions),
+                    encoder_questions + decoder_questions,
                 )
             else:
                 computed = (
-                    model.decide_encoded(model.encode(snapshot), encoder_questions)
+                    model.decide_encoded(
+                        self._encode(snapshot, encoder_questions), encoder_questions
+                    )
                     if encoder_questions
                     else []
                 )

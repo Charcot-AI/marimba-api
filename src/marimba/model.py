@@ -44,6 +44,11 @@ class Marimba:
             raise ValueError("Encoder lanes require exactly an eight-second snapshot")
         return self._encode_snapshot(snapshot)
 
+    def _encode_for_questions(
+        self, snapshot: WindowSnapshot, questions: Sequence[Question]
+    ) -> EncodedWindow:
+        return self._encode_snapshot(snapshot)
+
     def decide_encoded(
         self, encoded: EncodedWindow, questions: Sequence[Question]
     ) -> list[Decision]:
@@ -60,7 +65,7 @@ class Marimba:
             )
         if not questions:
             return []
-        return self.decide_encoded(self._encode_snapshot(snapshot), questions)
+        return self.decide_encoded(self._encode_for_questions(snapshot, questions), questions)
 
     def calibrate(
         self,

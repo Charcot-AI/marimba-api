@@ -149,3 +149,31 @@ def test_corpus_hash_rejection(bench, tmp_path):
     np.savez_compressed(corpus, audio=np.zeros((1, 128000), dtype=np.float32))
     with pytest.raises(ValueError, match="SHA256 mismatch"):
         bench.load_inputs(corpus, tmp_path / "records.json", "0" * 64)
+
+
+def test_cpu_combined_path_protocol(bench):
+    paths = ("turn_end", "voice_activity", "turn_vad")
+    counts = dict.fromkeys(paths, 300)
+    audio = {name: [{"clip_index": index} for index in range(100)] for name in paths}
+    calls = []
+
+    def model(clip, prompts):
+        tasks = tuple(q.task for q in prompts)
+        calls.append((tasks, clip["clip_index"]))
+        return [SimpleNamespace(status="validated") for q in prompts]
+
+    result = bench.run_protocol(model, audio, lambda: None, counts=counts)
+    tasks = [("turn_end",), ("voice_activity",), ("turn_end", "voice_activity")]
+    assert calls == [(group, index % 100) for index in range(320) for group in tasks]
+    assert {name: len(values) for name, values in result.items()} == counts
+    selected = bench.path_indices(matrix_records(bench), paths)
+    assert selected["turn_vad"] == selected["turn_end"]
+    hardware = bench.cpu_metadata()
+    assert hardware["cpu_model"] and hardware["vcpus"] > 0
+    assert len(hardware["load_average"]) == 3
+
+
+def test_invalid_path_selection(bench):
+    for paths in [[], ["unknown"], ["turn_end", "turn_end"]]:
+        with pytest.raises(ValueError, match="Invalid inference paths"):
+            bench.path_indices(matrix_records(bench), paths)
