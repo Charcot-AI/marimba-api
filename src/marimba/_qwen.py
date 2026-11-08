@@ -194,11 +194,12 @@ class QwenEngine:
                 offset = prefix["length"] if prefix is not None else 0
                 if prefix is not None:
                     inputs = self._cached_inputs(inputs, prefix)
-                logits = (
-                    self.thinker(**inputs, use_cache=False)
-                    .logits[0, start - 1 - offset : end - 1 - offset]
-                    .double()
-                )
+                logits = self.thinker(**inputs, use_cache=False).logits[
+                    0, start - 1 - offset : end - 1 - offset
+                ]
+                if logits.device.type == "mps":
+                    logits = logits.cpu()
+                logits = logits.double()
                 logprobs = logits.log_softmax(-1)
                 scores[option] = float(logprobs[torch.arange(len(suffix)), suffix].sum().item())
         return scores

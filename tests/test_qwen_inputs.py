@@ -44,6 +44,33 @@ def test_language_prefix_cache_is_distinct_from_token_prefix(engine, cached):
     assert result["pt"] == pytest.approx(-len(" Portuguese") * np.log(128))
 
 
+def test_language_scores_moves_mps_logits_to_cpu(engine):
+    model, _ = engine
+    torch = pytest.importorskip("torch")
+    moved_to_cpu = []
+
+    class MPSLogits:
+        device = SimpleNamespace(type="mps")
+
+        def __getitem__(self, key):
+            return self
+
+        def cpu(self):
+            moved_to_cpu.append(True)
+            return torch.zeros((len(" English"), 128))
+
+    class Thinker:
+        def __call__(self, **kwargs):
+            return SimpleNamespace(logits=MPSLogits())
+
+    model.thinker = Thinker()
+
+    result = model.language_scores(np.zeros((100, 2)), ["en"])
+
+    assert moved_to_cpu == [True]
+    assert result["en"] == pytest.approx(-len(" English") * np.log(128))
+
+
 def test_language_empty_and_invalid(engine):
     model, _ = engine
     assert model.language_scores(np.zeros((100, 2)), []) == {}
