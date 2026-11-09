@@ -63,6 +63,7 @@ automation. Obtain consent and appropriate rights for submitted audio.
 | voice_activity | noul | encoder/head | validated | validated with Portuguese prompts and held-out Arabic, Hindi, Korean and Russian prompts; recognized questions use the canonical prompt; AMI 0.995 and VoxConverse 0.9996 AUROC |
 | language | choice | decoder | validated | Native 30-language LID; closed-set FLEURS 100%, Common Voice 93% (300 each) |
 | term | noul | decoder | experimental | Raw exact-match fraction of greedy + four beam hypotheses; uncalibrated |
+| pii | noul | decoder | experimental with a supplied detector; otherwise unavailable | Caller-supplied detector on greedy transcript; no detector included |
 | same_speaker | noul / score | encoder/head | unavailable | Not a released output |
 | speaker_change | noul / score | encoder/head | unavailable | Not a released output |
 | speaker_count | choice | encoder/head | unavailable | Not a released output |
@@ -71,6 +72,10 @@ automation. Obtain consent and appropriate rights for submitted audio.
 Decoder context above eight seconds is **unvalidated**. The API accepts up to
 30 seconds for decoder lanes, but context-handling smoke checks do not validate
 accuracy. Head/readout windows remain eight seconds.
+
+PII questions apply a caller-supplied detector to the greedy transcript; the package
+does not include a detector. The synthetic pt-BR evaluation scored item F1 0.904;
+the capability documentation gives the measured results and limitations.
 
 ## Evidence
 

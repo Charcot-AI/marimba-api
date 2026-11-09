@@ -56,3 +56,35 @@ def test_wrong_shared_prefix_rejected(engine):
     prefix["ids"] = prefix["ids"] * 0
     with pytest.raises(ValueError, match="share the encoded audio prefix"):
         model.language_scores(np.zeros((100, 2)), ["en"], prefix)
+
+
+def test_greedy_transcript_and_five_hypotheses(engine):
+    torch = pytest.importorskip("torch")
+    model, _ = engine
+    beam_counts = []
+
+    class Generator:
+        def generate(self, **kwargs):
+            beams = kwargs["num_beams"]
+            beam_counts.append(beams)
+            length = kwargs["input_ids"].shape[1] + 1
+            return SimpleNamespace(sequences=torch.zeros((beams, length), dtype=torch.long))
+
+    model.asr.model = Generator()
+    model.processor.batch_decode = lambda sequences, **kwargs: [
+        f"language English<asr_text>hypothesis {index}" for index in range(len(sequences))
+    ]
+    encoded = np.zeros((100, 2))
+    assert model.transcript(encoded) == "hypothesis 0"
+    assert beam_counts == [1]
+    beam_counts.clear()
+    hypotheses = model.hypotheses(encoded)
+    assert len(hypotheses) == 5
+    assert hypotheses == [
+        "hypothesis 0",
+        "hypothesis 0",
+        "hypothesis 1",
+        "hypothesis 2",
+        "hypothesis 3",
+    ]
+    assert beam_counts == [1, 4]

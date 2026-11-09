@@ -8,7 +8,7 @@ from threading import Event
 import numpy as np
 import pytest
 
-from marimba import Marimba, Question, RuntimeInfo, UnsupportedQuestion, WindowSnapshot
+from marimba import Calibration, Marimba, Question, RuntimeInfo, UnsupportedQuestion, WindowSnapshot
 from marimba.audio import right_aligned_window
 from marimba.lexical import exact_fraction, normalize
 from marimba.pretrained import PretrainedMarimba
@@ -38,6 +38,10 @@ class StubEngine:
     def hypotheses(self, encoded, prefix=None):
         self.calls.append("hypotheses")
         return ["Hello world"] * 4 + ["World"]
+
+    def transcript(self, encoded, prefix=None):
+        self.calls.append("transcript")
+        return "Greedy transcript"
 
     def language_scores(self, encoded, options, prefix=None):
         self.calls.append("language")
@@ -125,6 +129,112 @@ def test_unavailable_and_empty(model):
     assert model(np.zeros(1, dtype=np.float32), [], 16000) == []
     with pytest.raises(ValueError, match="nonempty"):
         model(np.array([], dtype=np.float32), [question], 16000)
+
+
+def test_pii_unavailable_without_detector(model):
+    question = Question.noul("Does this audio contain personal information?")
+    decision = model(np.zeros(16000, dtype=np.float32), [question], 16000)[0]
+    capability = model.capabilities["pii"]
+    assert capability.status == "unavailable"
+    assert capability.lane == "decoder" and capability.kinds == ("noul",)
+    assert capability.evaluation == "Requires a pii_detector"
+    assert decision.status == "unavailable"
+    assert (
+        decision.value is decision.probability is decision.probabilities is decision.score is None
+    )
+    assert not decision.calibrated
+    assert json.loads(json.dumps(decision.to_dict())) == decision.to_dict()
+    assert model._engine.calls == []
+
+
+def _pii_model(detector):
+    engine = StubEngine()
+    manifest = {
+        "resolved_revision": DEFAULT_MODEL_REVISION,
+        "lanes": {
+            "term": {"status": "experimental", "calibration": "none"},
+        },
+    }
+    return PretrainedMarimba(
+        RuntimeInfo("fake", "cpu", "float32"), engine, manifest, pii_detector=detector
+    )
+
+
+@pytest.mark.parametrize("detector_result", [True, False])
+def test_pii_detector_uses_greedy_transcript(detector_result):
+    received = []
+
+    def detector(transcript):
+        received.append(transcript)
+        return detector_result
+
+    model = _pii_model(detector)
+    question = Question.noul("Is there PII?")
+    model._calibrations[(question.text, question.kind)] = Calibration(
+        question.text, question.kind, "platt", 1.0, 0.0, 100, 50, model.revision
+    )
+    decision = model(np.zeros(16000, dtype=np.float32), [question], 16000)[0]
+    assert received == ["Greedy transcript"]
+    assert model._engine.calls == ["encode", "transcript"]
+    assert decision.value is detector_result
+    assert decision.probability is decision.score is decision.probabilities is None
+    assert decision.status == "experimental"
+    assert not decision.calibrated
+    assert json.loads(json.dumps(decision.to_dict())) == decision.to_dict()
+    assert model.capabilities["pii"].evaluation == (
+        "pt-BR synthetic speech; item F1 0.904 with an in-house text PII model"
+    )
+
+
+def test_term_and_pii_share_greedy_decode():
+    received = []
+
+    def detector(transcript):
+        received.append(transcript)
+        return True
+
+    model = _pii_model(detector)
+    questions = [
+        Question.noul('Did someone say "hello"?'),
+        Question.noul("Does this audio contain personal information?"),
+    ]
+    decisions = model(np.zeros(16000, dtype=np.float32), questions, 16000)
+    assert model._engine.calls == ["encode", "hypotheses"]
+    assert received == ["Hello world"]
+    assert decisions[0].probability == 0.8
+    assert decisions[1].value is True
+
+
+def test_language_and_pii_share_prefill():
+    model = _pii_model(lambda transcript: True)
+    model._capabilities["language"] = replace(model.capabilities["language"], status="validated")
+    calls = []
+    prefix = object()
+
+    def prefill(encoded):
+        calls.append("prefill")
+        return prefix
+
+    def language_scores(encoded, options, prefix=None):
+        calls.append(("language", prefix))
+        return {option: 0.0 for option in options}
+
+    def transcript(encoded, prefix=None):
+        calls.append(("transcript", prefix))
+        return "Greedy transcript"
+
+    model._engine.prefill = prefill
+    model._engine.language_scores = language_scores
+    model._engine.transcript = transcript
+    questions = [Question.choice("What language?", ["en", "pt"]), Question.noul("Is there PII?")]
+    model(np.zeros(16000, dtype=np.float32), questions, 16000)
+    assert calls == ["prefill", ("language", prefix), ("transcript", prefix)]
+
+
+def test_pii_supports_noul_only(model):
+    question = Question.choice("Does this audio contain personal information?", ["yes", "no"])
+    with pytest.raises(UnsupportedQuestion, match="supports kinds"):
+        model._validate([question])
 
 
 def test_shared_speech_head(model):

@@ -16,6 +16,7 @@ from .audio import SAMPLE_RATE, AudioArray, Mask, decode_audio, right_aligned_wi
 from .calibration import Calibration, fit_platt
 from .capabilities import DEFAULT_CAPABILITIES, Capability
 from .decision import Decision
+from .pii import PIIDetector
 from .questions import Question, UnsupportedQuestion
 from .runtime import RuntimeInfo, select_backend, synchronize
 from .stream import Stream
@@ -34,7 +35,7 @@ class Marimba:
     def lane(self, question: Question) -> Literal["encoder", "decoder"]:
         if question.task not in self.capabilities:
             raise UnsupportedQuestion(f"Unsupported task {question.task!r}")
-        return "decoder" if question.task in ("language", "term") else "encoder"
+        return "decoder" if question.task in ("language", "term", "pii") else "encoder"
 
     def _encode_snapshot(self, snapshot: WindowSnapshot) -> EncodedWindow:
         raise NotImplementedError("Implement snapshot encoding in a model backend")
@@ -71,6 +72,8 @@ class Marimba:
         method: str = "platt",
         batch_size: int = 16,
     ) -> Calibration:
+        if question.task == "pii":
+            raise ValueError("PII decisions do not expose probabilities and cannot be calibrated")
         if question.kind == "choice" or method != "platt":
             raise ValueError("Platt calibration supports noul/score questions only")
         if batch_size <= 0 or len(audio) != len(labels) or len(labels) == 0:
@@ -150,10 +153,11 @@ class Marimba:
         device: str = "auto",
         backend: str = "auto",
         dtype: str = "auto",
+        pii_detector: PIIDetector | None = None,
     ) -> Marimba:
         from .pretrained import load_pretrained
 
-        return load_pretrained(repo, revision, device, backend, dtype)
+        return load_pretrained(repo, revision, device, backend, dtype, pii_detector)
 
     @property
     def capabilities(self) -> dict[str, Capability]:

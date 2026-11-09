@@ -4,6 +4,7 @@ from .calibration import Calibration
 from .capabilities import Capability
 from .decision import Decision, StreamUpdate
 from .model import Marimba
+from .pii import PIIDetector
 from .questions import Question, UnsupportedQuestion
 from .runtime import RuntimeInfo
 from .stream import Stream
@@ -16,6 +17,7 @@ __all__ = [
     "EncodedWindow",
     "MAX_DECODER_SECONDS",
     "Marimba",
+    "PIIDetector",
     "Question",
     "RuntimeInfo",
     "Stream",

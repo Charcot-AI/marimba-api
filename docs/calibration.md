@@ -3,7 +3,8 @@
 Per-domain calibration adjusts probabilities, not the frozen encoder or task
 weights. Use representative labeled windows and evaluate on separate held-out
 windows from your domain. Calibration accepts binary `noul` and `score`
-questions; `choice` questions are not supported.
+questions; `choice` questions are not supported. PII questions have no
+probability and cannot be calibrated.
 
 > on one out-of-domain meeting corpus, 200 labeled windows reduced turn-end ECE from 0.20 to 0.011
 

@@ -13,6 +13,7 @@ from .decision import Decision
 from .language import LANGUAGES, option_probabilities, resolve_options
 from .lexical import normalize
 from .model import Marimba
+from .pii import PIIDetector
 from .questions import Question, UnsupportedQuestion, matches_template
 from .readout import sigmoid
 from .runtime import RuntimeInfo, select_backend, synchronize
@@ -23,9 +24,16 @@ _CANONICAL_VAD_PROMPT = "Há fala humana neste áudio?"
 
 
 class PretrainedMarimba(Marimba):
-    def __init__(self, runtime: RuntimeInfo, engine: Any, manifest: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        runtime: RuntimeInfo,
+        engine: Any,
+        manifest: dict[str, Any],
+        pii_detector: PIIDetector | None = None,
+    ) -> None:
         super().__init__(runtime)
         self._engine = engine
+        self._pii_detector = pii_detector
         self.revision: str = manifest["resolved_revision"]
         self._capabilities = {
             task: replace(
@@ -55,6 +63,16 @@ class PretrainedMarimba(Marimba):
                         + "; validated on eight-second windows only; longer context is unvalidated"
                     ),
                 )
+        pii_capability = super().capabilities["pii"]
+        self._capabilities["pii"] = replace(
+            pii_capability,
+            status="experimental" if pii_detector is not None else "unavailable",
+            evaluation=(
+                "pt-BR synthetic speech; item F1 0.904 with an in-house text PII model"
+                if pii_detector is not None
+                else "Requires a pii_detector"
+            ),
+        )
         if manifest["lanes"].get("term", {}).get("calibration") != "none":
             raise ValueError("Only explicitly uncalibrated lexical manifests are supported")
 
@@ -158,13 +176,24 @@ class PretrainedMarimba(Marimba):
         if any(None in mapping.values() for mapping in resolved.values()):
             options = sorted(LANGUAGES)
         prefill = getattr(self._engine, "prefill", None)
-        prefix = prefill(audio) if prefill is not None and {"language", "term"} <= active else None
+        prefix = (
+            prefill(audio)
+            if prefill is not None and "language" in active and {"term", "pii"} & active
+            else None
+        )
         language = (
             self._engine.language_scores(audio, options, prefix=prefix)
             if "language" in active
             else {}
         )
         hypotheses = self._engine.hypotheses(audio, prefix=prefix) if "term" in active else []
+        pii_transcript = (
+            hypotheses[0]
+            if "term" in active
+            else self._engine.transcript(audio, prefix=prefix)
+            if "pii" in active
+            else None
+        )
         decisions = []
         for question in questions:
             task = question.task or ""
@@ -183,6 +212,10 @@ class PretrainedMarimba(Marimba):
                 elif task == "term":
                     probability = score = float(self._engine.term_score(question.term, hypotheses))
                     value = probability >= question.threshold
+                elif (
+                    task == "pii" and pii_transcript is not None and self._pii_detector is not None
+                ):
+                    value = bool(self._pii_detector(pii_transcript))
                 elif task == "voice_activity":
                     prompt = (
                         _CANONICAL_VAD_PROMPT
@@ -215,7 +248,12 @@ class PretrainedMarimba(Marimba):
 
 
 def load_pretrained(
-    repo: str, revision: str | None, device: str, backend: str, dtype: str
+    repo: str,
+    revision: str | None,
+    device: str,
+    backend: str,
+    dtype: str,
+    pii_detector: PIIDetector | None = None,
 ) -> Marimba:
     if backend not in ("auto", "torch"):
         raise ValueError("These model lanes require backend='torch'; ONNX is not available yet")
@@ -225,4 +263,4 @@ def load_pretrained(
         from ._qwen import QwenEngine
     except ImportError as error:
         raise ImportError("Install marimba[torch] to load Qwen3-ASR model lanes") from error
-    return PretrainedMarimba(runtime, QwenEngine(runtime, paths), manifest)
+    return PretrainedMarimba(runtime, QwenEngine(runtime, paths), manifest, pii_detector)
