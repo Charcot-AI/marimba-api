@@ -60,7 +60,7 @@ Fake results are synthetic, not calibrated predictions.
 
 ## Pretrained torch lanes
 
-Install `marimba[torch]` (or `uv sync --extra torch`) and authenticate with Hugging Face
+Install `marimba-audio[torch]` (or `uv sync --extra torch`) and authenticate with Hugging Face
 using `HF_TOKEN` or `hf auth login` if your model repository requires access:
 
 ```python

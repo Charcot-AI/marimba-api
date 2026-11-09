@@ -253,7 +253,7 @@ def main() -> None:
         },
         "versions": {
             "python": platform.python_version(),
-            "marimba": importlib.metadata.version("marimba"),
+            "marimba": importlib.metadata.version("marimba-audio"),
             "torch": torch.__version__,
             "cuda": torch.version.cuda,
             "transformers": transformers.__version__,

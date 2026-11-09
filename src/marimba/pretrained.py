@@ -263,5 +263,5 @@ def load_pretrained(
     try:
         from ._qwen import QwenEngine
     except ImportError as error:
-        raise ImportError("Install marimba[torch] to load Qwen3-ASR model lanes") from error
+        raise ImportError("Install marimba-audio[torch] to load Qwen3-ASR model lanes") from error
     return PretrainedMarimba(runtime, QwenEngine(runtime, paths), manifest, pii_detector)

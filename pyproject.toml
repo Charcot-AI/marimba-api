@@ -3,7 +3,7 @@ requires = ["hatchling>=1.26"]
 build-backend = "hatchling.build"
 
 [project]
-name = "marimba"
+name = "marimba-audio"
 version = "0.1.0"
 description = "Question-driven audio decisions with portable inference interfaces."
 readme = "README.md"

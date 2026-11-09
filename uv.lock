@@ -1680,7 +1680,7 @@ wheels = [
 ]
 
 [[package]]
-name = "marimba"
+name = "marimba-audio"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

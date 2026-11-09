@@ -206,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
             "revision": getattr(model, "revision", None),
             "synthetic_model": args.fake,
             "versions": {
-                "marimba": package_version("marimba"),
+                "marimba": package_version("marimba-audio"),
                 "torch": str(torch.__version__) if torch is not None else package_version("torch"),
                 "transformers": package_version("transformers"),
                 "python": platform.python_version(),
