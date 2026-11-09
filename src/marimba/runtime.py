@@ -67,7 +67,7 @@ def select_backend(backend: str = "auto", device: str = "auto", dtype: str = "au
     if info["extras"]["torch"]:
         if info["cuda"]:
             candidates.append(("torch", "cuda", ()))
-        if info["mps"]:
+        if info["mps"] and device == "mps":
             candidates.append(("torch", "mps", ()))
     for provider, target in (
         ("CoreMLExecutionProvider", "coreml"),

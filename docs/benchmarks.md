@@ -37,7 +37,7 @@ LID and term exclude the shared prefix, which is added once. Component percentil
 sums are not end-to-end percentiles. Readout includes a raw-logit parity diagnostic.
 Part of the CPU baseline overlapped development on a shared VM.
 The matrix uses five ISO language choices, not the new 30-language Other path.
-No real-time, Mac measurement or >8-second decoder-quality claim is made.
+No real-time guarantee or >8-second decoder-quality claim is made.
 
 Provenance: Smart Turn v3.2 train revision
 `f8c95d284595defb6b88a715c356cbc5c31b7ad1`; FLEURS validation revision
@@ -103,3 +103,23 @@ python scripts/l4_e2e_latency.py \
   --package-sha256 "$(sha256sum package.tar.gz | cut -d ' ' -f 1)" \
   --output l4_e2e_latency.json --clip-ids l4_e2e_clip_ids.json
 ```
+
+## End-to-end per-path latency, Mac CPU
+
+Same protocol as L4: public `model(audio, [question])` calls, batch one, eight-second
+windows, 20 warmup calls discarded, and 300 timed calls per path, interleaved.
+The p95 95% bootstrap confidence intervals use 1,000 replicates with seed 42.
+Measurements used CPU fp32 on a virtualized Apple M4 Pro (12 cores, 16 GB), macOS
+26.6.2, with torch 2.8.0. Units are milliseconds.
+
+| Path | Threads | p50 | p95 | p95 95% CI |
+|---|---:|---:|---:|---:|
+| Turn-end | 4 | 105.0 | 109.4 | 108.8–110.0 |
+| Voice activity | 4 | 108.0 | 112.2 | 111.7–112.6 |
+| Language | 4 | 1264.9 | 1297.6 | 1285.6–1305.2 |
+| Turn-end | 8 | 99.5 | 111.2 | 106.5–125.7 |
+| Voice activity | 8 | 103.1 | 117.3 | 111.6–122.3 |
+| Language | 8 | 1437.4 | 1555.0 | 1531.9–1610.4 |
+
+Term was not measured on Mac CPU. No MPS latency was measured. These measurements
+are not a real-time guarantee.

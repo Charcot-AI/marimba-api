@@ -255,7 +255,9 @@ def test_runtime_order(monkeypatch):
     assert select_backend().device == "cuda"
     assert select_backend().dtype == "float16"
     info["cuda"] = False
-    assert select_backend().device == "mps"
+    assert select_backend().backend == "onnx"
+    assert select_backend().device == "coreml"
+    assert select_backend(device="mps").device == "mps"
     info["mps"] = False
     assert select_backend().backend == "onnx"
     assert select_backend(device="cpu").providers == ("CPUExecutionProvider",)

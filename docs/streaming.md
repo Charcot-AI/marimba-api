@@ -30,4 +30,5 @@ Separate locks do not eliminate CPU/GPU contention.
 
 Decoder contexts over eight seconds are **unvalidated**. The API's 30-second guard
 and a context-handling smoke check are not evidence of long-context task quality.
-No real-time or measured Mac performance is claimed.
+No real-time guarantee is claimed; see [benchmarks](benchmarks.md) for measured Mac
+CPU latency.
