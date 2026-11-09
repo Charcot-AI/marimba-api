@@ -106,6 +106,8 @@ are not additionally temperature-calibrated.
 
 Same-speaker, speaker-change, speaker-count, and audio-class are `unavailable`, with decision
 values/probabilities set to `None`. They do not receive synthetic fallback predictions.
+PII is experimental when a caller supplies a text detector and unavailable otherwise;
+the package does not include a detector. See [PII questions](docs/capabilities.md#pii-questions).
 Empty real-model audio raises an error; silence with valid samples is supported.
 
 `marimba bench --per-question --audio public_speech.wav --json bench.json` measures

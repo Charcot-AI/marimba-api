@@ -25,6 +25,9 @@ from marimba.testing import FakeMarimba
         ("turn_end", "Has someone finished speaking?", True),
         ("language", "Which language is spoken?", True),
         ("term", 'Did anyone say "hello"?', True),
+        ("pii", " DOES THIS AUDIO CONTAIN ANY PERSONALLY IDENTIFIABLE DATA?! ", True),
+        ("pii", "Is there any PII?", True),
+        ("pii", "Does this audio contain secrets?", False),
         ("unknown", "Is someone speaking?", False),
     ],
 )
@@ -105,6 +108,8 @@ def test_audio_empty_errors_and_window():
         ("What language is spoken?", "language"),
         ("Is this the same speaker?", "same_speaker"),
         ("How many speakers?", "speaker_count"),
+        ("Does this audio contain personal information?", "pii"),
+        ("Is there any PII?", "pii"),
     ],
 )
 def test_routing(text, task):
@@ -133,13 +138,16 @@ def test_question_errors():
         Question.noul("Custom", task="speaker_change"),
         Question.choice("How many speakers?", ["1", "2"]),
         Question.choice("Custom", ["speech", "noise"], task="audio_class"),
+        Question.noul("Does this audio contain any personal data?"),
     ],
 )
 def test_unavailable_capabilities_and_fake_decisions(question):
     model = FakeMarimba()
     assert Marimba(model.runtime).capabilities[question.task].status == "unavailable"
     assert model.capabilities[question.task].status == "unavailable"
-    if question.task != "audio_class":
+    if question.task == "pii":
+        assert model.capabilities[question.task].evaluation == "Requires a pii_detector"
+    elif question.task != "audio_class":
         assert model.capabilities[question.task].evaluation == "Not a released output"
     decision = model(np.zeros(16000, dtype=np.float32), [question], 16000)[0]
     assert decision.status == "unavailable"
