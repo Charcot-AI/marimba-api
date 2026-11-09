@@ -36,6 +36,7 @@ DEFAULT_CAPABILITIES = {
             "30 languages; FLEURS 100%, Common Voice 93% closed set",
         ),
         Capability("term", "validated", "decoder", ("noul",), "Torch only; public AUROC 0.92–0.97"),
+        Capability("pii", "unavailable", "decoder", ("noul",), "Requires a pii_detector"),
         Capability(
             "same_speaker",
             "unavailable",

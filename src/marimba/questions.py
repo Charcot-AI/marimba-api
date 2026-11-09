@@ -16,6 +16,10 @@ _TEMPLATES = {
     ),
     "term": r"""did (someone|anyone) say ["“'].+?["”']""",
     "language": r"(what|which) language( is (being )?spoken| is this)?",
+    "pii": (
+        r"(does (this|the) audio contain (any )?(personal|personally identifiable) "
+        r"(information|data)|is there (any )?(pii|personal (information|data)))"
+    ),
 }
 _UNAVAILABLE_TEMPLATES = {
     "same_speaker": r"(is (this|it) the same speaker|are (they|these) the same speaker)",

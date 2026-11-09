@@ -75,6 +75,8 @@ def test_score_and_dataset_column():
 def test_calibration_input_and_persistence_errors(tmp_path):
     model = FakeMarimba()
     q = Question.noul("Is someone speaking?")
+    with pytest.raises(ValueError, match="PII decisions"):
+        model.calibrate([], [], Question.noul("Does this audio contain personal information?"))
     with pytest.raises(ValueError):
         model.calibrate([], [], Question.choice("What language?", ["en", "pt"]))
     for audio, labels in [([], []), ([0], [0]), ([0, 1], [0, 2]), ([0, 1], [1]), ([0, 1], [1, 1])]:

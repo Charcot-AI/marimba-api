@@ -194,43 +194,51 @@ class QwenEngine:
                 offset = prefix["length"] if prefix is not None else 0
                 if prefix is not None:
                     inputs = self._cached_inputs(inputs, prefix)
-                logits = (
-                    self.thinker(**inputs, use_cache=False)
-                    .logits[0, start - 1 - offset : end - 1 - offset]
-                    .double()
-                )
+                logits = self.thinker(**inputs, use_cache=False).logits[
+                    0, start - 1 - offset : end - 1 - offset
+                ]
+                if logits.device.type == "mps":
+                    logits = logits.cpu()
+                logits = logits.double()
                 logprobs = logits.log_softmax(-1)
                 scores[option] = float(logprobs[torch.arange(len(suffix)), suffix].sum().item())
         return scores
 
-    def hypotheses(self, encoded: Any, prefix: Any = None) -> list[str]:
+    def _generate(self, encoded: Any, prefix: Any, beams: int) -> list[str]:
         prompt = self.asr._build_text_prompt(context="", force_language=None)
-        texts: list[str] = []
         with torch.inference_mode():
-            for beams in (1, 4):
-                inputs = self._inputs(prompt, encoded)
-                generation = {}
-                if prefix is not None:
-                    self.thinker.rope_deltas = prefix["rope_deltas"].clone()
-                    cache = deepcopy(prefix["cache"])
-                    if beams > 1:
-                        cache.batch_repeat_interleave(beams)
-                    generation["past_key_values"] = cache
-                output = self.asr.model.generate(
-                    **inputs,
-                    **generation,
-                    num_beams=beams,
-                    num_return_sequences=beams,
-                    max_new_tokens=max(128, math.ceil(len(encoded) / 100) * 128),
-                    do_sample=False,
-                    length_penalty=1.0,
-                )
-                decoded = self.processor.batch_decode(
-                    output.sequences[:, inputs["input_ids"].shape[1] :],
-                    skip_special_tokens=True,
-                    clean_up_tokenization_spaces=False,
-                )
-                texts.extend(parse_asr_output(raw)[1] for raw in decoded)
+            inputs = self._inputs(prompt, encoded)
+            generation = {}
+            if prefix is not None:
+                self.thinker.rope_deltas = prefix["rope_deltas"].clone()
+                cache = deepcopy(prefix["cache"])
+                if beams > 1:
+                    cache.batch_repeat_interleave(beams)
+                generation["past_key_values"] = cache
+            output = self.asr.model.generate(
+                **inputs,
+                **generation,
+                num_beams=beams,
+                num_return_sequences=beams,
+                max_new_tokens=max(128, math.ceil(len(encoded) / 100) * 128),
+                do_sample=False,
+                length_penalty=1.0,
+            )
+            decoded = self.processor.batch_decode(
+                output.sequences[:, inputs["input_ids"].shape[1] :],
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=False,
+            )
+        return [parse_asr_output(raw)[1] for raw in decoded]
+
+    def transcript(self, encoded: Any, prefix: Any = None) -> str:
+        texts = self._generate(encoded, prefix, beams=1)
+        if len(texts) != 1:
+            raise ValueError("Expected one greedy transcript")
+        return texts[0]
+
+    def hypotheses(self, encoded: Any, prefix: Any = None) -> list[str]:
+        texts = self._generate(encoded, prefix, beams=1) + self._generate(encoded, prefix, beams=4)
         if len(texts) != 5:
             raise ValueError("Expected greedy plus four beam hypotheses")
         return texts

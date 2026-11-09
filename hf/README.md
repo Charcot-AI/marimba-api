@@ -63,6 +63,7 @@ automation. Obtain consent and appropriate rights for submitted audio.
 | voice_activity | noul | encoder/head | validated | validated with Portuguese prompts and held-out Arabic, Hindi, Korean and Russian prompts; recognized questions use the canonical prompt; AMI 0.995 and VoxConverse 0.9996 AUROC |
 | language | choice | decoder | validated | Native 30-language LID; closed-set FLEURS 100%, Common Voice 93% (300 each) |
 | term | noul | decoder | experimental | Raw exact-match fraction of greedy + four beam hypotheses; uncalibrated |
+| pii | noul | decoder | experimental with a supplied detector; otherwise unavailable | Caller-supplied detector on greedy transcript; no detector included |
 | same_speaker | noul / score | encoder/head | unavailable | Not a released output |
 | speaker_change | noul / score | encoder/head | unavailable | Not a released output |
 | speaker_count | choice | encoder/head | unavailable | Not a released output |
@@ -71,6 +72,10 @@ automation. Obtain consent and appropriate rights for submitted audio.
 Decoder context above eight seconds is **unvalidated**. The API accepts up to
 30 seconds for decoder lanes, but context-handling smoke checks do not validate
 accuracy. Head/readout windows remain eight seconds.
+
+PII questions apply a caller-supplied detector to the greedy transcript; the package
+does not include a detector. The synthetic pt-BR evaluation scored item F1 0.904;
+the capability documentation gives the measured results and limitations.
 
 ## Evidence
 
@@ -105,10 +110,14 @@ GPU: NVIDIA L4. Torch 2.8.0+cu128, Transformers 4.57.6, SDPA, head fp32.
 LID/term exclude the shared prefix; component percentiles are not additive.
 Readout includes a raw-logit parity diagnostic. Part of the CPU baseline overlapped
 development on a shared VM. Other scores all 30 languages and was not timed here.
-No real-time or measured Mac performance is claimed.
+No real-time guarantee is claimed. See [benchmarks](../docs/benchmarks.md) for Mac
+CPU measurements; no MPS latency was measured.
 
 Current torch CUDA auto dtype prefers bf16 when supported by torch, then fp16 on
-native-FP16 devices, then fp32; CPU auto stays fp32. MPS auto policy is unchanged.
+native-FP16 devices, then fp32; CPU auto stays fp32. Auto does not select MPS.
+Explicit MPS auto dtype remains float16 when free memory is unknown or below 8 GiB,
+otherwise float32. MPS is not validated: torch 2.8.0 outputs did not match CPU in
+our bias-linear test, a mismatch not seen with torch 2.7.1.
 The NumPy readout retains its existing precision for parity.
 
 Eligibility was absolute binary-lane AUROC change <=0.005 and unchanged LID accuracy

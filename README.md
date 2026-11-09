@@ -10,8 +10,9 @@ An open-source project by charcot.ai
 
 Start with the [documentation index](docs/index.md), [executed notebooks](notebooks/README.md),
 [model card](hf/README.md), or [local-only Space scaffold](space/README.md).
-Decoder context above eight seconds is **unvalidated**. No real-time or Mac measurements
-are claimed. Converted head/readout weights are Apache-2.0; see the model card.
+Decoder context above eight seconds is **unvalidated**. No real-time guarantee is
+claimed; see [benchmarks](docs/benchmarks.md) for measured Mac CPU latency. Converted
+head/readout weights are Apache-2.0; see the model card.
 
 ## Development interface
 
@@ -106,6 +107,8 @@ are not additionally temperature-calibrated.
 
 Same-speaker, speaker-change, speaker-count, and audio-class are `unavailable`, with decision
 values/probabilities set to `None`. They do not receive synthetic fallback predictions.
+PII is experimental when a caller supplies a text detector and unavailable otherwise;
+the package does not include a detector. See [PII questions](docs/capabilities.md#pii-questions).
 Empty real-model audio raises an error; silence with valid samples is supported.
 
 `marimba bench --per-question --audio public_speech.wav --json bench.json` measures

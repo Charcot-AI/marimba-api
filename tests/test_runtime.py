@@ -79,7 +79,7 @@ def test_doctor_reports_cuda_capabilities_and_resolved_dtype(
 
 
 @pytest.mark.parametrize("memory", [None, 4 * 1024**3, 16 * 1024**3])
-def test_mps_auto_policy_unchanged(monkeypatch, memory):
+def test_mps_explicit_auto_policy_unchanged(monkeypatch, memory):
     monkeypatch.setattr(
         runtime,
         "detect_runtime",
@@ -91,6 +91,24 @@ def test_mps_auto_policy_unchanged(monkeypatch, memory):
             "free_memory": memory,
         },
     )
-    selected = runtime.select_backend()
+    selected = runtime.select_backend(device="mps")
     assert selected.device == "mps"
     assert selected.dtype == ("float16" if memory is None or memory < 8 * 1024**3 else "float32")
+
+
+def test_auto_uses_torch_cpu_when_mps_is_the_only_torch_device(monkeypatch):
+    monkeypatch.setattr(
+        runtime,
+        "detect_runtime",
+        lambda: {
+            "extras": {"torch": True},
+            "cuda": False,
+            "mps": True,
+            "providers": (),
+            "free_memory": None,
+        },
+    )
+    selected = runtime.select_backend()
+    assert selected.backend == "torch"
+    assert selected.device == "cpu"
+    assert selected.dtype == "float32"
