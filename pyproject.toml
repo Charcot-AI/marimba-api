@@ -17,6 +17,7 @@ torch = ["torch==2.8.0", "torchaudio==2.8.0", "transformers==4.57.6", "accelerat
 onnx = ["onnxruntime>=1.20"]
 datasets = ["datasets>=3"]
 demo = ["gradio>=5"]
+pipecat = ["pipecat-ai>=1.15,<2; python_version >= '3.11'"]
 
 [project.scripts]
 marimba = "marimba.cli:main"
@@ -49,6 +50,12 @@ ignore_errors = true
 [[tool.mypy.overrides]]
 module = ["soundfile", "soxr", "torch", "torch.*", "transformers", "onnxruntime", "qwen_asr", "qwen_asr.*"]
 ignore_missing_imports = true
+[[tool.mypy.overrides]]
+module = ["pipecat.*"]
+ignore_missing_imports = true
+[[tool.mypy.overrides]]
+module = ["marimba.integrations.pipecat"]
+disallow_subclassing_any = false
 [[tool.mypy.overrides]]
 module = ["marimba._head"]
 disallow_subclassing_any = false

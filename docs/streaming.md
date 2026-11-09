@@ -32,3 +32,35 @@ Decoder contexts over eight seconds are **unvalidated**. The API's 30-second gua
 and a context-handling smoke check are not evidence of long-context task quality.
 No real-time guarantee is claimed; see [benchmarks](benchmarks.md) for measured Mac
 CPU latency.
+
+## Pipecat turn analyzer
+
+Install the optional dependency with `pip install 'marimba[pipecat]'` on Python
+3.11 or newer. The analyzer loads the default Marimba model on its first
+prediction unless you pass a model.
+Pipecat's turn analyzer setup supplies the input sample rate; the adapter resamples
+to 16 kHz and keeps the latest eight seconds. The model right-aligns shorter audio
+and builds its validity mask.
+
+```python
+from marimba.integrations.pipecat import MarimbaTurnAnalyzer
+from pipecat.processors.aggregators.llm_context import LLMContext
+from pipecat.processors.aggregators.llm_response_universal import (
+    LLMContextAggregatorPair,
+    LLMUserAggregatorParams,
+)
+from pipecat.turns.user_stop import TurnAnalyzerUserTurnStopStrategy
+from pipecat.turns.user_turn_strategies import UserTurnStrategies
+
+turn_analyzer = MarimbaTurnAnalyzer(threshold=0.5)
+aggregators = LLMContextAggregatorPair(
+    LLMContext(),
+    user_params=LLMUserAggregatorParams(
+        user_turn_strategies=UserTurnStrategies(
+            stop=[TurnAnalyzerUserTurnStopStrategy(turn_analyzer=turn_analyzer)]
+        )
+    ),
+)
+```
+
+Use `aggregators.user()` and `aggregators.assistant()` in the pipeline.
