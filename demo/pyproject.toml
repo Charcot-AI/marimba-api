@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling>=1.26,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "marimba-demo"
+version = "0.1.0"
+description = "Local streaming audio decision instruments"
+requires-python = ">=3.10"
+dependencies = ["fastapi>=0.115.14,<0.116", "uvicorn[standard]>=0.34.3,<0.35", "numpy>=1.26,<2.3"]
+
+[project.scripts]
+marimba-demo = "marimba_demo.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8.3,<9", "httpx>=0.28,<0.29", "ruff>=0.11,<0.12", "mypy>=1.15,<1.16"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["marimba_demo"]
+
+[tool.hatch.build]
+artifacts = ["marimba_demo/static/**"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+
+[tool.mypy]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["marimba", "marimba.*"]
+follow_imports = "skip"
+check_untyped_defs = true

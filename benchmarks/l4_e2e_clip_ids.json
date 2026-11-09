@@ -1,0 +1,3922 @@
+{
+  "format_version": 1,
+  "dataset_revisions": {
+    "pipecat-ai/smart-turn-data-v3.2-train": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+    "google/fleurs": "70bb2e84b976b7e960aa89f1c648e09c59f894dd"
+  },
+  "corpus_sha256": "7cda39dde5231a59701036a3d71f9931ee23a9dd47ade4674fce01d62d000408",
+  "audio_input": "Preloaded public mappings: float32 array, sampling_rate=16000.",
+  "padding": "Existing right-aligned eight-second matrix windows, including left padding.",
+  "mask_policy": "Original masks are provenance only; the public API recomputes its own masks.",
+  "cycle": "Warmup starts at clip 0; measured calls continue at clip 20 modulo 100.",
+  "paths": {
+    "turn_end": [
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00006fe3-5331-4db2-b30e-65affe00cfbe",
+        "corpus_index": 0,
+        "window_sha256": "24538d8f9e719530df7cc3c87647b846d2c03064bec859ddfc4b09f1e41f56fc",
+        "original_valid_samples": 98560
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000081dd-b6dc-420c-be34-57bd8224c18f",
+        "corpus_index": 1,
+        "window_sha256": "4c9b7a3117bfe190519f5dce73b8dd63b464a7fae9d3eef34f381f670077407a",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0000abee-a101-4a2f-bdb5-aecae1187830",
+        "corpus_index": 2,
+        "window_sha256": "037c96ae42867bac8bfb71f6cfae6b0bb05f318928937d2f796fa74b7065f9e7",
+        "original_valid_samples": 80640
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0001e47c-ff52-46ca-8368-380f2a052bed",
+        "corpus_index": 3,
+        "window_sha256": "6e70f00a46d95343ae580c80d12e41f96a5953d24e526e8c8d1fb0bc2c038171",
+        "original_valid_samples": 96000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00021667-9e19-4e6b-8f5c-af600d298b73",
+        "corpus_index": 4,
+        "window_sha256": "300d029e9aefda45858822fde0ab40d9ad4df3466af35ce289341ed092689e93",
+        "original_valid_samples": 88144
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00027097-da25-4c47-a43a-5c5d2ffe17d3",
+        "corpus_index": 5,
+        "window_sha256": "4a94314dedb6112287f8f6c32052158fa489165b0d59c144ee79c9b8930de7b5",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0002ae75-9228-4230-a2df-2040db3507f6",
+        "corpus_index": 6,
+        "window_sha256": "a27cd5c40dc69ea665de324da0c541f3b5414a4a85da3bdef0469443fabf9f45",
+        "original_valid_samples": 71680
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0002e1f1-d00e-4063-816a-c42932faccb2",
+        "corpus_index": 7,
+        "window_sha256": "6ea9663b5286849fed6583410b2fb717c89af6f96d3382f75389404db8ebf76a",
+        "original_valid_samples": 116480
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0002ee44-0df6-4260-afde-5782d3d2b13c",
+        "corpus_index": 8,
+        "window_sha256": "9c957b4cc87b80cf32f13fbf0077859f803cb10816ec471dd868b8c8a1b066b8",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000309d6-6d8c-442e-962a-168c4354ee17",
+        "corpus_index": 9,
+        "window_sha256": "e8485d76d8b2b45ac55a5fc5a021d56870d6e942187873cd3af235ca98c09c71",
+        "original_valid_samples": 121600
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00031c38-c73a-45c0-af61-b99fd7230fb4",
+        "corpus_index": 10,
+        "window_sha256": "405236610883d570970053da3a8b8645184dfb88efd2b7792c41ae0df45130e5",
+        "original_valid_samples": 42880
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000370e9-9e71-4079-8030-079044dd5c01",
+        "corpus_index": 11,
+        "window_sha256": "4b7bb90be181582afd1d51368d44e89448fb9b127cc204ca846266076a83966e",
+        "original_valid_samples": 93440
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000395cd-4871-4827-ba7c-0bf3ab6ef0ac",
+        "corpus_index": 12,
+        "window_sha256": "4b99eed89828e5ae2473b4326fd6ff01e2cd671f752d807fd373177a64d2507e",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00041845-3075-4939-b22a-e158d6e286d4",
+        "corpus_index": 13,
+        "window_sha256": "b02dac023b48b07f564dbb3beae88d3df7eaf593ceecec0fd12b7dc272aca76f",
+        "original_valid_samples": 125440
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00042d88-194b-4dd9-b57b-ff58195704c3",
+        "corpus_index": 14,
+        "window_sha256": "34ead771d5555cfdb11a09fc4706672b8ed92968794dfa2cd381c0a47e6ce4f5",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00042d89-9bd0-4c19-afb8-7373ec57f30e",
+        "corpus_index": 15,
+        "window_sha256": "b6a9216a3d1ea5c92a87e1d4ba2f2b55682c66994a0ac8e6bbf846a6c7c515b3",
+        "original_valid_samples": 119680
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00043f22-043b-4c18-a5b0-40b85d771df1",
+        "corpus_index": 16,
+        "window_sha256": "b30c0bea5dabc819846233502a7e2b5125722eadbc3aae56c3d45df974c6fd9c",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00054cf4-e4a9-498a-8816-41dd0c69ca3b",
+        "corpus_index": 17,
+        "window_sha256": "c07473bea068b52c950512bc0025024c5bbbe6a61413ac3ab2a35700ad3a9123",
+        "original_valid_samples": 78534
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00058036-56ee-411f-9c3b-cfb6c3de6215",
+        "corpus_index": 18,
+        "window_sha256": "b6de69745e382841c3d10ac9923a1f868e85f53999002780af1d526671eb9325",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0005bf20-0d33-428e-bae0-f45b758ceefd",
+        "corpus_index": 19,
+        "window_sha256": "5a4cf205e13582fb2f75ab49beb1b6bd16df1eaa5b0401b8d4b3c31337ec40da",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0005c7c1-415f-4a12-a226-ad49724f4582",
+        "corpus_index": 20,
+        "window_sha256": "c52c08bf58118116590e3bd2ad233f29c84935bdae3eb1443a931c176c078c0e",
+        "original_valid_samples": 35840
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0005f00b-437a-42f6-b057-603f4bfad2c4",
+        "corpus_index": 21,
+        "window_sha256": "89114fd7ade8758aad109044f1c93a9c719530b1d0aeb6a4533f7213bcc89a83",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0005f388-7ed9-4700-ae5f-0a15059a02dc",
+        "corpus_index": 22,
+        "window_sha256": "21f1e9da8757875c171dd30c7a18baf68fcdfa28ac9ed720a0b316e860694cbe",
+        "original_valid_samples": 79360
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0006b31b-e955-4346-bc62-1966fec6f549",
+        "corpus_index": 23,
+        "window_sha256": "64961de06a9010bba635076551eabfc8860c1846f1af3a8f20c9ad602bb0dc4e",
+        "original_valid_samples": 54510
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0006c6b0-9b19-461f-8517-ff8b494d558a",
+        "corpus_index": 24,
+        "window_sha256": "50a707826d8f1ca81e505912b0fc43430464b09808411f0f23a58962b361e947",
+        "original_valid_samples": 126720
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0006e83b-da40-4c89-9684-2608baaeb7fb",
+        "corpus_index": 25,
+        "window_sha256": "e916e43bd747cab129d950826cac3e9e132e4ae042521d6113f72d02e857eb9b",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0006f11b-252e-44ed-857f-470e29cc475d",
+        "corpus_index": 26,
+        "window_sha256": "0d5f3d689b191410672384e44eb63826c5c91b54f43ee2cb41fe255043d722f0",
+        "original_valid_samples": 86935
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00075fff-65af-40d7-a609-080d7b773e36",
+        "corpus_index": 27,
+        "window_sha256": "26788cf26011c3ee31f2299a71e61bffb5c218423492304056c2e09cef422af3",
+        "original_valid_samples": 65920
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00079349-93fc-49fa-9cfa-07b578b6e6e8",
+        "corpus_index": 28,
+        "window_sha256": "aef7eb387c043651bb6c7ee4b389500e7bd38ff2bdd96f596f586c3b9fcb29f8",
+        "original_valid_samples": 107520
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0007a870-7ff3-4b5c-b7ab-78ac6f06aa7c",
+        "corpus_index": 29,
+        "window_sha256": "03e87d5c5a85204582309ff84c758f22d7f1df3df65093729451013a56b127cc",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0007cbe7-13a3-4db8-a402-83c177c774a0",
+        "corpus_index": 30,
+        "window_sha256": "63f7947d02c65b7f36c719fd0f99406bff4154d0771ab7d41f390ef2f34326dd",
+        "original_valid_samples": 94080
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0007fc28-e75c-4203-bba3-fca70ed4bc7c",
+        "corpus_index": 31,
+        "window_sha256": "b7000558937b4e4286df28e3a409c38131336d8dbee9234a3813afafcbc8cf9a",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00084e3c-d246-4afb-8571-775197821c2d",
+        "corpus_index": 32,
+        "window_sha256": "2d5a8055daa5f18861bf2144e056a393705fcacc7eaa1defa81b0e96e7260835",
+        "original_valid_samples": 80640
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0008b352-b34d-493c-ba3f-8cf615a6fbdb",
+        "corpus_index": 33,
+        "window_sha256": "9780873eab713f08a3a6c5e49b569aa109fc0b7f13fbe667265d72536f4ea8d2",
+        "original_valid_samples": 98560
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000a547c-8179-45bb-9227-9e6dc9ba09db",
+        "corpus_index": 34,
+        "window_sha256": "fe27eedda88681bfad2d175f2b0df75b754a2f6fd76c92647e3e1cdbedefd224",
+        "original_valid_samples": 109040
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000a6785-f42c-4e5f-9d9d-d0c389cb658d",
+        "corpus_index": 35,
+        "window_sha256": "a3f0d25dfbdd658b7719f63a2d7f08dcc5dbcf7d79bbbb6b47fb1b06838e2abc",
+        "original_valid_samples": 114560
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000ab56f-81e3-4b9c-8de8-af596ef9fe56",
+        "corpus_index": 36,
+        "window_sha256": "333d47295d6f70ebe95c9a6a9b1debe477bb43e93973cd5bff411dcd84ebf522",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000b04dc-a6e9-4775-b2b8-47befe2a2b74",
+        "corpus_index": 37,
+        "window_sha256": "1992c5dd86d0b7fda49dbf9f9aa41ad90961621ecdadf588f167b623adb13115",
+        "original_valid_samples": 122240
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000b4815-4305-4bd8-a589-48d19e4eea24",
+        "corpus_index": 38,
+        "window_sha256": "b40a84a1e8c56a405921724c6b05a4878863edef5ae1536c579726306c54601d",
+        "original_valid_samples": 114560
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000bd4ec-b5f9-4507-b16e-856d432ed464",
+        "corpus_index": 39,
+        "window_sha256": "1d1498addde1956ac8404e262346eff9556f2e324515759c688de081eb17e340",
+        "original_valid_samples": 117760
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000be3a6-6ab4-488d-b1a5-7d580cc1fa94",
+        "corpus_index": 40,
+        "window_sha256": "a134b0963e940ba112241baa0434dc03421d15a7aa9455b6f42909a80d00c9a0",
+        "original_valid_samples": 49872
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000c4022-e00f-4f52-869b-059df1de458a",
+        "corpus_index": 41,
+        "window_sha256": "4ae18a61a314188a11ac79a16b2eae61a2f5dc340464e71d12fe24cb592aed16",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000c460d-d307-422c-b3a0-39ca7d71c649",
+        "corpus_index": 42,
+        "window_sha256": "1c42725eb9482e14e12d4518c64b0f042dac713f5a160e43871e8a4d674ba70a",
+        "original_valid_samples": 103040
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000c4ea0-95c1-4587-8313-a8b51050fb1e",
+        "corpus_index": 43,
+        "window_sha256": "4476d00f4201e3ff5bff445a22275abccaff1f08d03b99dd1ea40602f647cbeb",
+        "original_valid_samples": 96000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000c603d-df2b-42ec-8b63-11ffd5dd9309",
+        "corpus_index": 44,
+        "window_sha256": "8f69227a8529495d25aee1818d9cdab24689efc71a32061a02b6c8381f31682f",
+        "original_valid_samples": 76160
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000c8197-2d2d-4c62-a75e-816960e38c94",
+        "corpus_index": 45,
+        "window_sha256": "5f9912bcd64b141cd16465a561c7606fad1cad91ed12e03ce5e9667a085ad9c1",
+        "original_valid_samples": 65920
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000c9790-2221-4b1a-aec4-114a494a0c30",
+        "corpus_index": 46,
+        "window_sha256": "40422102375a5dc84ffe8b9da4590f7f100c720c522151b218f6335ce6bc1230",
+        "original_valid_samples": 42880
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000cbed0-28da-40ff-a51c-e234d4dee703",
+        "corpus_index": 47,
+        "window_sha256": "a03b1e984d3d4564372fac98149bd5bb36d90f5e73deb22045b33dcbfbefa1a4",
+        "original_valid_samples": 105600
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000cefad-30e3-4590-a7b1-a83c0d8eba28",
+        "corpus_index": 48,
+        "window_sha256": "a4b70b578ab30ccd711712bf6efa12e457012d085cc83c5d31d06dab404eb80c",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000d52b8-16df-4742-9b2b-a9a58645a9d9",
+        "corpus_index": 49,
+        "window_sha256": "712bca150bff04587603fd8a2d17f8b0973b20b8f885509aa53fcfb99d6528c3",
+        "original_valid_samples": 96640
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000d5bdf-6d25-45a4-ad7a-42acea9f6816",
+        "corpus_index": 50,
+        "window_sha256": "dbd619a6e095ad9154d48931977ee2e984a05d0d156996a8c1138d0387b3d075",
+        "original_valid_samples": 83449
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000dae34-596a-4958-9eda-c69f90369ca1",
+        "corpus_index": 51,
+        "window_sha256": "fea301e164a1d3d5c6c92daea9461d8c0345910b22a2c0480faa1c2f288b21b6",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000dae9f-157b-47af-a27d-012c99cc71cb",
+        "corpus_index": 52,
+        "window_sha256": "6b5a4c05a4ad210ace2d30f4dcdfd6b14f9013d13d807ebe522f087e04c961c9",
+        "original_valid_samples": 62720
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000dbf35-30cd-4737-b5c1-8efe885576c3",
+        "corpus_index": 53,
+        "window_sha256": "33322a89bf4c3978115dfbca317dc68c1a0df3d06949402d4bbeec203e9eafbf",
+        "original_valid_samples": 48640
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000e3c4d-515c-4ddc-8bd1-f07d50fce3c4",
+        "corpus_index": 54,
+        "window_sha256": "eb2562824c03de4625fb2ca6770091fb9e357eeefabcd38497cf938d011d21aa",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000e4dcd-1033-47ed-b199-4db780d698d4",
+        "corpus_index": 55,
+        "window_sha256": "e285c897387e98af5f25b29341b8e093bf72363def37d7fd7d95554622d1c62a",
+        "original_valid_samples": 122240
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000e4fe1-9677-4894-8ffa-e86b2aff28b1",
+        "corpus_index": 56,
+        "window_sha256": "2166edf9c20beea7f83e88193f07599194815ef918ec1ef50db5ab0ed3d0d6fb",
+        "original_valid_samples": 64640
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000e690f-7d7d-4385-9645-acced48a24f2",
+        "corpus_index": 57,
+        "window_sha256": "6127383b1725cc5a9c8240e872d104ab8ab615430e1056f86f284082876af389",
+        "original_valid_samples": 103040
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000ee09a-9de8-4c96-8005-81b2ff48498c",
+        "corpus_index": 58,
+        "window_sha256": "c49e238d2fcc590a25a837fa9142fcc1618eb912d41c21624215fcf6a498fd17",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000f8454-1e16-434b-bbaf-26bc9dfcb2d5",
+        "corpus_index": 59,
+        "window_sha256": "f2ffab1cba07e4ed71067509e4f3e377c17eea331b24cd4f6f47a7c31c92be9c",
+        "original_valid_samples": 111360
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000f8ebb-49ec-4a7b-96f8-6c3260129e9e",
+        "corpus_index": 60,
+        "window_sha256": "46e581bd576e9632e7ca19cdd7b98f7a13265039959eb2fcdc947d5e2422ab22",
+        "original_valid_samples": 111360
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "000fcfb3-17c8-4002-9157-4e2a4e1a6784",
+        "corpus_index": 61,
+        "window_sha256": "b9d90124c5d80531a66bc089dab2cd2d771ff27fb3b95a8e1c7972c9c3f01463",
+        "original_valid_samples": 50560
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00100618-a653-4bf4-9c41-a9f15d24ae0e",
+        "corpus_index": 62,
+        "window_sha256": "fc4ec68fb998379dfa26f740d82214151fba2fccbd85c1122a08a2417bc5f7d9",
+        "original_valid_samples": 114427
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00101864-980c-434d-a956-cac9430fe3ee",
+        "corpus_index": 63,
+        "window_sha256": "462788a2f72d8407439a7b352349c9133b7371eaf4a30929c34f3876468c3bb9",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00107a14-af5a-4190-b3cd-bdd76a74426f",
+        "corpus_index": 64,
+        "window_sha256": "5775d77835b3e91fe27944649bfc8af6537ee6f99a55d3176c282e6b3fbfec7a",
+        "original_valid_samples": 97920
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "001087dd-b3e9-4968-8558-4776f84d7c33",
+        "corpus_index": 65,
+        "window_sha256": "8ddf7ef14343df7af7d4239dd0103f8302c48c5ad2c3b0efe7bf6ff14ffd609d",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00109981-661b-4140-aba3-ef57c608b4ed",
+        "corpus_index": 66,
+        "window_sha256": "901f59e45608dc840daa204d469944d11037dcc7d2476f4c3704359dd6276757",
+        "original_valid_samples": 62720
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00110ec2-e20d-4af9-9d61-f10b798fbdd3",
+        "corpus_index": 67,
+        "window_sha256": "906ddc1f7293dafde162ecde110e9a116b3604c5a43b0e17124250ddeda69a41",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00117b17-aaca-47b6-8a55-b2bdaba0eb71",
+        "corpus_index": 68,
+        "window_sha256": "bcf339bcec0b40d18177418396ec7dbc38c3cecf4d91221d08622903be0c5e16",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0011a1fb-35e6-4433-b99c-bc6ed0197c21",
+        "corpus_index": 69,
+        "window_sha256": "be839c1dce875f97e157f69c7e441094ee39b054f38cdedcbccf90882dc48ef7",
+        "original_valid_samples": 105600
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0011adf8-f320-4880-914c-b34bbb371d1f",
+        "corpus_index": 70,
+        "window_sha256": "3d9fa813cf2d9451cdef00fddd1e32cf5c894a86369278eafb1aade448846d72",
+        "original_valid_samples": 78080
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0011c6e8-f2fc-4d83-96a3-dd258a3a2872",
+        "corpus_index": 71,
+        "window_sha256": "3782de599fd5a802150eef3d0698d6ff8b9f5dbcf06842c94f1f83e652bc6f63",
+        "original_valid_samples": 57920
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0011eab3-f30a-4db3-b6fa-37d4871f1ebc",
+        "corpus_index": 72,
+        "window_sha256": "912b9e9e768b494e986d1bfd2eddf37db2247c646076d8f6b5fce231537f2aeb",
+        "original_valid_samples": 67623
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0012027a-d9d7-4d2f-979e-d63233631b2c",
+        "corpus_index": 73,
+        "window_sha256": "d9e15f7df0f622872743079a0179cfd3e3e3190b7cb758f44f839ea801602d10",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00124647-bfb7-4eda-bcb6-4dfdf404192f",
+        "corpus_index": 74,
+        "window_sha256": "49f0ec0d8375e2a21e7e5941dc300b90d8f23ceb3c4d6fd7da845a37d2d4c9c7",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00128947-3fe1-42d6-bb1d-aa1482b46252",
+        "corpus_index": 75,
+        "window_sha256": "ee209c1e2480d0e2ceb950355ae51f85e03bdf82560e907b1b0e57e4c26e3960",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0012926b-8ab2-42a7-87bd-619b50236803",
+        "corpus_index": 76,
+        "window_sha256": "e4562063419b3d887bf1dd904af15d5ff46b771dd2e9941c100214b32aad9eaf",
+        "original_valid_samples": 115200
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0012a39f-9819-4c98-9546-5795cf916fdf",
+        "corpus_index": 77,
+        "window_sha256": "848abfe0dcde10f2d749bd2214a057294b93c9bbf544880fa97bcd28d3c35be6",
+        "original_valid_samples": 109440
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0012d02b-6f01-4dc7-97a9-f816ade65f20",
+        "corpus_index": 78,
+        "window_sha256": "819f68901634d790b4df1fec806a8578974ddd56ab4f3073775b80c7ed864edd",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00142d59-6064-46b3-91b3-bb32711940d7",
+        "corpus_index": 79,
+        "window_sha256": "86c0ea808a2caed0638ee828b5e38208f24183769b7ca55861c77c30c3bf7470",
+        "original_valid_samples": 91520
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00146e47-2ab2-47be-8d83-375774491f94",
+        "corpus_index": 80,
+        "window_sha256": "0387db9828411dee0f0094be3eeacf2fe66dd049d41f9f9bf343c6053443eb7f",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0014d740-a350-44de-9c14-31cb82b2ed5e",
+        "corpus_index": 81,
+        "window_sha256": "ef812ee381ab60936e675094220d00ebf2868e336615eb6f00ae3b5204eb62d2",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0014db25-7b67-4081-b13a-2de651cfc39e",
+        "corpus_index": 82,
+        "window_sha256": "fc496a79236c2a6d19f2af64fcbf11c898626248d1a4e1b6ad53ba4d3ea949bf",
+        "original_valid_samples": 88960
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0014f1d0-47f8-4e6a-8560-13621488acf6",
+        "corpus_index": 83,
+        "window_sha256": "6bfb15e3e91fef904238a401354f1678a87a9df76765dbfc9cd8c8684e8579f8",
+        "original_valid_samples": 49088
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00151f2d-0f58-4ac8-8b38-0f02ba015337",
+        "corpus_index": 84,
+        "window_sha256": "e5e894e8a5f5a5e984c93af9580277233f5f8cf4b70f0472b17062f4ae27d41a",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00154200-56d9-4687-bc50-296b619151b9",
+        "corpus_index": 85,
+        "window_sha256": "0b0ee4d32512233b4c8d19708467151b70a2ed973ce1f3b8d3a2210b5aaa7152",
+        "original_valid_samples": 90880
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00154588-2a8f-48ba-9f52-7ae2b0b16390",
+        "corpus_index": 86,
+        "window_sha256": "bab0961cf4c6917daa2c541e8d0126bfebb2ebf332e72c6b249b263da735e60b",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0015b7fa-db6b-48b9-8678-ba4495fff9c5",
+        "corpus_index": 87,
+        "window_sha256": "91dd70f555e878518fe009d3f11ff72ff5d361b2a65f916da05a50853566e34e",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0016253d-64fd-485d-bb96-eecdd22c69df",
+        "corpus_index": 88,
+        "window_sha256": "4e3650c2ae6314476d6e2ee8281e623413ec0b8a675a89cf55ea2b57c3908bde",
+        "original_valid_samples": 61440
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00166b10-73b5-4ae7-be8f-9ef7d143dfcd",
+        "corpus_index": 89,
+        "window_sha256": "ba1d81aa2c0db45fce299892b74d39eb8808bf95a3244d261543836863063ec8",
+        "original_valid_samples": 113323
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0016b51e-ed0d-44c1-943e-de2937ded67b",
+        "corpus_index": 90,
+        "window_sha256": "1064a716b27bce9adaa5e4a1cc80d7d7e840accc01b6eaa869f5d84cb28f971a",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0016bb2e-1d82-40ff-92a6-4ab7a210bd90",
+        "corpus_index": 91,
+        "window_sha256": "8b79bf5277c15dab08b529e42552e8c897fad57d7b0744a9e9cd3f28a4e5185e",
+        "original_valid_samples": 124160
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "00172271-3941-4f44-a54c-3c576cfe4d63",
+        "corpus_index": 92,
+        "window_sha256": "2a910612e68b30cdf63ce86365ac708fab19538264700f81b6987254ee3bdcdd",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0018761e-31b5-4bc1-a3b0-70f5d45af5f2",
+        "corpus_index": 93,
+        "window_sha256": "0dbc589a20bead818bd0d13513581ea1f0ceddba4b9847a7127028d0b5e06b13",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "0018a285-def0-43a4-ad65-e2b678ebd6b9",
+        "corpus_index": 94,
+        "window_sha256": "35dd47a8caaebf203df933643b6a870cc2bcf3ff5760f5838b232e5a7551f924",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "001a4018-89b3-40d0-9091-fc80798b4cf5",
+        "corpus_index": 95,
+        "window_sha256": "b3a2088674400a3c42a50b655786617d73a46598b074aa8c0c3d320a96c3323a",
+        "original_valid_samples": 101120
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "001abbc8-61c0-4adc-9280-2768eb9e23b6",
+        "corpus_index": 96,
+        "window_sha256": "41748d3158493d3caca39c0952388ed48cbbcb124c37ade64440f39d3a0575d6",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "001ad5b0-abcd-40cf-8f37-7fb64de4d7f2",
+        "corpus_index": 97,
+        "window_sha256": "2f6a295fa38434550900306c3dec61d3519de5adc9764afb8ff3d04bb842232b",
+        "original_valid_samples": 108160
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "001b1fe3-ee88-4fa7-955d-78adcf13b8c2",
+        "corpus_index": 98,
+        "window_sha256": "5fecc4d47f8af2c97a4a704e2e78a1ead4f3c540a92879c2bce155307c7b0f52",
+        "original_valid_samples": 74240
+      },
+      {
+        "source": "pipecat-ai/smart-turn-data-v3.2-train",
+        "revision": "f8c95d284595defb6b88a715c356cbc5c31b7ad1",
+        "split": "train",
+        "file": "data/train-00000-of-00083.parquet",
+        "id": "001b6d62-1a3e-4026-87d8-a43031addce7",
+        "corpus_index": 99,
+        "window_sha256": "89216f7ebf1f7a4b0796c71643c4094c64b9ffe0527381cfa208734115192ee6",
+        "original_valid_samples": 128000
+      }
+    ],
+    "voice_activity": [
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1548",
+        "corpus_index": 100,
+        "window_sha256": "5d2f91bffd7097339465eed1d40b35a9ed11dbded782e44862675e393a1c8c24",
+        "original_valid_samples": 104640
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1510",
+        "corpus_index": 101,
+        "window_sha256": "64128e4a472af3f0ae0e6c5d262b5e88530fbddd0c0e0ed407a23016d96c5f8c",
+        "original_valid_samples": 126720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1578",
+        "corpus_index": 102,
+        "window_sha256": "42c43302d7309b2db439d64e7e4cbc1c9458c782e5f095d112d1fd2ed436e520",
+        "original_valid_samples": 66240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1652",
+        "corpus_index": 103,
+        "window_sha256": "1d237fe979bf365cf7298af1da0d95d8909e002c4fec64d3b894b1a127359291",
+        "original_valid_samples": 78720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1531",
+        "corpus_index": 104,
+        "window_sha256": "0cf5512b19bc5604276c5f4132297e0c6f6aa97e03339a4deca7819453e11e57",
+        "original_valid_samples": 71040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1528",
+        "corpus_index": 105,
+        "window_sha256": "1a9120754ee0212ce838f7b7e6cb2c235dfc86bba375b3b5a74e2307ad303b3e",
+        "original_valid_samples": 109440
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1560",
+        "corpus_index": 106,
+        "window_sha256": "cb48d650524b97b9e95cb8b6f563b1d4e5fa9e2d26fce25090e3e364084b0374",
+        "original_valid_samples": 117120
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1619",
+        "corpus_index": 107,
+        "window_sha256": "cc50324187fae8e401133be8167c3b6017bf5b64d3e4c3d9108b8372f7ee2bce",
+        "original_valid_samples": 113280
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1598",
+        "corpus_index": 108,
+        "window_sha256": "550219472eb6887c709de7cbac398cd66f61a17657c06038802dc51880f35f5b",
+        "original_valid_samples": 120640
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1551",
+        "corpus_index": 109,
+        "window_sha256": "b712f215937545fa4232a4ae5fb3637674927f78249a51e060efbd74f9f1e1cc",
+        "original_valid_samples": 124800
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1578",
+        "corpus_index": 120,
+        "window_sha256": "d9d57938b3f1a36643501a12c1295c6fdc236b0b463e090050f38e8f8e366dd4",
+        "original_valid_samples": 106560
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1621",
+        "corpus_index": 121,
+        "window_sha256": "60ad52254fc138abe429a1b34adc81f25f132b804993fad3e3a460a859c0fb15",
+        "original_valid_samples": 119040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1552",
+        "corpus_index": 122,
+        "window_sha256": "fa8a35611f5945e728c6ac737e5c48fa2337919ac26a551a65a4f13d1e0a5a31",
+        "original_valid_samples": 90240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1567",
+        "corpus_index": 123,
+        "window_sha256": "e63397048a353f21e67e5cfb344910771d7a67ddc2030a00e9018697acb42738",
+        "original_valid_samples": 114240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1645",
+        "corpus_index": 124,
+        "window_sha256": "6741cd9e40a3d891f145859f2a1716eb64a2101a63160caeb9e6e52cb79f0880",
+        "original_valid_samples": 105600
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1551",
+        "corpus_index": 125,
+        "window_sha256": "205ac85cc173d80261ef5e772d8f17d1053012f59560c570f2beecdcb49113b6",
+        "original_valid_samples": 119040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1636",
+        "corpus_index": 126,
+        "window_sha256": "c71292a977f89f7af5a373b5534ecfd9388c5cdef0c485030db1dc134578ca85",
+        "original_valid_samples": 97920
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1659",
+        "corpus_index": 127,
+        "window_sha256": "f45b2fa146faf4972241e25b768102b79ea42e12177e2fb5950044b6317d0f10",
+        "original_valid_samples": 97920
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1612",
+        "corpus_index": 128,
+        "window_sha256": "c776363581a23a4744e9753f5d5135cab571d14899a19c6380493b0738410d71",
+        "original_valid_samples": 97920
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1531",
+        "corpus_index": 129,
+        "window_sha256": "a72f6ce0bd2fc67b20f4e1be95edf0cc2ef742a9c727fed15d9de807a3cbec44",
+        "original_valid_samples": 123840
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1515",
+        "corpus_index": 140,
+        "window_sha256": "cdbc5ad64c591f2c96cd4ff137f58e5d652d0816ebc1e1d1ace8bdbdfdd1a13f",
+        "original_valid_samples": 88320
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1570",
+        "corpus_index": 141,
+        "window_sha256": "7bae18fa0453cab1240dd4fc4237ab5686ff2370e0098cbe064c9463ffbbb081",
+        "original_valid_samples": 114240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1652",
+        "corpus_index": 142,
+        "window_sha256": "ff0e409892b48f43af7b37e814111611cbac6b0bc5fc1637639498d7a9d29a4c",
+        "original_valid_samples": 113280
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1659",
+        "corpus_index": 143,
+        "window_sha256": "ca7eed073f354f48fff97ef73475a6dff02dcafd5fc804c3ce80be2f52f10e92",
+        "original_valid_samples": 101760
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1545",
+        "corpus_index": 144,
+        "window_sha256": "ec0963f4a1a98a053ca74a2dd4b38fbe135277af10d8c562faab4cdfd8fe9467",
+        "original_valid_samples": 101760
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1645",
+        "corpus_index": 145,
+        "window_sha256": "958ae46606b176890caed706f9b8afa31b5e82eab0e7f1e05bd34a20df882fb6",
+        "original_valid_samples": 122880
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1607",
+        "corpus_index": 146,
+        "window_sha256": "d423ebc4ebb9bdce8e8d03521423bffe4a91f7f956e75b5dd6407703620bb211",
+        "original_valid_samples": 92160
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1612",
+        "corpus_index": 147,
+        "window_sha256": "e625cd9aade556d94b8f83d5cfd77aaf4a86d62234541f832aa9b6cf803a64e9",
+        "original_valid_samples": 107520
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1543",
+        "corpus_index": 148,
+        "window_sha256": "92afbe063d871a6ebf2a2a45ec70917a5514c3f3bee61e4e102a2c35bbd8c40f",
+        "original_valid_samples": 104640
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1567",
+        "corpus_index": 149,
+        "window_sha256": "c224e5e40f34e5ebf92087e433831da92e356a6704f54cfaf540fe77152838f7",
+        "original_valid_samples": 107520
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1570",
+        "corpus_index": 160,
+        "window_sha256": "e9b4b9cdde4087a5c4ea74e9ab49c54e72a9cdbc503e4616e3cb4fc3be31a645",
+        "original_valid_samples": 96000
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1533",
+        "corpus_index": 161,
+        "window_sha256": "41e8a01a863567798c326fe2b33f04859d3d91b6439f69567077ff3873aab9db",
+        "original_valid_samples": 125760
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1640",
+        "corpus_index": 162,
+        "window_sha256": "6e41db213a0739c7547e00d908f57a20f03b4be13d2534c83536d40bfab9c09d",
+        "original_valid_samples": 118080
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1553",
+        "corpus_index": 163,
+        "window_sha256": "01ee4f04792586f29e2ee81e3c4f3d4f7054a5c2450a9c7629aa183a3ab18aa1",
+        "original_valid_samples": 110400
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1656",
+        "corpus_index": 164,
+        "window_sha256": "839c8de23af2562cb7c52610b05dd39c51ce09fa3777aadcaf34f4f33a248699",
+        "original_valid_samples": 119040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1636",
+        "corpus_index": 165,
+        "window_sha256": "010f6abedb1ed1380919d103e4222f37fd3dc0e91484974fced91aafa046694e",
+        "original_valid_samples": 105600
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1581",
+        "corpus_index": 166,
+        "window_sha256": "44d73b0aaaf8551e66726b79aa43f52fb0fad8c3aa6af42c5bf6025fa75a0b8a",
+        "original_valid_samples": 118080
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1647",
+        "corpus_index": 167,
+        "window_sha256": "0fd8e12cf455e6b9595a7862511bb42aac0280c1d1ecdfd3fd4df745b5bccd05",
+        "original_valid_samples": 127680
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1596",
+        "corpus_index": 168,
+        "window_sha256": "fc96fae34f3fda46a7763fba1e56a2e6995b589940669db1e0c2a215466733a7",
+        "original_valid_samples": 126720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1521",
+        "corpus_index": 169,
+        "window_sha256": "1fb451ab2986a5149304955bf55228a8586aee5b75cd114385e133759ad2ceda",
+        "original_valid_samples": 96000
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1628",
+        "corpus_index": 180,
+        "window_sha256": "9f436b5b852fb8e0d34bb93a448cc9dcc137f047f64d3d30632d842bdf8fdb90",
+        "original_valid_samples": 106560
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1577",
+        "corpus_index": 181,
+        "window_sha256": "1f004aac2cadb5f7361ce575e94428c97a3c6c963da72e07dfe70e9e11c8a7bb",
+        "original_valid_samples": 86400
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1572",
+        "corpus_index": 182,
+        "window_sha256": "09a9bc0e2e62377cde92d6700d60902737d2c5fd137105036120a2e90546e808",
+        "original_valid_samples": 86400
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1645",
+        "corpus_index": 183,
+        "window_sha256": "866b1dfdec05168ec569a48c66c932fc0994331f3a46d362195c5628b355b835",
+        "original_valid_samples": 120960
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1567",
+        "corpus_index": 184,
+        "window_sha256": "0209caa32e433a1d6912d662d1537037895304471b192cd8d6d86559889328bd",
+        "original_valid_samples": 94080
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1515",
+        "corpus_index": 185,
+        "window_sha256": "de7288086557646b9dbbcaa63a530c1c620471e8ce7b2d85d453e842b7623896",
+        "original_valid_samples": 115200
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1528",
+        "corpus_index": 186,
+        "window_sha256": "254448d8e0c8b1b5d576510806df840c1ec73ccfd735dfde79c7ddfa6006d017",
+        "original_valid_samples": 84480
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1515",
+        "corpus_index": 187,
+        "window_sha256": "2c15683ee9b1e184f4f7f16c77586ab39394586dbaf3df0594a31b419729ad1c",
+        "original_valid_samples": 90240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1557",
+        "corpus_index": 188,
+        "window_sha256": "75e316ae4b57e70985dec2507e27e30a4cf15e388d8f1b7047c079b117ffeefc",
+        "original_valid_samples": 124800
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1648",
+        "corpus_index": 189,
+        "window_sha256": "daefd614000e0f2abd96234e08009f4db6b5b583b47ca38609807fb4e0ec1028",
+        "original_valid_samples": 79680
+      },
+      {
+        "source": "synthetic",
+        "id": "0",
+        "seed": 4412,
+        "corpus_index": 200,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "1",
+        "seed": 4412,
+        "corpus_index": 201,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "2",
+        "seed": 4412,
+        "corpus_index": 202,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "3",
+        "seed": 4412,
+        "corpus_index": 203,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "4",
+        "seed": 4412,
+        "corpus_index": 204,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "5",
+        "seed": 4412,
+        "corpus_index": 205,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "6",
+        "seed": 4412,
+        "corpus_index": 206,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "7",
+        "seed": 4412,
+        "corpus_index": 207,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "8",
+        "seed": 4412,
+        "corpus_index": 208,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "9",
+        "seed": 4412,
+        "corpus_index": 209,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "10",
+        "seed": 4412,
+        "corpus_index": 210,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "11",
+        "seed": 4412,
+        "corpus_index": 211,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "12",
+        "seed": 4412,
+        "corpus_index": 212,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "13",
+        "seed": 4412,
+        "corpus_index": 213,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "14",
+        "seed": 4412,
+        "corpus_index": 214,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "15",
+        "seed": 4412,
+        "corpus_index": 215,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "16",
+        "seed": 4412,
+        "corpus_index": 216,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "17",
+        "seed": 4412,
+        "corpus_index": 217,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "18",
+        "seed": 4412,
+        "corpus_index": 218,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "19",
+        "seed": 4412,
+        "corpus_index": 219,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "20",
+        "seed": 4412,
+        "corpus_index": 220,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "21",
+        "seed": 4412,
+        "corpus_index": 221,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "22",
+        "seed": 4412,
+        "corpus_index": 222,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "23",
+        "seed": 4412,
+        "corpus_index": 223,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "24",
+        "seed": 4412,
+        "corpus_index": 224,
+        "window_sha256": "2d4da04b861bb9dbe77c871415931785a18138d6db035f1bbcd0cf8277c6fc23",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "25",
+        "seed": 4412,
+        "corpus_index": 225,
+        "window_sha256": "1960ff1509c7a95edb572347a2f00563ae81e92ea8ef959ff7d556d3c1abffa0",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "26",
+        "seed": 4412,
+        "corpus_index": 226,
+        "window_sha256": "90fd3527789342b281329458557bccb7f24b539dbba6bbfe5b90d0a3d914973d",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "27",
+        "seed": 4412,
+        "corpus_index": 227,
+        "window_sha256": "54778800de1298c4a436bc7f1350150e95e02c1c1eab49c9cfa6edc3c7cdc03f",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "28",
+        "seed": 4412,
+        "corpus_index": 228,
+        "window_sha256": "138134bed5b880bd29a8a989b6d873715f2e3e797ad0f1e8fabf1af68e2af22f",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "29",
+        "seed": 4412,
+        "corpus_index": 229,
+        "window_sha256": "934d42b2aace58172ba5960fa55d89a80d0b1abe8653fcb2e213556d8c41f6aa",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "30",
+        "seed": 4412,
+        "corpus_index": 230,
+        "window_sha256": "7351bc5675f7795f892b46d245e4f4e1b1269cac4b78f3749314206fbd9000a2",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "31",
+        "seed": 4412,
+        "corpus_index": 231,
+        "window_sha256": "845256d3d5955ed083aa310cee21803084c8852013aee9745c6ce27e6fe3977b",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "32",
+        "seed": 4412,
+        "corpus_index": 232,
+        "window_sha256": "6a094675ee5990013efaaf9badd109179903a47e3fd7e1b5c7efd7af2a841169",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "33",
+        "seed": 4412,
+        "corpus_index": 233,
+        "window_sha256": "dba5a87a53ce7f91e8623d0dd08455058824da16e55e41fd44f2f297c406a36d",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "34",
+        "seed": 4412,
+        "corpus_index": 234,
+        "window_sha256": "e3a3807e70466d093682d693041239f226d3f60b170a53428084229f306e5575",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "35",
+        "seed": 4412,
+        "corpus_index": 235,
+        "window_sha256": "e5774ad9342035b0fc437752dee6e06a854dead53687a5654a9b3213e3d17b7e",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "36",
+        "seed": 4412,
+        "corpus_index": 236,
+        "window_sha256": "d694fee993468ad7d4703efe96fd3b794b0d0208c123b8f80783c7fb26748a89",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "37",
+        "seed": 4412,
+        "corpus_index": 237,
+        "window_sha256": "ad45eb5942757191ed85c6844d2cab3cfb84f23dc25e1a20192297bf757a8278",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "38",
+        "seed": 4412,
+        "corpus_index": 238,
+        "window_sha256": "cbe12122da604fa8d15b00dc434e22ce15b47affc739ace68f0fb795b5f95ab4",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "39",
+        "seed": 4412,
+        "corpus_index": 239,
+        "window_sha256": "66784cd1d0921d314705142bdb8a216a4567b6397b74ce33e680cf009e8ec75e",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "40",
+        "seed": 4412,
+        "corpus_index": 240,
+        "window_sha256": "12a7e6d6a952be5a159c67dfe2f05934beb67fec405a27f81a51312ce49f02a9",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "41",
+        "seed": 4412,
+        "corpus_index": 241,
+        "window_sha256": "e5cde08fd7f9f25658ce9d9c7fc290dfe22cf0134d7ef24ffd4e0d38a99eaf18",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "42",
+        "seed": 4412,
+        "corpus_index": 242,
+        "window_sha256": "893f47ad8dd0e8d8febe0c87b529b3536ee979ce2f061b715cf9a04574a83eba",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "43",
+        "seed": 4412,
+        "corpus_index": 243,
+        "window_sha256": "5ab65b1171b335a66c48190a613f64bb5c9529c44d439ffbb88d54209e26450b",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "44",
+        "seed": 4412,
+        "corpus_index": 244,
+        "window_sha256": "259a2df4f9b90274ed60b56ba5b6719e9e5d15b26e5696f99d4a26c78cef54af",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "45",
+        "seed": 4412,
+        "corpus_index": 245,
+        "window_sha256": "10d7c4b43ca35f9cc504b932addf9f21f2230bda5c2bd2ffb3c10bdfe697019b",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "46",
+        "seed": 4412,
+        "corpus_index": 246,
+        "window_sha256": "b2f7ae0afef069672713987b8f11828438f880927793dda67ef9df742a1b8cd2",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "47",
+        "seed": 4412,
+        "corpus_index": 247,
+        "window_sha256": "7cc357f219184af3c9f7f15f74161eebfae43ad312e4ab42452938cc10a4517e",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "48",
+        "seed": 4412,
+        "corpus_index": 248,
+        "window_sha256": "98038422ed571d9365ccbf7b7056975070c27c81d09207ebfbf52ce9cdd4a7f8",
+        "original_valid_samples": 128000
+      },
+      {
+        "source": "synthetic",
+        "id": "49",
+        "seed": 4412,
+        "corpus_index": 249,
+        "window_sha256": "f411b83182dedccc67398b5af7ee3efae9ba5ebdd95061dfe132bec8ab6d3dc3",
+        "original_valid_samples": 128000
+      }
+    ],
+    "language": [
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1548",
+        "corpus_index": 100,
+        "window_sha256": "5d2f91bffd7097339465eed1d40b35a9ed11dbded782e44862675e393a1c8c24",
+        "original_valid_samples": 104640
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1510",
+        "corpus_index": 101,
+        "window_sha256": "64128e4a472af3f0ae0e6c5d262b5e88530fbddd0c0e0ed407a23016d96c5f8c",
+        "original_valid_samples": 126720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1578",
+        "corpus_index": 102,
+        "window_sha256": "42c43302d7309b2db439d64e7e4cbc1c9458c782e5f095d112d1fd2ed436e520",
+        "original_valid_samples": 66240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1652",
+        "corpus_index": 103,
+        "window_sha256": "1d237fe979bf365cf7298af1da0d95d8909e002c4fec64d3b894b1a127359291",
+        "original_valid_samples": 78720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1531",
+        "corpus_index": 104,
+        "window_sha256": "0cf5512b19bc5604276c5f4132297e0c6f6aa97e03339a4deca7819453e11e57",
+        "original_valid_samples": 71040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1528",
+        "corpus_index": 105,
+        "window_sha256": "1a9120754ee0212ce838f7b7e6cb2c235dfc86bba375b3b5a74e2307ad303b3e",
+        "original_valid_samples": 109440
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1560",
+        "corpus_index": 106,
+        "window_sha256": "cb48d650524b97b9e95cb8b6f563b1d4e5fa9e2d26fce25090e3e364084b0374",
+        "original_valid_samples": 117120
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1619",
+        "corpus_index": 107,
+        "window_sha256": "cc50324187fae8e401133be8167c3b6017bf5b64d3e4c3d9108b8372f7ee2bce",
+        "original_valid_samples": 113280
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1598",
+        "corpus_index": 108,
+        "window_sha256": "550219472eb6887c709de7cbac398cd66f61a17657c06038802dc51880f35f5b",
+        "original_valid_samples": 120640
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1551",
+        "corpus_index": 109,
+        "window_sha256": "b712f215937545fa4232a4ae5fb3637674927f78249a51e060efbd74f9f1e1cc",
+        "original_valid_samples": 124800
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1596",
+        "corpus_index": 110,
+        "window_sha256": "0a52f572ede5ab81ed2dcbe41a2adab24732f8aa201ffaf4756d384a31578592",
+        "original_valid_samples": 108480
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1615",
+        "corpus_index": 111,
+        "window_sha256": "794d30437594803afae770a8ea7129688f9686bdd7f13b50db29129c4b165eb5",
+        "original_valid_samples": 108480
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1560",
+        "corpus_index": 112,
+        "window_sha256": "b15411238fa0edc61e012e0d90da9ec4a0f2a46bc950695bb3585b99ea1fd058",
+        "original_valid_samples": 88320
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1607",
+        "corpus_index": 113,
+        "window_sha256": "aaa4596e1bb001cb32cb9514aa8d2ea7a617305b596d854278fff8e479f00f7b",
+        "original_valid_samples": 61440
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1517",
+        "corpus_index": 114,
+        "window_sha256": "9c98a46ee36c106e9f8668fe279f62dfe9d7a9ba7f1a4d60249bca5a331849dd",
+        "original_valid_samples": 112320
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1530",
+        "corpus_index": 115,
+        "window_sha256": "94b018d5e6d38518b3f93c4e4de77d7fc5bfcfe246fa19bc4f4f0fb6f45d47db",
+        "original_valid_samples": 78720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1587",
+        "corpus_index": 116,
+        "window_sha256": "f47153fe08364155c26a00c46cd6749bf978994e98b5e1daa95471facd708c5f",
+        "original_valid_samples": 88320
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1598",
+        "corpus_index": 117,
+        "window_sha256": "9be7f5ab9a3187edf8425505a9f3d4c8c6c485c7f0813bc650565560bc905e0b",
+        "original_valid_samples": 84480
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1642",
+        "corpus_index": 118,
+        "window_sha256": "d2400f8d795e153a990b4024047b6894e1954fc65fe3b5528873d4b0cfa845a0",
+        "original_valid_samples": 119040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1555",
+        "corpus_index": 119,
+        "window_sha256": "b3f81dd60bdcf190bed84da3b620de8e4bb55d005f56baae14bf37aceaf49ea8",
+        "original_valid_samples": 88320
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1578",
+        "corpus_index": 120,
+        "window_sha256": "d9d57938b3f1a36643501a12c1295c6fdc236b0b463e090050f38e8f8e366dd4",
+        "original_valid_samples": 106560
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1621",
+        "corpus_index": 121,
+        "window_sha256": "60ad52254fc138abe429a1b34adc81f25f132b804993fad3e3a460a859c0fb15",
+        "original_valid_samples": 119040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1552",
+        "corpus_index": 122,
+        "window_sha256": "fa8a35611f5945e728c6ac737e5c48fa2337919ac26a551a65a4f13d1e0a5a31",
+        "original_valid_samples": 90240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1567",
+        "corpus_index": 123,
+        "window_sha256": "e63397048a353f21e67e5cfb344910771d7a67ddc2030a00e9018697acb42738",
+        "original_valid_samples": 114240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1645",
+        "corpus_index": 124,
+        "window_sha256": "6741cd9e40a3d891f145859f2a1716eb64a2101a63160caeb9e6e52cb79f0880",
+        "original_valid_samples": 105600
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1551",
+        "corpus_index": 125,
+        "window_sha256": "205ac85cc173d80261ef5e772d8f17d1053012f59560c570f2beecdcb49113b6",
+        "original_valid_samples": 119040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1636",
+        "corpus_index": 126,
+        "window_sha256": "c71292a977f89f7af5a373b5534ecfd9388c5cdef0c485030db1dc134578ca85",
+        "original_valid_samples": 97920
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1659",
+        "corpus_index": 127,
+        "window_sha256": "f45b2fa146faf4972241e25b768102b79ea42e12177e2fb5950044b6317d0f10",
+        "original_valid_samples": 97920
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1612",
+        "corpus_index": 128,
+        "window_sha256": "c776363581a23a4744e9753f5d5135cab571d14899a19c6380493b0738410d71",
+        "original_valid_samples": 97920
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1531",
+        "corpus_index": 129,
+        "window_sha256": "a72f6ce0bd2fc67b20f4e1be95edf0cc2ef742a9c727fed15d9de807a3cbec44",
+        "original_valid_samples": 123840
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1515",
+        "corpus_index": 130,
+        "window_sha256": "1632366bdf807a96a19a3699b1d6616373d3ce680b9b690eb327120e134cda25",
+        "original_valid_samples": 82560
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1582",
+        "corpus_index": 131,
+        "window_sha256": "902162bdc6a756eddd821c4ea8835093adcb879c79d852ba1b310b494282fe2a",
+        "original_valid_samples": 90240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1612",
+        "corpus_index": 132,
+        "window_sha256": "09f60a53d1ba46ac93317851d0f221f83bcaaaf0232f0586aaed591be829ab8d",
+        "original_valid_samples": 126720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1545",
+        "corpus_index": 133,
+        "window_sha256": "f280987e2c87045717f8abe317b22595b24eba2f20d506a3ef19624518f3ae73",
+        "original_valid_samples": 96000
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1651",
+        "corpus_index": 134,
+        "window_sha256": "2cc08f26296105dd7837eab76b51c411881ecc48bef8b238a7f7ac4285bf8253",
+        "original_valid_samples": 120960
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1651",
+        "corpus_index": 135,
+        "window_sha256": "33f475dee13c7302076966a0ed6dd6f8411a34b39bd58044b57b87c2ad388092",
+        "original_valid_samples": 124800
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1582",
+        "corpus_index": 136,
+        "window_sha256": "c9c037bccd2ed174a250d4e03a27c8653cf1213731c6d11c46f51190589b6287",
+        "original_valid_samples": 116160
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1554",
+        "corpus_index": 137,
+        "window_sha256": "c52fe4e77d63a53d2222fca6040cdd7b87e8f2e2112d93cd550596ffeb430f81",
+        "original_valid_samples": 94080
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1656",
+        "corpus_index": 138,
+        "window_sha256": "2d5d376a83cdcc743bb6110faf61a66046f0233d15106b5d40401a67229c08ac",
+        "original_valid_samples": 120960
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1554",
+        "corpus_index": 139,
+        "window_sha256": "791d760f1c8225fad891d3262a0fca67795b943e956fcc14820ffdd809bfef0c",
+        "original_valid_samples": 83520
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1515",
+        "corpus_index": 140,
+        "window_sha256": "cdbc5ad64c591f2c96cd4ff137f58e5d652d0816ebc1e1d1ace8bdbdfdd1a13f",
+        "original_valid_samples": 88320
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1570",
+        "corpus_index": 141,
+        "window_sha256": "7bae18fa0453cab1240dd4fc4237ab5686ff2370e0098cbe064c9463ffbbb081",
+        "original_valid_samples": 114240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1652",
+        "corpus_index": 142,
+        "window_sha256": "ff0e409892b48f43af7b37e814111611cbac6b0bc5fc1637639498d7a9d29a4c",
+        "original_valid_samples": 113280
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1659",
+        "corpus_index": 143,
+        "window_sha256": "ca7eed073f354f48fff97ef73475a6dff02dcafd5fc804c3ce80be2f52f10e92",
+        "original_valid_samples": 101760
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1545",
+        "corpus_index": 144,
+        "window_sha256": "ec0963f4a1a98a053ca74a2dd4b38fbe135277af10d8c562faab4cdfd8fe9467",
+        "original_valid_samples": 101760
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1645",
+        "corpus_index": 145,
+        "window_sha256": "958ae46606b176890caed706f9b8afa31b5e82eab0e7f1e05bd34a20df882fb6",
+        "original_valid_samples": 122880
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1607",
+        "corpus_index": 146,
+        "window_sha256": "d423ebc4ebb9bdce8e8d03521423bffe4a91f7f956e75b5dd6407703620bb211",
+        "original_valid_samples": 92160
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1612",
+        "corpus_index": 147,
+        "window_sha256": "e625cd9aade556d94b8f83d5cfd77aaf4a86d62234541f832aa9b6cf803a64e9",
+        "original_valid_samples": 107520
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1543",
+        "corpus_index": 148,
+        "window_sha256": "92afbe063d871a6ebf2a2a45ec70917a5514c3f3bee61e4e102a2c35bbd8c40f",
+        "original_valid_samples": 104640
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1567",
+        "corpus_index": 149,
+        "window_sha256": "c224e5e40f34e5ebf92087e433831da92e356a6704f54cfaf540fe77152838f7",
+        "original_valid_samples": 107520
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1652",
+        "corpus_index": 150,
+        "window_sha256": "9606e99e581318c58c80336c92cb1b83825ff0cea3090e0b8f51e9e0cc247cda",
+        "original_valid_samples": 117120
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1640",
+        "corpus_index": 151,
+        "window_sha256": "6384495f562981cf876cf4eb24e4fe6a0ec6183786f18e9bc01693b58bbfffa2",
+        "original_valid_samples": 126720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1554",
+        "corpus_index": 152,
+        "window_sha256": "ced0bb4256dcde828e1907eab0fb31501b6d7182169029e7dc61f3320783fc1a",
+        "original_valid_samples": 70080
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1560",
+        "corpus_index": 153,
+        "window_sha256": "77a50154e5f0d22f180481b311b25e1bf987e8337cbabeb72dd3eff43f12144f",
+        "original_valid_samples": 123840
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1587",
+        "corpus_index": 154,
+        "window_sha256": "58a6b1757b8f85838efd6fee3f70f8b9e5801d400995fd1185a3b9ec95c5aea3",
+        "original_valid_samples": 120960
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1578",
+        "corpus_index": 155,
+        "window_sha256": "6ef4113bba1e281217d7845577db2766de02e2461f56ef7357aaac995baa9819",
+        "original_valid_samples": 104640
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1552",
+        "corpus_index": 156,
+        "window_sha256": "3a2883f2db7503bf328ee53335883952e8cc8ca519f956b00539f08e629c5534",
+        "original_valid_samples": 108480
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1530",
+        "corpus_index": 157,
+        "window_sha256": "0d496f7f159511b19bffea0647043323bc722c5a37890ebe27b3bce1b0d58364",
+        "original_valid_samples": 124800
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1656",
+        "corpus_index": 158,
+        "window_sha256": "ed8529a91c46b78eef508d7a326858cbeaa100e49ed81078675c4c4709d11ece",
+        "original_valid_samples": 96960
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1659",
+        "corpus_index": 159,
+        "window_sha256": "af6864670fa7d406c72be5da9f8574c187f442641c5502b01fd90cf379528ee6",
+        "original_valid_samples": 117120
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1570",
+        "corpus_index": 160,
+        "window_sha256": "e9b4b9cdde4087a5c4ea74e9ab49c54e72a9cdbc503e4616e3cb4fc3be31a645",
+        "original_valid_samples": 96000
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1533",
+        "corpus_index": 161,
+        "window_sha256": "41e8a01a863567798c326fe2b33f04859d3d91b6439f69567077ff3873aab9db",
+        "original_valid_samples": 125760
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1640",
+        "corpus_index": 162,
+        "window_sha256": "6e41db213a0739c7547e00d908f57a20f03b4be13d2534c83536d40bfab9c09d",
+        "original_valid_samples": 118080
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1553",
+        "corpus_index": 163,
+        "window_sha256": "01ee4f04792586f29e2ee81e3c4f3d4f7054a5c2450a9c7629aa183a3ab18aa1",
+        "original_valid_samples": 110400
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1656",
+        "corpus_index": 164,
+        "window_sha256": "839c8de23af2562cb7c52610b05dd39c51ce09fa3777aadcaf34f4f33a248699",
+        "original_valid_samples": 119040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1636",
+        "corpus_index": 165,
+        "window_sha256": "010f6abedb1ed1380919d103e4222f37fd3dc0e91484974fced91aafa046694e",
+        "original_valid_samples": 105600
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1581",
+        "corpus_index": 166,
+        "window_sha256": "44d73b0aaaf8551e66726b79aa43f52fb0fad8c3aa6af42c5bf6025fa75a0b8a",
+        "original_valid_samples": 118080
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1647",
+        "corpus_index": 167,
+        "window_sha256": "0fd8e12cf455e6b9595a7862511bb42aac0280c1d1ecdfd3fd4df745b5bccd05",
+        "original_valid_samples": 127680
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1596",
+        "corpus_index": 168,
+        "window_sha256": "fc96fae34f3fda46a7763fba1e56a2e6995b589940669db1e0c2a215466733a7",
+        "original_valid_samples": 126720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1521",
+        "corpus_index": 169,
+        "window_sha256": "1fb451ab2986a5149304955bf55228a8586aee5b75cd114385e133759ad2ceda",
+        "original_valid_samples": 96000
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1612",
+        "corpus_index": 170,
+        "window_sha256": "189620cbe9c912c21f14b8faf72dd3452817ee6202255303c455c723f487bd0d",
+        "original_valid_samples": 82560
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1624",
+        "corpus_index": 171,
+        "window_sha256": "46d1335139b5ca4d69d1d8816c73dc14ffa705c869ddee33755fa851e839e4a7",
+        "original_valid_samples": 107520
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1634",
+        "corpus_index": 172,
+        "window_sha256": "357ae04fbebcd1a9fea5e5b42cecba4ba0701c920181f6ccd650b982c535491d",
+        "original_valid_samples": 127680
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1577",
+        "corpus_index": 173,
+        "window_sha256": "799b6906a9547ade1ede14418415bfd1afad46a620b835d910424843cdeaef35",
+        "original_valid_samples": 73920
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1642",
+        "corpus_index": 174,
+        "window_sha256": "bce9746b957dd78a94e84bc1c24d7a5af318ca58c08db6e93c61e7a33f08bee7",
+        "original_valid_samples": 127680
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1536",
+        "corpus_index": 175,
+        "window_sha256": "d41963c42e79498e43a4cebcd48bcfed9264184b8f3f040b16358c2970e68b9d",
+        "original_valid_samples": 120960
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1578",
+        "corpus_index": 176,
+        "window_sha256": "89d9e7da1b6d0321e458da79a36da004aaf71fb941035dd00ee461a101a5b883",
+        "original_valid_samples": 119040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1516",
+        "corpus_index": 177,
+        "window_sha256": "b97c3fecc28c4a51dc720d3c8999291af3913fec61dbf8c4ed8bbac464570c7a",
+        "original_valid_samples": 127680
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1576",
+        "corpus_index": 178,
+        "window_sha256": "7760b08ff315982f263b99f176a68d654ccb08ee793bffc0b83cad7d2a7620b3",
+        "original_valid_samples": 118080
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1658",
+        "corpus_index": 179,
+        "window_sha256": "8677b4a1cac9dd7e43aa4bab8ea2a891228bce14cb8bdd3908dc0af1d93b8050",
+        "original_valid_samples": 111360
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1628",
+        "corpus_index": 180,
+        "window_sha256": "9f436b5b852fb8e0d34bb93a448cc9dcc137f047f64d3d30632d842bdf8fdb90",
+        "original_valid_samples": 106560
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1577",
+        "corpus_index": 181,
+        "window_sha256": "1f004aac2cadb5f7361ce575e94428c97a3c6c963da72e07dfe70e9e11c8a7bb",
+        "original_valid_samples": 86400
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1572",
+        "corpus_index": 182,
+        "window_sha256": "09a9bc0e2e62377cde92d6700d60902737d2c5fd137105036120a2e90546e808",
+        "original_valid_samples": 86400
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1645",
+        "corpus_index": 183,
+        "window_sha256": "866b1dfdec05168ec569a48c66c932fc0994331f3a46d362195c5628b355b835",
+        "original_valid_samples": 120960
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1567",
+        "corpus_index": 184,
+        "window_sha256": "0209caa32e433a1d6912d662d1537037895304471b192cd8d6d86559889328bd",
+        "original_valid_samples": 94080
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1515",
+        "corpus_index": 185,
+        "window_sha256": "de7288086557646b9dbbcaa63a530c1c620471e8ce7b2d85d453e842b7623896",
+        "original_valid_samples": 115200
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1528",
+        "corpus_index": 186,
+        "window_sha256": "254448d8e0c8b1b5d576510806df840c1ec73ccfd735dfde79c7ddfa6006d017",
+        "original_valid_samples": 84480
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1515",
+        "corpus_index": 187,
+        "window_sha256": "2c15683ee9b1e184f4f7f16c77586ab39394586dbaf3df0594a31b419729ad1c",
+        "original_valid_samples": 90240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1557",
+        "corpus_index": 188,
+        "window_sha256": "75e316ae4b57e70985dec2507e27e30a4cf15e388d8f1b7047c079b117ffeefc",
+        "original_valid_samples": 124800
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1648",
+        "corpus_index": 189,
+        "window_sha256": "daefd614000e0f2abd96234e08009f4db6b5b583b47ca38609807fb4e0ec1028",
+        "original_valid_samples": 79680
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1552",
+        "corpus_index": 190,
+        "window_sha256": "29b2ed4398dac87d0f00f10f529b08e7d8da8aef175798bfc0206de899f43e00",
+        "original_valid_samples": 83520
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1534",
+        "corpus_index": 191,
+        "window_sha256": "2df6a345ee2e57dd46793c4f65a46f5f4eea0da27f216dc201e2c36bc184fdc4",
+        "original_valid_samples": 117120
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1533",
+        "corpus_index": 192,
+        "window_sha256": "d96fd5d5f156841b35f628ecb6a367855821d81e8649410aed6aa54e0634f227",
+        "original_valid_samples": 117120
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1549",
+        "corpus_index": 193,
+        "window_sha256": "51edc8b4c084da2969baeddaee12e31f079114c60ab21fa9315fd1b30f3b0c2e",
+        "original_valid_samples": 126720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1631",
+        "corpus_index": 194,
+        "window_sha256": "a6b8f60a530ff54cf90ee99b4ee0d328ef58b5a73cb48e5675c64f83a35e77e8",
+        "original_valid_samples": 101760
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1596",
+        "corpus_index": 195,
+        "window_sha256": "773b4420ea84c82e71b12c4bb6c9e6b9c3e3b2dbab5d881bb36aa87fc672349d",
+        "original_valid_samples": 119040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1561",
+        "corpus_index": 196,
+        "window_sha256": "873946bb8315fc3fcc4bf3fafc7bb17f6f11b6d160aeab402f015c7bd4fc09e2",
+        "original_valid_samples": 92160
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1571",
+        "corpus_index": 197,
+        "window_sha256": "0e4e8befde655168ba04c25f599b2aee76b30499ef886bc56d4813f5a011bf11",
+        "original_valid_samples": 97920
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1612",
+        "corpus_index": 198,
+        "window_sha256": "df4f6e3966c5fe47e41e26946cc5ae46f2a7798964d6a0829278d6ec98c21f9a",
+        "original_valid_samples": 110400
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1572",
+        "corpus_index": 199,
+        "window_sha256": "2bf5d15aafd3be22a7bcdd8acbfe23e90f6282c5195b5f9eccb69fe86f48c2db",
+        "original_valid_samples": 82560
+      }
+    ],
+    "term": [
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1548",
+        "corpus_index": 100,
+        "window_sha256": "5d2f91bffd7097339465eed1d40b35a9ed11dbded782e44862675e393a1c8c24",
+        "original_valid_samples": 104640
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1510",
+        "corpus_index": 101,
+        "window_sha256": "64128e4a472af3f0ae0e6c5d262b5e88530fbddd0c0e0ed407a23016d96c5f8c",
+        "original_valid_samples": 126720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1578",
+        "corpus_index": 102,
+        "window_sha256": "42c43302d7309b2db439d64e7e4cbc1c9458c782e5f095d112d1fd2ed436e520",
+        "original_valid_samples": 66240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1652",
+        "corpus_index": 103,
+        "window_sha256": "1d237fe979bf365cf7298af1da0d95d8909e002c4fec64d3b894b1a127359291",
+        "original_valid_samples": 78720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1531",
+        "corpus_index": 104,
+        "window_sha256": "0cf5512b19bc5604276c5f4132297e0c6f6aa97e03339a4deca7819453e11e57",
+        "original_valid_samples": 71040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1528",
+        "corpus_index": 105,
+        "window_sha256": "1a9120754ee0212ce838f7b7e6cb2c235dfc86bba375b3b5a74e2307ad303b3e",
+        "original_valid_samples": 109440
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1560",
+        "corpus_index": 106,
+        "window_sha256": "cb48d650524b97b9e95cb8b6f563b1d4e5fa9e2d26fce25090e3e364084b0374",
+        "original_valid_samples": 117120
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1619",
+        "corpus_index": 107,
+        "window_sha256": "cc50324187fae8e401133be8167c3b6017bf5b64d3e4c3d9108b8372f7ee2bce",
+        "original_valid_samples": 113280
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1598",
+        "corpus_index": 108,
+        "window_sha256": "550219472eb6887c709de7cbac398cd66f61a17657c06038802dc51880f35f5b",
+        "original_valid_samples": 120640
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1551",
+        "corpus_index": 109,
+        "window_sha256": "b712f215937545fa4232a4ae5fb3637674927f78249a51e060efbd74f9f1e1cc",
+        "original_valid_samples": 124800
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1596",
+        "corpus_index": 110,
+        "window_sha256": "0a52f572ede5ab81ed2dcbe41a2adab24732f8aa201ffaf4756d384a31578592",
+        "original_valid_samples": 108480
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1615",
+        "corpus_index": 111,
+        "window_sha256": "794d30437594803afae770a8ea7129688f9686bdd7f13b50db29129c4b165eb5",
+        "original_valid_samples": 108480
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1560",
+        "corpus_index": 112,
+        "window_sha256": "b15411238fa0edc61e012e0d90da9ec4a0f2a46bc950695bb3585b99ea1fd058",
+        "original_valid_samples": 88320
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1607",
+        "corpus_index": 113,
+        "window_sha256": "aaa4596e1bb001cb32cb9514aa8d2ea7a617305b596d854278fff8e479f00f7b",
+        "original_valid_samples": 61440
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1517",
+        "corpus_index": 114,
+        "window_sha256": "9c98a46ee36c106e9f8668fe279f62dfe9d7a9ba7f1a4d60249bca5a331849dd",
+        "original_valid_samples": 112320
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1530",
+        "corpus_index": 115,
+        "window_sha256": "94b018d5e6d38518b3f93c4e4de77d7fc5bfcfe246fa19bc4f4f0fb6f45d47db",
+        "original_valid_samples": 78720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1587",
+        "corpus_index": 116,
+        "window_sha256": "f47153fe08364155c26a00c46cd6749bf978994e98b5e1daa95471facd708c5f",
+        "original_valid_samples": 88320
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1598",
+        "corpus_index": 117,
+        "window_sha256": "9be7f5ab9a3187edf8425505a9f3d4c8c6c485c7f0813bc650565560bc905e0b",
+        "original_valid_samples": 84480
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1642",
+        "corpus_index": 118,
+        "window_sha256": "d2400f8d795e153a990b4024047b6894e1954fc65fe3b5528873d4b0cfa845a0",
+        "original_valid_samples": 119040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/en_us/validation-00000-of-00001.parquet",
+        "id": "1555",
+        "corpus_index": 119,
+        "window_sha256": "b3f81dd60bdcf190bed84da3b620de8e4bb55d005f56baae14bf37aceaf49ea8",
+        "original_valid_samples": 88320
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1578",
+        "corpus_index": 120,
+        "window_sha256": "d9d57938b3f1a36643501a12c1295c6fdc236b0b463e090050f38e8f8e366dd4",
+        "original_valid_samples": 106560
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1621",
+        "corpus_index": 121,
+        "window_sha256": "60ad52254fc138abe429a1b34adc81f25f132b804993fad3e3a460a859c0fb15",
+        "original_valid_samples": 119040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1552",
+        "corpus_index": 122,
+        "window_sha256": "fa8a35611f5945e728c6ac737e5c48fa2337919ac26a551a65a4f13d1e0a5a31",
+        "original_valid_samples": 90240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1567",
+        "corpus_index": 123,
+        "window_sha256": "e63397048a353f21e67e5cfb344910771d7a67ddc2030a00e9018697acb42738",
+        "original_valid_samples": 114240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1645",
+        "corpus_index": 124,
+        "window_sha256": "6741cd9e40a3d891f145859f2a1716eb64a2101a63160caeb9e6e52cb79f0880",
+        "original_valid_samples": 105600
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1551",
+        "corpus_index": 125,
+        "window_sha256": "205ac85cc173d80261ef5e772d8f17d1053012f59560c570f2beecdcb49113b6",
+        "original_valid_samples": 119040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1636",
+        "corpus_index": 126,
+        "window_sha256": "c71292a977f89f7af5a373b5534ecfd9388c5cdef0c485030db1dc134578ca85",
+        "original_valid_samples": 97920
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1659",
+        "corpus_index": 127,
+        "window_sha256": "f45b2fa146faf4972241e25b768102b79ea42e12177e2fb5950044b6317d0f10",
+        "original_valid_samples": 97920
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1612",
+        "corpus_index": 128,
+        "window_sha256": "c776363581a23a4744e9753f5d5135cab571d14899a19c6380493b0738410d71",
+        "original_valid_samples": 97920
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1531",
+        "corpus_index": 129,
+        "window_sha256": "a72f6ce0bd2fc67b20f4e1be95edf0cc2ef742a9c727fed15d9de807a3cbec44",
+        "original_valid_samples": 123840
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1515",
+        "corpus_index": 130,
+        "window_sha256": "1632366bdf807a96a19a3699b1d6616373d3ce680b9b690eb327120e134cda25",
+        "original_valid_samples": 82560
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1582",
+        "corpus_index": 131,
+        "window_sha256": "902162bdc6a756eddd821c4ea8835093adcb879c79d852ba1b310b494282fe2a",
+        "original_valid_samples": 90240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1612",
+        "corpus_index": 132,
+        "window_sha256": "09f60a53d1ba46ac93317851d0f221f83bcaaaf0232f0586aaed591be829ab8d",
+        "original_valid_samples": 126720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1545",
+        "corpus_index": 133,
+        "window_sha256": "f280987e2c87045717f8abe317b22595b24eba2f20d506a3ef19624518f3ae73",
+        "original_valid_samples": 96000
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1651",
+        "corpus_index": 134,
+        "window_sha256": "2cc08f26296105dd7837eab76b51c411881ecc48bef8b238a7f7ac4285bf8253",
+        "original_valid_samples": 120960
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1651",
+        "corpus_index": 135,
+        "window_sha256": "33f475dee13c7302076966a0ed6dd6f8411a34b39bd58044b57b87c2ad388092",
+        "original_valid_samples": 124800
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1582",
+        "corpus_index": 136,
+        "window_sha256": "c9c037bccd2ed174a250d4e03a27c8653cf1213731c6d11c46f51190589b6287",
+        "original_valid_samples": 116160
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1554",
+        "corpus_index": 137,
+        "window_sha256": "c52fe4e77d63a53d2222fca6040cdd7b87e8f2e2112d93cd550596ffeb430f81",
+        "original_valid_samples": 94080
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1656",
+        "corpus_index": 138,
+        "window_sha256": "2d5d376a83cdcc743bb6110faf61a66046f0233d15106b5d40401a67229c08ac",
+        "original_valid_samples": 120960
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/pt_br/validation-00000-of-00001.parquet",
+        "id": "1554",
+        "corpus_index": 139,
+        "window_sha256": "791d760f1c8225fad891d3262a0fca67795b943e956fcc14820ffdd809bfef0c",
+        "original_valid_samples": 83520
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1515",
+        "corpus_index": 140,
+        "window_sha256": "cdbc5ad64c591f2c96cd4ff137f58e5d652d0816ebc1e1d1ace8bdbdfdd1a13f",
+        "original_valid_samples": 88320
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1570",
+        "corpus_index": 141,
+        "window_sha256": "7bae18fa0453cab1240dd4fc4237ab5686ff2370e0098cbe064c9463ffbbb081",
+        "original_valid_samples": 114240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1652",
+        "corpus_index": 142,
+        "window_sha256": "ff0e409892b48f43af7b37e814111611cbac6b0bc5fc1637639498d7a9d29a4c",
+        "original_valid_samples": 113280
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1659",
+        "corpus_index": 143,
+        "window_sha256": "ca7eed073f354f48fff97ef73475a6dff02dcafd5fc804c3ce80be2f52f10e92",
+        "original_valid_samples": 101760
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1545",
+        "corpus_index": 144,
+        "window_sha256": "ec0963f4a1a98a053ca74a2dd4b38fbe135277af10d8c562faab4cdfd8fe9467",
+        "original_valid_samples": 101760
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1645",
+        "corpus_index": 145,
+        "window_sha256": "958ae46606b176890caed706f9b8afa31b5e82eab0e7f1e05bd34a20df882fb6",
+        "original_valid_samples": 122880
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1607",
+        "corpus_index": 146,
+        "window_sha256": "d423ebc4ebb9bdce8e8d03521423bffe4a91f7f956e75b5dd6407703620bb211",
+        "original_valid_samples": 92160
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1612",
+        "corpus_index": 147,
+        "window_sha256": "e625cd9aade556d94b8f83d5cfd77aaf4a86d62234541f832aa9b6cf803a64e9",
+        "original_valid_samples": 107520
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1543",
+        "corpus_index": 148,
+        "window_sha256": "92afbe063d871a6ebf2a2a45ec70917a5514c3f3bee61e4e102a2c35bbd8c40f",
+        "original_valid_samples": 104640
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1567",
+        "corpus_index": 149,
+        "window_sha256": "c224e5e40f34e5ebf92087e433831da92e356a6704f54cfaf540fe77152838f7",
+        "original_valid_samples": 107520
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1652",
+        "corpus_index": 150,
+        "window_sha256": "9606e99e581318c58c80336c92cb1b83825ff0cea3090e0b8f51e9e0cc247cda",
+        "original_valid_samples": 117120
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1640",
+        "corpus_index": 151,
+        "window_sha256": "6384495f562981cf876cf4eb24e4fe6a0ec6183786f18e9bc01693b58bbfffa2",
+        "original_valid_samples": 126720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1554",
+        "corpus_index": 152,
+        "window_sha256": "ced0bb4256dcde828e1907eab0fb31501b6d7182169029e7dc61f3320783fc1a",
+        "original_valid_samples": 70080
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1560",
+        "corpus_index": 153,
+        "window_sha256": "77a50154e5f0d22f180481b311b25e1bf987e8337cbabeb72dd3eff43f12144f",
+        "original_valid_samples": 123840
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1587",
+        "corpus_index": 154,
+        "window_sha256": "58a6b1757b8f85838efd6fee3f70f8b9e5801d400995fd1185a3b9ec95c5aea3",
+        "original_valid_samples": 120960
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1578",
+        "corpus_index": 155,
+        "window_sha256": "6ef4113bba1e281217d7845577db2766de02e2461f56ef7357aaac995baa9819",
+        "original_valid_samples": 104640
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1552",
+        "corpus_index": 156,
+        "window_sha256": "3a2883f2db7503bf328ee53335883952e8cc8ca519f956b00539f08e629c5534",
+        "original_valid_samples": 108480
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1530",
+        "corpus_index": 157,
+        "window_sha256": "0d496f7f159511b19bffea0647043323bc722c5a37890ebe27b3bce1b0d58364",
+        "original_valid_samples": 124800
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1656",
+        "corpus_index": 158,
+        "window_sha256": "ed8529a91c46b78eef508d7a326858cbeaa100e49ed81078675c4c4709d11ece",
+        "original_valid_samples": 96960
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/es_419/validation-00000-of-00001.parquet",
+        "id": "1659",
+        "corpus_index": 159,
+        "window_sha256": "af6864670fa7d406c72be5da9f8574c187f442641c5502b01fd90cf379528ee6",
+        "original_valid_samples": 117120
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1570",
+        "corpus_index": 160,
+        "window_sha256": "e9b4b9cdde4087a5c4ea74e9ab49c54e72a9cdbc503e4616e3cb4fc3be31a645",
+        "original_valid_samples": 96000
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1533",
+        "corpus_index": 161,
+        "window_sha256": "41e8a01a863567798c326fe2b33f04859d3d91b6439f69567077ff3873aab9db",
+        "original_valid_samples": 125760
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1640",
+        "corpus_index": 162,
+        "window_sha256": "6e41db213a0739c7547e00d908f57a20f03b4be13d2534c83536d40bfab9c09d",
+        "original_valid_samples": 118080
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1553",
+        "corpus_index": 163,
+        "window_sha256": "01ee4f04792586f29e2ee81e3c4f3d4f7054a5c2450a9c7629aa183a3ab18aa1",
+        "original_valid_samples": 110400
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1656",
+        "corpus_index": 164,
+        "window_sha256": "839c8de23af2562cb7c52610b05dd39c51ce09fa3777aadcaf34f4f33a248699",
+        "original_valid_samples": 119040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1636",
+        "corpus_index": 165,
+        "window_sha256": "010f6abedb1ed1380919d103e4222f37fd3dc0e91484974fced91aafa046694e",
+        "original_valid_samples": 105600
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1581",
+        "corpus_index": 166,
+        "window_sha256": "44d73b0aaaf8551e66726b79aa43f52fb0fad8c3aa6af42c5bf6025fa75a0b8a",
+        "original_valid_samples": 118080
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1647",
+        "corpus_index": 167,
+        "window_sha256": "0fd8e12cf455e6b9595a7862511bb42aac0280c1d1ecdfd3fd4df745b5bccd05",
+        "original_valid_samples": 127680
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1596",
+        "corpus_index": 168,
+        "window_sha256": "fc96fae34f3fda46a7763fba1e56a2e6995b589940669db1e0c2a215466733a7",
+        "original_valid_samples": 126720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1521",
+        "corpus_index": 169,
+        "window_sha256": "1fb451ab2986a5149304955bf55228a8586aee5b75cd114385e133759ad2ceda",
+        "original_valid_samples": 96000
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1612",
+        "corpus_index": 170,
+        "window_sha256": "189620cbe9c912c21f14b8faf72dd3452817ee6202255303c455c723f487bd0d",
+        "original_valid_samples": 82560
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1624",
+        "corpus_index": 171,
+        "window_sha256": "46d1335139b5ca4d69d1d8816c73dc14ffa705c869ddee33755fa851e839e4a7",
+        "original_valid_samples": 107520
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1634",
+        "corpus_index": 172,
+        "window_sha256": "357ae04fbebcd1a9fea5e5b42cecba4ba0701c920181f6ccd650b982c535491d",
+        "original_valid_samples": 127680
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1577",
+        "corpus_index": 173,
+        "window_sha256": "799b6906a9547ade1ede14418415bfd1afad46a620b835d910424843cdeaef35",
+        "original_valid_samples": 73920
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1642",
+        "corpus_index": 174,
+        "window_sha256": "bce9746b957dd78a94e84bc1c24d7a5af318ca58c08db6e93c61e7a33f08bee7",
+        "original_valid_samples": 127680
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1536",
+        "corpus_index": 175,
+        "window_sha256": "d41963c42e79498e43a4cebcd48bcfed9264184b8f3f040b16358c2970e68b9d",
+        "original_valid_samples": 120960
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1578",
+        "corpus_index": 176,
+        "window_sha256": "89d9e7da1b6d0321e458da79a36da004aaf71fb941035dd00ee461a101a5b883",
+        "original_valid_samples": 119040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1516",
+        "corpus_index": 177,
+        "window_sha256": "b97c3fecc28c4a51dc720d3c8999291af3913fec61dbf8c4ed8bbac464570c7a",
+        "original_valid_samples": 127680
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1576",
+        "corpus_index": 178,
+        "window_sha256": "7760b08ff315982f263b99f176a68d654ccb08ee793bffc0b83cad7d2a7620b3",
+        "original_valid_samples": 118080
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/fr_fr/validation-00000-of-00001.parquet",
+        "id": "1658",
+        "corpus_index": 179,
+        "window_sha256": "8677b4a1cac9dd7e43aa4bab8ea2a891228bce14cb8bdd3908dc0af1d93b8050",
+        "original_valid_samples": 111360
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1628",
+        "corpus_index": 180,
+        "window_sha256": "9f436b5b852fb8e0d34bb93a448cc9dcc137f047f64d3d30632d842bdf8fdb90",
+        "original_valid_samples": 106560
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1577",
+        "corpus_index": 181,
+        "window_sha256": "1f004aac2cadb5f7361ce575e94428c97a3c6c963da72e07dfe70e9e11c8a7bb",
+        "original_valid_samples": 86400
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1572",
+        "corpus_index": 182,
+        "window_sha256": "09a9bc0e2e62377cde92d6700d60902737d2c5fd137105036120a2e90546e808",
+        "original_valid_samples": 86400
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1645",
+        "corpus_index": 183,
+        "window_sha256": "866b1dfdec05168ec569a48c66c932fc0994331f3a46d362195c5628b355b835",
+        "original_valid_samples": 120960
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1567",
+        "corpus_index": 184,
+        "window_sha256": "0209caa32e433a1d6912d662d1537037895304471b192cd8d6d86559889328bd",
+        "original_valid_samples": 94080
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1515",
+        "corpus_index": 185,
+        "window_sha256": "de7288086557646b9dbbcaa63a530c1c620471e8ce7b2d85d453e842b7623896",
+        "original_valid_samples": 115200
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1528",
+        "corpus_index": 186,
+        "window_sha256": "254448d8e0c8b1b5d576510806df840c1ec73ccfd735dfde79c7ddfa6006d017",
+        "original_valid_samples": 84480
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1515",
+        "corpus_index": 187,
+        "window_sha256": "2c15683ee9b1e184f4f7f16c77586ab39394586dbaf3df0594a31b419729ad1c",
+        "original_valid_samples": 90240
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1557",
+        "corpus_index": 188,
+        "window_sha256": "75e316ae4b57e70985dec2507e27e30a4cf15e388d8f1b7047c079b117ffeefc",
+        "original_valid_samples": 124800
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1648",
+        "corpus_index": 189,
+        "window_sha256": "daefd614000e0f2abd96234e08009f4db6b5b583b47ca38609807fb4e0ec1028",
+        "original_valid_samples": 79680
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1552",
+        "corpus_index": 190,
+        "window_sha256": "29b2ed4398dac87d0f00f10f529b08e7d8da8aef175798bfc0206de899f43e00",
+        "original_valid_samples": 83520
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1534",
+        "corpus_index": 191,
+        "window_sha256": "2df6a345ee2e57dd46793c4f65a46f5f4eea0da27f216dc201e2c36bc184fdc4",
+        "original_valid_samples": 117120
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1533",
+        "corpus_index": 192,
+        "window_sha256": "d96fd5d5f156841b35f628ecb6a367855821d81e8649410aed6aa54e0634f227",
+        "original_valid_samples": 117120
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1549",
+        "corpus_index": 193,
+        "window_sha256": "51edc8b4c084da2969baeddaee12e31f079114c60ab21fa9315fd1b30f3b0c2e",
+        "original_valid_samples": 126720
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1631",
+        "corpus_index": 194,
+        "window_sha256": "a6b8f60a530ff54cf90ee99b4ee0d328ef58b5a73cb48e5675c64f83a35e77e8",
+        "original_valid_samples": 101760
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1596",
+        "corpus_index": 195,
+        "window_sha256": "773b4420ea84c82e71b12c4bb6c9e6b9c3e3b2dbab5d881bb36aa87fc672349d",
+        "original_valid_samples": 119040
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1561",
+        "corpus_index": 196,
+        "window_sha256": "873946bb8315fc3fcc4bf3fafc7bb17f6f11b6d160aeab402f015c7bd4fc09e2",
+        "original_valid_samples": 92160
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1571",
+        "corpus_index": 197,
+        "window_sha256": "0e4e8befde655168ba04c25f599b2aee76b30499ef886bc56d4813f5a011bf11",
+        "original_valid_samples": 97920
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1612",
+        "corpus_index": 198,
+        "window_sha256": "df4f6e3966c5fe47e41e26946cc5ae46f2a7798964d6a0829278d6ec98c21f9a",
+        "original_valid_samples": 110400
+      },
+      {
+        "source": "google/fleurs",
+        "revision": "70bb2e84b976b7e960aa89f1c648e09c59f894dd",
+        "split": "validation",
+        "file": "parquet-data/de_de/validation-00000-of-00001.parquet",
+        "id": "1572",
+        "corpus_index": 199,
+        "window_sha256": "2bf5d15aafd3be22a7bcdd8acbfe23e90f6282c5195b5f9eccb69fe86f48c2db",
+        "original_valid_samples": 82560
+      }
+    ]
+  }
+}
