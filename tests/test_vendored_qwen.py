@@ -6,7 +6,7 @@ from packaging.requirements import Requirement
 
 
 def test_torch_extra_direct_dependencies():
-    selected = [Requirement(value) for value in requires("marimba")]
+    selected = [Requirement(value) for value in requires("marimba-audio")]
     names = {r.name for r in selected if r.marker is None or r.marker.evaluate({"extra": "torch"})}
     assert "transformers" in names and "accelerate" in names
     assert not names & {"qwen-asr", "gradio", "fastapi", "starlette"}

@@ -9,7 +9,7 @@ try:
     from pipecat.audio.turn.smart_turn.base_smart_turn import BaseSmartTurn
 except ModuleNotFoundError as error:
     raise ImportError(
-        "Install the optional Pipecat dependency with `pip install 'marimba[pipecat]'`."
+        "Install the optional Pipecat dependency with `pip install 'marimba-audio[pipecat]'`."
     ) from error
 
 from ..audio import SAMPLE_RATE

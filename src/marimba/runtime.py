@@ -100,7 +100,9 @@ def select_backend(backend: str = "auto", device: str = "auto", dtype: str = "au
         result = RuntimeInfo(engine, target, precision, providers)
         logging.getLogger(__name__).info("Selected runtime: %s", result)
         return result
-    raise RuntimeError("No matching inference runtime. Install marimba[torch] or marimba[onnx].")
+    raise RuntimeError(
+        "No matching inference runtime. Install marimba-audio[torch] or marimba-audio[onnx]."
+    )
 
 
 def synchronize(runtime: RuntimeInfo) -> None:
