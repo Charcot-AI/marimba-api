@@ -138,8 +138,8 @@ encoder INT8 and term AUROC change -0.010 for greedy-only failed the parity gate
 
 ## Reproducibility and limitations
 
-The package pins model revision `bc980b4e6eb34e7fea96ea8b0884c2093a845dc5`;
-the manifest verifies per-lane files with SHA256. No weights changed for this card.
+The package pins an exact revision of this repository.
+The manifest verifies per-lane files with SHA256.
 The latency corpus uses Smart Turn v3.2 train revision
 `f8c95d284595defb6b88a715c356cbc5c31b7ad1` and FLEURS validation revision
 `70bb2e84b976b7e960aa89f1c648e09c59f894dd`, not test splits.
@@ -149,7 +149,7 @@ latency_matrix.json / latency_matrix.md measurement artifacts.
 Accent, language, noise, overlap, microphone and domain changes can affect decisions.
 Closed-set LID percentages do not establish open-set detection: Other aggregates
 the unlisted supported languages, not all languages in the world. Lexical hypothesis
-fractions are not calibrated occurrence probabilities. Same-speaker is unavailable.
+fractions are not calibrated occurrence probabilities.
 Unavailable capabilities return no prediction.
 
 **[PENDING] archival citation/DOI and public links for the historical evaluation
