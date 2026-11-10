@@ -2,7 +2,7 @@
 
 `model.lane(question)` returns `"encoder"` for head/readout tasks and `"decoder"`
 for language and term tasks. Capability status still applies: routing does not
-make an unavailable task available. Same-speaker is unavailable.
+make an unavailable task available. Diarization requires eight valid seconds.
 
 ```python
 import numpy as np
