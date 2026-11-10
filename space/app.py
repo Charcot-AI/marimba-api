@@ -55,7 +55,7 @@ def build_app() -> gr.Blocks:
         gr.Markdown(
             "# Marimba — local scaffold\n"
             "Upload audio and ask supported questions. Only the last eight seconds are scored. "
-            "Same-speaker is unavailable; unavailable tasks return no prediction. "
+            "Diarization requires eight valid seconds; partial windows return no prediction. "
             "Term scores are uncalibrated. Decoder context above eight seconds is unvalidated. "
             "No real-time or Mac performance claim. Do not submit sensitive audio."
         )

@@ -10,6 +10,7 @@ from time import perf_counter
 
 import numpy as np
 
+from ._diarization import TASKS
 from .audio import AudioArray, Mask
 from .capabilities import Capability
 from .decision import Decision
@@ -99,7 +100,9 @@ class FakeMarimba(Marimba):
         capabilities = self.capabilities
         for question in questions:
             cap = capabilities.get(question.task or "")
-            if cap is not None and cap.status == "unavailable":
+            if cap is not None and (
+                cap.status == "unavailable" or (question.task in TASKS and not mask.all())
+            ):
                 decisions.append(
                     Decision(
                         question,
@@ -109,7 +112,7 @@ class FakeMarimba(Marimba):
                         threshold=question.threshold,
                         window_start_s=start_s,
                         window_end_s=end_s,
-                        status="unavailable",
+                        status=cap.status,
                     )
                 )
                 continue

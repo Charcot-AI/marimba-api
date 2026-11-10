@@ -12,15 +12,43 @@ through unchanged but is not automatically validated.
 | language | choice | decoder | validated | Native Qwen LID, 30 supported languages; closed-set FLEURS 100%, Common Voice 93% (300 each) |
 | term | noul | decoder | experimental | Greedy + four beam hypotheses; raw exact-match fraction, no fitted lexical Platt map |
 | pii | noul | decoder | experimental with a supplied detector; otherwise unavailable | Caller-supplied text detector on greedy transcript; no detector included |
-| same_speaker | noul / score | encoder / head | unavailable | Not a released output |
-| speaker_change | noul / score | encoder / head | unavailable | Not a released output |
-| speaker_count | choice | encoder / head | unavailable | Not a released output |
+| same_speaker | noul / score | encoder / readout | validated | AMI AUROC 0.998, VoxConverse 0.996; both 4 s halves single-speaker; on par with ECAPA |
+| speaker_change | noul / score | encoder / readout | validated | dominant speaker in last 2 s vs previous 6 s; AMI AUROC 0.966, VoxConverse 0.980 |
+| speaker_count | choice | encoder / readout | validated | 0/1/2/3+ speakers; accuracy AMI 0.778, VoxConverse 0.859; undercounts 3+ |
 | audio_class | choice | encoder / head | unavailable | No installed lane; no speech/music/noise claim |
 
 This is the installed-model table; generic capability metadata alone does not
 prove weights are available. Inspect `model.capabilities` after loading.
 The historical decoder study's calibrated lexical scores must not be substituted
 for this package's uncalibrated raw fractions.
+
+## Diarization questions
+
+All three diarization lanes use raw L12 frames from the same encoder pass as
+turn-end and voice activity, quantized to float16 before float32 pooling.
+They require a full eight-second window. If any sample is masked, value,
+probability and probabilities are `None`; streaming continues normally.
+
+```python
+questions = [
+    Question.noul("Is this the same speaker?"),
+    Question.score("Did the speaker change?"),
+    Question.choice("How many speakers?", ["0", "1", "2", "3+"]),
+]
+```
+
+Same-speaker and change accept `noul` or `score`. Scores are calibrated
+positive-class probabilities; `noul` compares that probability to the threshold.
+Count requires exactly those four distinct string options, in any order; its
+probability dictionary preserves the supplied keys and its value is the argmax.
+These lanes do not identify speakers or produce speaker timelines.
+
+Optional local readout parity fixtures can be checked with
+`MARIMBA_DIARIZATION_REFERENCE=/path/to/reference uv run pytest -m real_model tests/test_diarization_reference.py`.
+The directory contains each task's safetensors file and
+`<dataset>_<task>.npz` files for `ami` and `voxconverse`, with `frames` and
+`probabilities` arrays covering at least 50 windows each. Without the variable,
+the test skips; these fixtures are not distributed with the package.
 
 ## PII questions
 

@@ -1,8 +1,68 @@
 import importlib
+import json
+from contextvars import ContextVar
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
+
+
+@pytest.mark.parametrize("installed", [False, True])
+def test_layer12_hook_requires_installed_readout(monkeypatch, tmp_path, installed):
+    pytest.importorskip("torch")
+    module = importlib.import_module("marimba._qwen")
+    registered = []
+
+    class Layer:
+        def __init__(self, number):
+            self.number = number
+
+        def register_forward_hook(self, hook):
+            registered.append(self.number)
+
+    thinker = SimpleNamespace(audio_tower=SimpleNamespace(layers=[Layer(i) for i in range(1, 19)]))
+    model = SimpleNamespace(thinker=thinker)
+    model.eval = lambda: model
+    model.requires_grad_ = lambda value: model
+    asr = SimpleNamespace(model=model, processor=SimpleNamespace(tokenizer=SimpleNamespace()))
+    monkeypatch.setattr(module, "FrozenASR", lambda *args: asr)
+    monkeypatch.setattr(module, "snapshot_download", lambda *args, **kwargs: "")
+    monkeypatch.setattr(module, "load_file", lambda path: {})
+    config = tmp_path / "config.json"
+    config.write_text(
+        json.dumps(
+            {
+                "layer": 18,
+                "pooling": "tail",
+                "tail_seconds": 2.0,
+                "window_seconds": 8.0,
+                "sampling_rate": 16000,
+                "calibration": "platt",
+            }
+        )
+    )
+    paths = {"turn_end/config.json": config, "turn_end/readout.safetensors": tmp_path / "weights"}
+    if installed:
+        paths["diarization/same_speaker.safetensors"] = tmp_path / "speaker"
+    module.QwenEngine(SimpleNamespace(device="cpu", dtype="float32"), paths)
+    assert registered == ([18, 12] if installed else [18])
+
+
+def test_diarization_capture_precision_and_context(engine):
+    model, _ = engine
+    torch = pytest.importorskip("torch")
+    model._captures = ContextVar("test_captures", default=None)
+    frames = torch.tensor([[[0.1234567, 1.234567]]])
+    model._capture(12, None, None, (frames,))
+    captures = {}
+    token = model._captures.set(captures)
+    try:
+        model._capture(12, None, None, (frames,))
+    finally:
+        model._captures.reset(token)
+    np.testing.assert_array_equal(captures[12], frames[0].half().float().numpy())
+    assert captures[12].dtype == np.float32
+    assert model._captures.get() is None
 
 
 @pytest.fixture

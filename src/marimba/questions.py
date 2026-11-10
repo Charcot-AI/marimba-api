@@ -9,6 +9,11 @@ from typing import Literal
 Kind = Literal["noul", "score", "choice"]
 
 _TEMPLATES = {
+    "same_speaker": r"(is (this|it) the same speaker|are (they|these) the same speaker)",
+    "speaker_count": r"how many speakers( are there| are speaking)?",
+    "speaker_change": (
+        r"(did the speaker change|has the speaker changed|is this a different speaker)"
+    ),
     "voice_activity": r"(is (someone|anyone) (speaking|talking)|is there speech)",
     "turn_end": (
         r"(has (the speaker|someone) finished( speaking)?|"
@@ -21,14 +26,10 @@ _TEMPLATES = {
         r"(information|data)|is there (any )?(pii|personal (information|data)))"
     ),
 }
-_UNAVAILABLE_TEMPLATES = {
-    "same_speaker": r"(is (this|it) the same speaker|are (they|these) the same speaker)",
-    "speaker_count": r"how many speakers( are there| are speaking)?",
-}
 
 
 def matches_template(task: str, text: str) -> bool:
-    pattern = (_TEMPLATES | _UNAVAILABLE_TEMPLATES).get(task)
+    pattern = _TEMPLATES.get(task)
     return (
         pattern is not None
         and re.fullmatch(pattern, text.lower().strip().rstrip("?.!")) is not None
@@ -52,12 +53,8 @@ class Question:
             raise ValueError("Question text and a threshold between zero and one are required")
         if self.kind not in ("noul", "score", "choice"):
             raise ValueError("Invalid question kind")
-        if self.kind == "choice":
-            if not self.options or len(set(self.options)) != len(self.options):
-                raise ValueError("Choice questions require distinct, nonempty options")
-            object.__setattr__(self, "options", tuple(self.options))
         if self.task is None:
-            for task in _TEMPLATES | _UNAVAILABLE_TEMPLATES:
+            for task in _TEMPLATES:
                 if matches_template(task, self.text):
                     object.__setattr__(self, "task", task)
                     break
@@ -65,6 +62,18 @@ class Question:
                 raise UnsupportedQuestion(
                     f"No routing template for {self.text!r}; pass task explicitly"
                 )
+        if self.task in ("same_speaker", "speaker_change") and self.kind not in ("noul", "score"):
+            raise UnsupportedQuestion(f"Task {self.task} supports noul or score")
+        if self.task == "speaker_count" and (
+            self.kind != "choice"
+            or len(self.options or ()) != 4
+            or set(self.options or ()) != {"0", "1", "2", "3+"}
+        ):
+            raise UnsupportedQuestion("Speaker count requires choice options 0, 1, 2, 3+")
+        if self.kind == "choice":
+            if not self.options or len(set(self.options)) != len(self.options):
+                raise ValueError("Choice questions require distinct, nonempty options")
+            object.__setattr__(self, "options", tuple(self.options))
 
     @property
     def term(self) -> str | None:

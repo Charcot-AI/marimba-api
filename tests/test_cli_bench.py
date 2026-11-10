@@ -37,7 +37,7 @@ def test_benchmark_json_fake(tmp_path, capsys):
         "term",
     ]
     assert all(q.task != "same_speaker" for q in demo_questions())
-    assert FakeMarimba().capabilities["same_speaker"].status == "unavailable"
+    assert FakeMarimba().capabilities["same_speaker"].status == "experimental"
     assert report["questions"][2]["options"] == ["en", "pt", "es"]
     assert report["encoder_only"] is None
     assert report["full_set"]["window_end_s"] == [8.5, 8.75]
@@ -45,18 +45,19 @@ def test_benchmark_json_fake(tmp_path, capsys):
     assert report["p50_ms"] <= report["p95_ms"]
 
 
-def test_bench_unavailable_same_speaker(capsys, monkeypatch):
+def test_bench_unavailable_audio_class(capsys, monkeypatch):
     def fail(*args, **kwargs):
         pytest.fail("Unavailable benchmark cards must be rejected before inference")
 
     monkeypatch.setattr(FakeMarimba, "decide_window", fail)
     monkeypatch.setattr(
-        "marimba.cli.demo_questions", lambda: [Question.noul("Is this the same speaker?")]
+        "marimba.cli.demo_questions",
+        lambda: [Question.choice("Audio class?", ["speech", "noise"], task="audio_class")],
     )
     with pytest.raises(SystemExit) as error:
         main(["bench", "--fake"])
     assert error.value.code == 2
-    assert "Benchmark cards unavailable in this revision: same_speaker" in capsys.readouterr().err
+    assert "Benchmark cards unavailable in this revision: audio_class" in capsys.readouterr().err
 
 
 def test_matching_card_windows_and_encoder(tmp_path, monkeypatch, capsys):
