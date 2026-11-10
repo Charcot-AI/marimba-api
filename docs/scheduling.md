@@ -51,7 +51,7 @@ cache. A decoder can serialize other decoders but cannot hold the encoder lock
 while generating. Device contention can still affect latency.
 
 Decoder evaluation evidence is limited to eight-second windows; decoder context
-above eight seconds is **unvalidated**. Term remains experimental and uncalibrated.
+above eight seconds is **unvalidated**. Term is validated and uncalibrated.
 Encoder/head windows remain eight seconds.
 Long-context generation allows a proportionally larger token budget, rather
 than retaining the short-window 128-token ceiling.
