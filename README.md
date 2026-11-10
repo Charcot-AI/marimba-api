@@ -105,14 +105,27 @@ The head uses the physical valid-frame mask, a frozen Whisper question embedding
 text tower, grapheme-encoded English `yes`, and sigmoid on the head logit. Its probabilities
 are not additionally temperature-calibrated.
 
-Same-speaker, speaker-change, speaker-count, and audio-class are `unavailable`, with decision
-values/probabilities set to `None`. They do not receive synthetic fallback predictions.
+Three L12 encoder readouts share that same pass:
+
+| Task | Evidence / limitation |
+|---|---|
+| same_speaker | AMI AUROC 0.998, VoxConverse 0.996; both 4 s halves single-speaker; on par with ECAPA |
+| speaker_change | dominant speaker in last 2 s vs previous 6 s; AMI AUROC 0.966, VoxConverse 0.980 |
+| speaker_count | 0/1/2/3+ speakers; accuracy AMI 0.778, VoxConverse 0.859; undercounts 3+ |
+
+Use `Question.noul("Is this the same speaker?")`,
+`Question.score("Did the speaker change?")`, or
+`Question.choice("How many speakers?", ["0", "1", "2", "3+"])`.
+Both binary lanes support noul/score; count requires exactly those four options
+in any order. Diarization requires eight valid seconds: partial or masked
+windows return `None` for value, probability and probabilities.
+Audio-class is unavailable and does not receive fallback predictions.
 PII is experimental when a caller supplies a text detector and unavailable otherwise;
 the package does not include a detector. See [PII questions](docs/capabilities.md#pii-questions).
 Empty real-model audio raises an error; silence with valid samples is supported.
 
 `marimba bench --per-question --audio public_speech.wav --json bench.json` measures
-the five available demo cards, each card alone, and the encoder. Warmup and model
+the four demo cards, each card alone, and the encoder. Warmup and model
 loading are excluded. Language options are `en`, `pt`, and `es`.
 
 See [lane scheduling and long context](docs/scheduling.md) for immutable snapshots,

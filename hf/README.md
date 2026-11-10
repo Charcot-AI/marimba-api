@@ -64,14 +64,21 @@ automation. Obtain consent and appropriate rights for submitted audio.
 | language | choice | decoder | validated | Native 30-language LID; closed-set FLEURS 100%, Common Voice 93% (300 each) |
 | term | noul | decoder | experimental | Raw exact-match fraction of greedy + four beam hypotheses; uncalibrated |
 | pii | noul | decoder | experimental with a supplied detector; otherwise unavailable | Caller-supplied detector on greedy transcript; no detector included |
-| same_speaker | noul / score | encoder/head | unavailable | Not a released output |
-| speaker_change | noul / score | encoder/head | unavailable | Not a released output |
-| speaker_count | choice | encoder/head | unavailable | Not a released output |
+| same_speaker | noul / score | encoder/readout | validated | AMI AUROC 0.998, VoxConverse 0.996; both 4 s halves single-speaker; on par with ECAPA |
+| speaker_change | noul / score | encoder/readout | validated | dominant speaker in last 2 s vs previous 6 s; AMI AUROC 0.966, VoxConverse 0.980 |
+| speaker_count | choice | encoder/readout | validated | 0/1/2/3+ speakers; accuracy AMI 0.778, VoxConverse 0.859; undercounts 3+ |
 | audio_class | choice | encoder/head | unavailable | No speech/music/noise claim |
 
 Decoder context above eight seconds is **unvalidated**. The API accepts up to
 30 seconds for decoder lanes, but context-handling smoke checks do not validate
 accuracy. Head/readout windows remain eight seconds.
+
+Diarization uses raw L12 frames from the shared encoder pass, stored at float16
+precision before float32 pooling. All eight seconds must be valid: partial or
+masked windows return `None` for value, probability and probabilities.
+Speaker count requires choice options exactly `0`, `1`, `2`, `3+`, in any order.
+Binary diarization supports `noul` and `score`; score values are calibrated
+positive-class probabilities. No speaker identities are produced.
 
 PII questions apply a caller-supplied detector to the greedy transcript; the package
 does not include a detector. The synthetic pt-BR evaluation scored item F1 0.904;

@@ -39,19 +39,25 @@ DEFAULT_CAPABILITIES = {
         Capability("pii", "unavailable", "decoder", ("noul",), "Requires a pii_detector"),
         Capability(
             "same_speaker",
-            "unavailable",
-            "head",
+            "validated",
+            "readout",
             ("noul", "score"),
-            "Not a released output",
+            "AMI AUROC 0.998, VoxConverse 0.996; both 4 s halves single-speaker; on par with ECAPA",
         ),
         Capability(
             "speaker_change",
-            "unavailable",
-            "head",
+            "validated",
+            "readout",
             ("noul", "score"),
-            "Not a released output",
+            "dominant speaker in last 2 s vs previous 6 s; AMI AUROC 0.966, VoxConverse 0.980",
         ),
-        Capability("speaker_count", "unavailable", "head", ("choice",), "Not a released output"),
+        Capability(
+            "speaker_count",
+            "validated",
+            "readout",
+            ("choice",),
+            "0/1/2/3+ speakers; accuracy AMI 0.778, VoxConverse 0.859; undercounts 3+",
+        ),
         Capability("audio_class", "unavailable", "head", ("choice",), "Not evaluated"),
     )
 }

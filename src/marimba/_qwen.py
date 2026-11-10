@@ -16,6 +16,7 @@ import torch
 from huggingface_hub import snapshot_download
 from safetensors.numpy import load_file
 
+from ._diarization import TASKS, DiarizationReadout, task_features
 from ._head import SpeechReadout
 from ._vendor.qwen_asr.configuration_qwen3_asr import Qwen3ASRConfig
 from ._vendor.qwen_asr.modeling_qwen3_asr import Qwen3ASRForConditionalGeneration
@@ -65,6 +66,13 @@ class QwenEngine:
             else None
         )
         layers = (9, 18) if self.head is not None else (18,)
+        self.diarization_readouts = {
+            task: DiarizationReadout(task, load_file(paths[f"diarization/{task}.safetensors"]))
+            for task in TASKS
+            if f"diarization/{task}.safetensors" in paths
+        }
+        if self.diarization_readouts:
+            layers = (*layers, 12)
         self._hooks = [
             self.thinker.audio_tower.layers[layer - 1].register_forward_hook(
                 partial(self._capture, layer)
@@ -88,7 +96,11 @@ class QwenEngine:
         captures = self._captures.get()
         if captures is not None:
             hidden = hidden.detach()
-            if layer == 18:
+            if layer == 12 and hidden.ndim == 3:
+                if hidden.shape[0] != 1:
+                    raise ValueError("Diarization requires one window per encoder pass")
+                hidden = hidden[0]
+            if layer in (12, 18):
                 hidden = hidden.to(torch.float16)
             captures[layer] = hidden.float().cpu().numpy().copy()
 
@@ -132,6 +144,16 @@ class QwenEngine:
 
     def turn_end(self, features: Any, mask: Mask) -> tuple[float, float]:
         return predict_readout(self.readout, pool_layer(features[18], mask))
+
+    def diarization(self, features: Any, tasks: set[str]) -> dict[str, Any]:
+        if 12 not in features:
+            raise RuntimeError("Encoded window lacks layer 12 for diarization")
+        return {
+            task: self.diarization_readouts[task].predict(task_features(task, features[12])[None])[
+                0
+            ]
+            for task in tasks
+        }
 
     def head_score(self, features: Any, mask: Mask, text: str) -> float:
         if self.head is None:

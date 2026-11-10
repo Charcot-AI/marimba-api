@@ -7,6 +7,7 @@ from dataclasses import replace
 from time import perf_counter
 from typing import Any
 
+from ._diarization import TASKS
 from .audio import AudioArray, Mask
 from .capabilities import Capability
 from .decision import Decision
@@ -41,9 +42,14 @@ class PretrainedMarimba(Marimba):
             )
             for task, cap in super().capabilities.items()
         }
-        for task in ("turn_end", "language", "term", "voice_activity"):
+        for task in ("turn_end", "language", "term", "voice_activity", *TASKS):
             lane = manifest["lanes"].get(task, {})
             if lane.get("status") not in ("validated", "experimental"):
+                continue
+            if task in TASKS and (
+                lane.get("layer") != 12
+                or f"diarization/{task}.safetensors" not in lane.get("files", {})
+            ):
                 continue
             cap = super().capabilities[task]
             self._capabilities[task] = replace(
@@ -167,6 +173,12 @@ class PretrainedMarimba(Marimba):
         }
         snapshot = encoded.snapshot
         mask = snapshot.mask
+        diarization_tasks = active.intersection(TASKS) if mask.all() else set()
+        diarization = (
+            self._engine.diarization(encoded.features, diarization_tasks)
+            if diarization_tasks
+            else {}
+        )
         start_s, end_s = snapshot.window_start_s, snapshot.window_end_s
         features, audio = encoded.features, encoded.audio_features
         turn = self._engine.turn_end(features, mask) if "turn_end" in active else None
@@ -208,7 +220,7 @@ class PretrainedMarimba(Marimba):
                     value = probability
                 elif task == "language":
                     probabilities = option_probabilities(language, resolved[question])
-                    value = max(probabilities, key=lambda name: probabilities[name])
+                    value = max(probabilities, key=probabilities.__getitem__)
                     probability = probabilities[value]
                 elif task == "term":
                     probability = score = float(self._engine.term_score(question.term, hypotheses))
@@ -230,6 +242,22 @@ class PretrainedMarimba(Marimba):
                         if question.kind == "score"
                         else probability >= question.threshold
                     )
+                elif task in diarization:
+                    distribution = diarization[task]
+                    if task == "speaker_count":
+                        probabilities = {
+                            option: float(distribution[("0", "1", "2", "3+").index(option)])
+                            for option in question.options or ()
+                        }
+                        value = max(probabilities, key=probabilities.__getitem__)
+                        probability = probabilities[value]
+                    else:
+                        probability = score = float(distribution[1])
+                        value = (
+                            probability
+                            if question.kind == "score"
+                            else probability >= question.threshold
+                        )
             decisions.append(
                 Decision(
                     question,

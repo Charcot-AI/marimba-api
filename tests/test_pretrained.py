@@ -62,9 +62,6 @@ def model():
         "lanes": {
             "turn_end": {"status": "validated"},
             "language": {"status": "validated"},
-            "same_speaker": {"status": "experimental"},
-            "speaker_change": {"status": "experimental"},
-            "speaker_count": {"status": "experimental"},
             "term": {
                 "status": "experimental",
                 "calibration": "none",
@@ -247,7 +244,7 @@ def test_shared_speech_head(model):
         Question.noul("Is someone speaking?"),
         Question.noul("Is this the same speaker?"),
         Question.score("Is this the same speaker?"),
-        Question.choice("How many speakers?", ["0", "1", "2"]),
+        Question.choice("How many speakers?", ["0", "1", "2", "3+"]),
     ]
     decisions = model(np.zeros(16000, dtype=np.float32), questions, 16000)
     assert model._engine.calls == ["encode", "turn_end", "head"]
@@ -324,11 +321,9 @@ def test_vad_empty_questions_and_invalid_text(vad_model):
 @pytest.mark.parametrize(
     "question",
     [
-        Question.noul("Is this the same speaker?"),
-        Question.score("Are these the same speaker?"),
         Question.noul("Custom", task="same_speaker"),
         Question.noul("Custom", task="speaker_change"),
-        Question.choice("How many speakers?", ["0", "1", "2"]),
+        Question.choice("How many speakers?", ["0", "1", "2", "3+"]),
         Question.choice("Custom", ["speech", "noise"], task="audio_class"),
     ],
 )

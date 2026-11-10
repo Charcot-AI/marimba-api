@@ -34,7 +34,12 @@ from marimba.testing import FakeMarimba
 def test_matches_template(task, text, expected):
     assert matches_template(task, text) is expected
     if expected:
-        assert Question.noul(text).task == task
+        question = (
+            Question.choice(text, ["0", "1", "2", "3+"])
+            if task == "speaker_count"
+            else Question.noul(text)
+        )
+        assert question.task == task
 
 
 @pytest.fixture
@@ -113,7 +118,12 @@ def test_audio_empty_errors_and_window():
     ],
 )
 def test_routing(text, task):
-    assert Question.noul(text).task == task
+    question = (
+        Question.choice(text, ["0", "1", "2", "3+"])
+        if task == "speaker_count"
+        else Question.noul(text)
+    )
+    assert question.task == task
     assert Question.noul('Did someone say "Hello"?').term == "Hello"
 
 
@@ -130,13 +140,6 @@ def test_question_errors():
 @pytest.mark.parametrize(
     "question",
     [
-        Question.noul("Is this the same speaker?"),
-        Question.score("Is it the same speaker?"),
-        Question.noul("Are they the same speaker?"),
-        Question.score("Are these the same speaker?"),
-        Question.noul("Custom", task="same_speaker"),
-        Question.noul("Custom", task="speaker_change"),
-        Question.choice("How many speakers?", ["1", "2"]),
         Question.choice("Custom", ["speech", "noise"], task="audio_class"),
         Question.noul("Does this audio contain any personal data?"),
     ],
