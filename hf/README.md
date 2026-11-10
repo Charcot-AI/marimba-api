@@ -81,7 +81,7 @@ Binary diarization supports `noul` and `score`; score values are calibrated
 positive-class probabilities. No speaker identities are produced.
 
 PII questions apply a caller-supplied detector to the greedy transcript; the package
-does not include a detector. With a private, curated PII pipeline as the detector, the synthetic pt-BR evaluation scored item F1 0.904 (1.000 on reference transcripts);
+does not include a detector. With a private, curated PII pipeline as the detector, the synthetic pt-BR evaluation scored item F1 0.904 (1.000 on reference transcripts; 0.975 end to end with the pipeline's own production transcriber);
 the capability documentation gives the measured results and limitations.
 
 ## Evidence
