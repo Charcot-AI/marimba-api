@@ -91,7 +91,7 @@ with `Other`, all 30 supported languages are scored before aggregation.
 All term questions share greedy decoding plus four beam hypotheses. Unicode normalization
 removes accents and punctuation, retains non-Latin letters, and matches exact token sequences.
 **Term probabilities are currently uncalibrated raw fractions of five hypotheses**, not
-Platt-calibrated probabilities; their capability is experimental and states this limitation.
+Platt-calibrated probabilities; their capability is validated and states this limitation.
 No calibration is fitted at inference time.
 
 See [Calibrate on your domain](docs/calibration.md) to fit and persist a per-question

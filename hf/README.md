@@ -62,7 +62,7 @@ automation. Obtain consent and appropriate rights for submitted audio.
 | turn_end | score | encoder/readout | validated | Public AUROC 0.930; domain shift matters |
 | voice_activity | noul | encoder/head | validated | validated with Portuguese prompts and held-out Arabic, Hindi, Korean and Russian prompts; recognized questions use the canonical prompt; AMI 0.995 and VoxConverse 0.9996 AUROC |
 | language | choice | decoder | validated | Native 30-language LID; closed-set FLEURS 100%, Common Voice 93% (300 each) |
-| term | noul | decoder | experimental | Raw exact-match fraction of greedy + four beam hypotheses; uncalibrated |
+| term | noul | decoder | validated | Raw exact-match fraction of greedy + four beam hypotheses; uncalibrated |
 | pii | noul | decoder | experimental with a supplied detector; otherwise unavailable | Caller-supplied detector on greedy transcript; no detector included |
 | same_speaker | noul / score | encoder/readout | validated | AMI AUROC 0.998, VoxConverse 0.996; both 4 s halves single-speaker; on par with ECAPA |
 | speaker_change | noul / score | encoder/readout | validated | dominant speaker in last 2 s vs previous 6 s; AMI AUROC 0.966, VoxConverse 0.980 |

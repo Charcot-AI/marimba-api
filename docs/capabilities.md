@@ -10,7 +10,7 @@ through unchanged but is not automatically validated.
 | turn_end | score | encoder / readout | validated | AUROC 0.930 on Smart Turn v3.2 evaluation; 0.716 out of domain |
 | voice_activity | noul | encoder / head | validated | validated with Portuguese prompts and held-out Arabic, Hindi, Korean and Russian prompts; recognized questions use the canonical prompt; AMI AUROC 0.995, VoxConverse 0.9996 |
 | language | choice | decoder | validated | Native Qwen LID, 30 supported languages; closed-set FLEURS 100%, Common Voice 93% (300 each) |
-| term | noul | decoder | experimental | Greedy + four beam hypotheses; raw exact-match fraction, no fitted lexical Platt map |
+| term | noul | decoder | validated | Greedy + four beam hypotheses; raw exact-match fraction, no fitted lexical Platt map |
 | pii | noul | decoder | experimental with a supplied detector; otherwise unavailable | Caller-supplied text detector on greedy transcript; no detector included |
 | same_speaker | noul / score | encoder / readout | validated | AMI AUROC 0.998, VoxConverse 0.996; both 4 s halves single-speaker; on par with ECAPA |
 | speaker_change | noul / score | encoder / readout | validated | dominant speaker in last 2 s vs previous 6 s; AMI AUROC 0.966, VoxConverse 0.980 |

@@ -63,7 +63,7 @@ def model():
             "turn_end": {"status": "validated"},
             "language": {"status": "validated"},
             "term": {
-                "status": "experimental",
+                "status": "validated",
                 "calibration": "none",
                 "evaluation": "Uncalibrated fraction",
             },
@@ -87,6 +87,7 @@ def test_shared_lanes(model):
     assert sum(decisions[1].probabilities.values()) == pytest.approx(1)
     assert [decision.probability for decision in decisions[2:]] == [0.8, 0.0]
     assert all(json.loads(json.dumps(d.to_dict())) == d.to_dict() for d in decisions)
+    assert model.capabilities["term"].status == "validated"
     assert "Uncalibrated" in model.capabilities["term"].evaluation
 
 
