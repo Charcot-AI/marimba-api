@@ -180,7 +180,7 @@ def test_pii_detector_uses_greedy_transcript(detector_result):
     assert not decision.calibrated
     assert json.loads(json.dumps(decision.to_dict())) == decision.to_dict()
     assert model.capabilities["pii"].evaluation == (
-        "Your detector is unevaluated; an in-house pt-BR text PII model "
+        "Your detector is unevaluated; a private, curated PII pipeline "
         "scored item F1 0.904 on synthetic speech"
     )
 

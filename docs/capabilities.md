@@ -70,7 +70,7 @@ decision = model("speech.wav", [question])[0]
 
 The detector example is illustrative only; choose a detector appropriate for your use.
 
-With an in-house Portuguese text PII model as the detector, on 200 synthetic pt-BR TTS clips (100 with one PII entity: name, CPF, phone, email or address; 100 without): item-level precision 0.966, recall 0.850, F1 0.904 (95% CI 0.856–0.945); with reference transcripts the same text model scores F1 1.000, so misses come from transcription (CPF recall 0.60, phone 0.70). Not evaluated on real or English speech.
+With a private, curated PII pipeline as the detector, on 200 synthetic pt-BR TTS clips (100 with one PII entity: name, CPF, phone, email or address; 100 without): item-level precision 0.966, recall 0.850, F1 0.904 (95% CI 0.856–0.945); with reference transcripts the same pipeline scores F1 1.000, so misses come from transcription (CPF recall 0.60, phone 0.70). Not evaluated on real or English speech.
 
 Turn-end comparison: Marimba 0.930 versus Smart Turn v3.2 0.982 on Smart Turn's
 own evaluation (in-distribution for Smart Turn); an out-of-domain meeting corpus
