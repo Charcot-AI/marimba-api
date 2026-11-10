@@ -37,19 +37,19 @@ def pool_interval(frames: Array, centers_seconds: Array, interval: tuple[float, 
     selected = values[(centers >= start) & (centers < end)]
     if not len(selected):
         raise ValueError(f"No frame centers in interval {interval}")
-    return selected.mean(axis=0, dtype=np.float32)
+    return np.asarray(selected.mean(axis=0, dtype=np.float32))
 
 
 def build_same_speaker_features(embedding_a: Array, embedding_b: Array) -> Array:
-    a = np.asarray(embedding_a, dtype=np.float32).reshape(-1)
-    b = np.asarray(embedding_b, dtype=np.float32).reshape(-1)
+    a: Array = np.asarray(embedding_a, dtype=np.float32).reshape(-1)
+    b: Array = np.asarray(embedding_b, dtype=np.float32).reshape(-1)
     if not len(a) or a.shape != b.shape or not np.isfinite(a).all() or not np.isfinite(b).all():
         raise ValueError("Expected matching nonempty finite embeddings")
     norm_a, norm_b = float(np.linalg.norm(a)), float(np.linalg.norm(b))
     if norm_a == 0 or norm_b == 0:
         raise ValueError("Speaker embeddings cannot have a zero norm")
     a, b = a / norm_a, b / norm_b
-    return np.concatenate((a * b, np.abs(a - b))).astype(np.float32)
+    return np.asarray(np.concatenate((a * b, np.abs(a - b))).astype(np.float32))
 
 
 def task_features(task: str, frames: Array) -> Array:
