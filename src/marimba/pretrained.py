@@ -74,7 +74,7 @@ class PretrainedMarimba(Marimba):
             pii_capability,
             status="experimental" if pii_detector is not None else "unavailable",
             evaluation=(
-                "Your detector is unevaluated; an in-house pt-BR text PII model "
+                "Your detector is unevaluated; a private, curated PII pipeline "
                 "scored item F1 0.904 on synthetic speech"
                 if pii_detector is not None
                 else "Requires a pii_detector"
