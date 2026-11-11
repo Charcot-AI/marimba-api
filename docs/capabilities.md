@@ -5,6 +5,12 @@ Voice activity is validated with Portuguese prompts and held-out Arabic, Hindi, 
 Russian prompts; recognized questions use the canonical prompt; custom wording passes
 through unchanged but is not automatically validated.
 
+Voice activity also accepts `seconds=2.0`, scoring only the final two seconds of
+the eight-second encoder window with the same encoder pass. On held-out validation,
+the tail temperature 0.7869027171235091 yielded AUROC 0.998, F1 0.993 and
+specificity 0.967 at the default 0.225 threshold. This is the only supported tail;
+other non-`None` durations and other tasks are rejected.
+
 | Task | Kind | Lane | Installed status | Evidence / limitation |
 |---|---|---|---|---|
 | turn_end | score, noul | encoder / readout | validated | AUROC 0.930 on Smart Turn v3.2 evaluation; 0.716 out of domain |

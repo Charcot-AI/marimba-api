@@ -18,10 +18,7 @@ from marimba_demo.speech import SpeechTimeline
 
 @pytest.fixture(autouse=True)
 def no_speech(monkeypatch):
-    monkeypatch.setattr(
-        "marimba_demo.scheduler.SpeechTimeline",
-        lambda: SpeechTimeline(iterator=lambda *args, **kwargs: None),
-    )
+    monkeypatch.setattr("marimba_demo.scheduler.SpeechTimeline", SpeechTimeline)
 
 
 @dataclass
@@ -33,16 +30,37 @@ class Runtime:
 
 class Question:
     @staticmethod
-    def noul(text, *, task):
-        return SimpleNamespace(text=text, task=task)
+    def noul(text, *, task, seconds=None):
+        return SimpleNamespace(
+            text=text,
+            task=task,
+            kind="noul",
+            seconds=seconds,
+            threshold=None,
+            options=None,
+        )
 
     @staticmethod
-    def score(text, *, task):
-        return SimpleNamespace(text=text, task=task)
+    def score(text, *, task, seconds=None):
+        return SimpleNamespace(
+            text=text,
+            task=task,
+            kind="score",
+            seconds=seconds,
+            threshold=None,
+            options=None,
+        )
 
     @staticmethod
-    def choice(text, options, *, task):
-        return SimpleNamespace(text=text, options=options, task=task)
+    def choice(text, options, *, task, seconds=None):
+        return SimpleNamespace(
+            text=text,
+            options=options,
+            task=task,
+            kind="choice",
+            seconds=seconds,
+            threshold=None,
+        )
 
 
 class ProtocolModel:
@@ -396,7 +414,7 @@ def test_demo_requests_all_six_released_tasks(tmp_path):
     ]
     expected_cards = [
         ("turn_end", "Turn ended", "Has the speaker finished?", "noul", ()),
-        ("voice_activity", "Speech (last 8 s)", "Is someone speaking?", "noul", ()),
+        ("voice_activity", "Speech (last 2 s)", "Is someone speaking?", "noul", ()),
         ("speaker_change", "Speaker changed", "Has the speaker changed?", "score", ()),
         (
             "speaker_count",
@@ -419,7 +437,10 @@ def test_demo_requests_all_six_released_tasks(tmp_path):
     assert [
         (card.task, card.title, card.text, card.kind, card.options) for card in cards
     ] == expected_cards
-    assert [question.task for question in questions_for(cards, Question)] == expected
+    questions = questions_for(cards, Question)
+    assert [question.task for question in questions] == expected
+    assert cards[1].context_seconds == cards[1].seconds == 2.0
+    assert questions[1].seconds == 2.0
     app = create_app(model, Question, static=tmp_path, local=tmp_path)
     with TestClient(app, headers={"host": "127.0.0.1:8765"}) as client:
         configured = client.get("/api/config").json()["cards"]

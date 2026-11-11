@@ -8,7 +8,7 @@ from time import perf_counter
 from typing import Any
 
 from ._diarization import TASKS
-from .audio import AudioArray, Mask
+from .audio import SAMPLE_RATE, AudioArray, Mask
 from .capabilities import Capability
 from .decision import Decision
 from .language import LANGUAGES, option_probabilities, resolve_options
@@ -24,6 +24,8 @@ from .windows import EncodedWindow, WindowSnapshot, decoder_snapshot
 _CANONICAL_VAD_STEM = "Há fala humana neste áudio?"
 # Fitted on the validation calibration split for the shipped head.
 _VAD_TEMPERATURE = 0.6540604692061299
+# Fitted on the validation calibration split for the two-second tail.
+_VAD_TAIL_TEMPERATURE = 0.7869027171235091
 
 
 def _render_vad_prompt(stem: str) -> str:
@@ -261,8 +263,17 @@ class PretrainedMarimba(Marimba):
                         if matches_template("voice_activity", question.text)
                         else question.text
                     )
-                    score = float(self._engine.head_score(features, mask, _render_vad_prompt(stem)))
-                    probability = sigmoid(score / _VAD_TEMPERATURE)
+                    head_mask = mask
+                    temperature = _VAD_TEMPERATURE
+                    if question.seconds is not None:
+                        head_mask = mask.copy()
+                        tail_samples = int(question.seconds * SAMPLE_RATE)
+                        head_mask[:-tail_samples] = False
+                        temperature = _VAD_TAIL_TEMPERATURE
+                    score = float(
+                        self._engine.head_score(features, head_mask, _render_vad_prompt(stem))
+                    )
+                    probability = sigmoid(score / temperature)
                     value = (
                         probability
                         if question.kind == "score"
@@ -294,7 +305,9 @@ class PretrainedMarimba(Marimba):
                     probabilities,
                     score,
                     question.resolved_threshold,
-                    start_s,
+                    max(start_s, end_s - question.seconds)
+                    if question.seconds is not None
+                    else start_s,
                     end_s,
                     status=cap.status,
                 )

@@ -2,7 +2,7 @@
 
 A loopback-only app for microphone or file audio, with parallel decision cards.
 The browser sends continuous mono PCM16 at 16 kHz in 250 ms packets. The server
-retains all input and uses task-specific windows, without saving audio or transcripts.
+retains audio for active windows and utterances, without saving audio or transcripts.
 An optional user-installed transcription adapter can send audio to another service;
 check that service's retention policy separately.
 
@@ -29,8 +29,7 @@ uv run --project demo --no-sync marimba-demo
 
 Installing both editable projects from this repository root uses the in-repo
 inference engine and preserves the demo's dependency constraints. `--no-sync`
-keeps that combined installation intact. Silero VAD is pinned to 6.2.0 in the
-demo only; it is not a dependency of the core inference package.
+keeps that combined installation intact.
 
 For reproducibility, pass `--revision <model-commit>` and record the runtime shown
 at the bottom of the page. `--device cpu` selects CPU; `--device auto --backend auto`
@@ -47,39 +46,38 @@ timing and drop counters. Inputs are not auto-reconnected.
 
 ## Windows and cadence
 
-Silero's CPU streaming iterator processes contiguous 512-sample (32 ms) blocks
-with threshold **0.5**, 200 ms minimum silence, and zero speech padding. Endpoints
-are sample-exact iterator timestamps, not the later packet that confirms silence.
-Packetization adds at most 250 ms; silence confirmation adds about 224 ms. These
-are algorithmic delays, not a hardware latency guarantee. The timeline stores
-onset/offset pairs in stream seconds and includes ongoing speech for coverage.
-Silero does not replace Marimba's speech or people predictions.
+The Speech card scores Marimba's voice-activity head on the final 2 s of each
+rolling 8 s window. Its yes/no flips are adjusted by the measured readout delays:
+onset is estimated 0.5 s before the yes window end, and offset 1.75 s before the
+no window end. These are timing estimates, not word boundaries or a latency
+guarantee. The timeline stores sample positions and includes an open run through
+the last observed window end for coverage checks.
 
 | Card | Audio window | Cadence |
 |---|---|---|
-| Turn ended (yes/no) | Up to 8 s ending exactly at each Silero offset; left padding masked False | At end of speech |
-| Speech (last 8 s) | Rolling 8 s, using Marimba's calibrated voice-activity head | Every 250 ms, coalesced under load |
+| Turn ended (yes/no) | Up to 8 s ending at the estimated speech offset; left padding masked False | At end of speech |
+| Speech (last 2 s) | Final 2 s of the rolling 8 s window | Every 250 ms, coalesced under load |
 | Speaker changed | Full rolling 8 s, including internal silences | Every 250 ms when eligible |
 | People (last 8 s) | Full rolling 8 s, unchanged model count | Every 250 ms, coalesced under load |
-| Language | Each closed Silero utterance, split into consecutive clips of at most 8 s | Per utterance/chunk |
+| Language | Each closed speech run, split into consecutive clips of at most 8 s | Per utterance/chunk |
 | Marimba spoken | Same utterance chunks as language | Per utterance/chunk |
 
 Turn ended uses the Platt probability with the default 0.5 threshold; no fitted
-event threshold is available. The 200 ms silence interval avoids shorter
-within-sentence pauses and matches the minimum gap in the turn-end evaluation
-protocol. It does not guarantee that every detected speech offset ends a turn.
+event threshold is available. The estimated speech offset does not guarantee
+that every detected speech run ends a conversational turn.
 
-Speech measures window occupancy: its training target is at least 50% speech
-frames across 8 s, not instantaneous speech. The existing temperature and 0.225
-threshold are unchanged. People counts identities in the last 8 s, not the whole
-conversation, and is never forced to zero by VAD.
+The 2 s tail readout uses temperature 0.7869027171235091 and threshold 0.225.
+Held-out results are AUROC 0.998, F1 0.993, and specificity 0.967 at that
+threshold. People counts identities in the last 8 s, not the whole conversation,
+and is never forced to zero by speech detection.
 
-Speaker change requires a full mask and at least **0.5 s** of Silero speech in
+Speaker change requires a full mask and at least **0.5 s** of estimated speech in
 **each** of the window-relative intervals [0,6) and [6,8). Otherwise the card shows
 the previous answer pending, with a shimmer on its value only. Before its first
 eligible answer it shows a dash. This is a necessary coverage rule, not a
 guarantee of a single dominant identity on either side. Silences remain in the
-model input; the former RMS silence gate is removed.
+model input.
+The speaker-change card reports `silence` when the final 2 s are below −50 dBFS.
 
 Decoder questions use audio at the **start** of the clip with zero padding at the
 **end**, matching their evaluation alignment. Real internal silences are retained.
@@ -93,8 +91,8 @@ from the live timeline by this decoder backpressure policy.
 Each card shows its actual audio span, model time, observed update interval,
 received age and audio age. Turn/decoder results remain displayed until the next
 eligible event, rather than being replaced by rolling-window answers. Graceful
-Stop drains queued closed utterances and offsets (up to a 90 s browser timeout).
-An open utterance is not treated as a Silero offset just because capture stops.
+Stop drains queued closed utterances and estimated offsets (up to a 90 s browser timeout).
+An open utterance is not treated as closed just because capture stops.
 Disconnect discards subsequent results; an in-flight model call must still finish
 before another session can own the model.
 
@@ -130,7 +128,7 @@ the workload; do not compare timings with a full-grid run without listing tasks.
 Set thread counts from measurements, for example `OMP_NUM_THREADS=4 MKL_NUM_THREADS=4`.
 Per-card model time excludes capture, transport and paint; it includes the relevant
 encoder call. CPU decoding can lag well behind real time. Neither a 250 ms ingest
-hop nor the iterator's endpoint delay guarantees a completed model decision every hop.
+hop nor the speech readout's flip delay guarantees a completed model decision every hop.
 
 ## Optional transcription
 

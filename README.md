@@ -102,8 +102,9 @@ and held-out Arabic, Hindi, Korean and Russian prompts; recognized questions use
 canonical prompt; custom wording passes through unchanged. It uses L9 features
 interpolated to 100 frames from the same encoder pass as turn-end.
 The head uses the physical valid-frame mask, a frozen Whisper question embedding, a small
-text tower, grapheme-encoded English `yes`, and sigmoid on the head logit. Its probabilities
-are not additionally temperature-calibrated.
+text tower, grapheme-encoded Portuguese `sim`, and sigmoid on the head logit.
+Probabilities are temperature-scaled on validation; the default threshold is 0.225.
+The validated two-second tail option is documented in [capabilities](docs/capabilities.md).
 
 Three L12 encoder readouts share that same pass:
 

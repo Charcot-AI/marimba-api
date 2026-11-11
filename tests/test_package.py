@@ -176,6 +176,30 @@ def test_question_resolved_threshold_defaults_and_override():
     assert Question.noul("Is someone speaking?", threshold=None).resolved_threshold == 0.225
 
 
+def test_question_two_second_tail_is_voice_activity_only_and_hashable():
+    inferred = Question.noul("Is someone speaking?", seconds=2.0)
+    explicit = Question.score("Is someone speaking?", task="voice_activity", seconds=2.0)
+    assert inferred.task == explicit.task == "voice_activity"
+    assert inferred.seconds == explicit.seconds == 2.0
+    assert len({inferred, Question.noul("Is someone speaking?", seconds=2.0)}) == 1
+
+
+@pytest.mark.parametrize(
+    ("task", "seconds"),
+    [
+        ("voice_activity", 0.5),
+        ("voice_activity", 1.0),
+        ("voice_activity", 3.0),
+        ("voice_activity", float("nan")),
+        ("turn_end", 2.0),
+        ("term", 2.0),
+    ],
+)
+def test_question_rejects_unvalidated_tail_seconds(task, seconds):
+    with pytest.raises(UnsupportedQuestion, match="two-second tail"):
+        Question.noul("Is someone speaking?", task=task, seconds=seconds)
+
+
 @pytest.mark.parametrize("threshold", [-0.1, 1.1, float("nan")])
 def test_question_threshold_validation(threshold):
     with pytest.raises(ValueError, match="threshold"):

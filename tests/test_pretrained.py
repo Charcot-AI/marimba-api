@@ -458,9 +458,15 @@ def test_validated_vad_prompt_and_tokenization():
 
 
 def test_vad_temperature_and_default_threshold(vad_model, monkeypatch):
-    monkeypatch.setattr(vad_model._engine, "head_score", lambda features, mask, text: -0.6)
+    seen = {}
+
+    def head_score(features, mask, text):
+        seen["mask"] = mask.copy()
+        return -0.6
+
+    monkeypatch.setattr(vad_model._engine, "head_score", head_score)
     question = Question.noul("Is someone speaking?")
-    decision = vad_model(np.zeros(16000, dtype=np.float32), [question], 16000)[0]
+    decision = vad_model(np.zeros(8 * 16000, dtype=np.float32), [question], 16000)[0]
     expected = 1 / (1 + np.exp(0.6 / 0.6540604692061299))
     assert decision.score == -0.6
     assert decision.probability == pytest.approx(expected)
@@ -468,6 +474,42 @@ def test_vad_temperature_and_default_threshold(vad_model, monkeypatch):
     assert decision.threshold == 0.225
     assert decision.value is True
     assert not decision.calibrated
+    assert decision.window_start_s == 0
+    assert seen["mask"].all()
+    assert vad_model._engine.calls == ["encode"]
+
+
+def test_vad_two_second_tail_uses_sample_mask_temperature_and_window_start(vad_model, monkeypatch):
+    seen = {}
+
+    def head_score(features, mask, text):
+        seen["mask"] = mask
+        seen["text"] = text
+        return -0.6
+
+    monkeypatch.setattr(vad_model._engine, "head_score", head_score)
+    question = Question.noul("Is someone speaking?", seconds=2.0)
+    source_mask = np.ones(8 * 16000, dtype=np.bool_)
+    snapshot = WindowSnapshot(np.zeros(8 * 16000, dtype=np.float32), source_mask, 0, 8)
+    decision = vad_model.decide_encoded(vad_model.encode(snapshot), [question])[0]
+
+    expected_mask = np.zeros(8 * 16000, dtype=np.bool_)
+    expected_mask[-32000:] = True
+    np.testing.assert_array_equal(seen["mask"], expected_mask)
+    assert seen["mask"] is not source_mask
+    assert source_mask.all()
+    assert seen["text"] == (
+        "<|im_start|>user\nHá fala humana neste áudio?\nA. sim\nB. não\n"
+        "Responda só com a letra da opção.<|im_end|>\n<|im_start|>assistant\n"
+    )
+    assert decision.score == -0.6
+    assert decision.probability == pytest.approx(1 / (1 + np.exp(0.6 / 0.7869027171235091)))
+    assert decision.threshold == 0.225
+    assert decision.value is True
+    assert decision.window_start_s == 6
+    assert decision.window_end_s == 8
+    assert not decision.calibrated
+    assert vad_model._engine.calls == ["encode"]
 
 
 @pytest.mark.parametrize(

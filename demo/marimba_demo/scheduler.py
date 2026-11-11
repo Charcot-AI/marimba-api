@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 from collections import deque
 from dataclasses import dataclass
 from time import perf_counter
@@ -10,11 +11,14 @@ from typing import Any
 
 import numpy as np
 import numpy.typing as npt
+from marimba import Question
 from marimba.audio import right_aligned_window
 from marimba.windows import WindowSnapshot
 
 from .protocol import SAMPLE_RATE, Frame
 from .speech import SpeechSegment, SpeechTimeline, speaker_change_eligible
+
+_SPEECH_QUESTION_TEXT = "Is someone speaking?"
 
 
 def utterance_chunks(start: int, end: int) -> list[tuple[int, int]]:
@@ -46,10 +50,27 @@ class Scheduler:
         ]
         self.turns = [q for q in questions if q.task == "turn_end"]
         self.reviews = [q for q in questions if model.lane(q) == "decoder"]
+        self.internal_speech_question: Question | None = None
+        self.speech_question: Any | None = next(
+            (q for q in self.heads if self._is_speech_question(q)), None
+        )
+        capabilities = getattr(model, "capabilities", {})
+        voice_activity = capabilities.get("voice_activity")
+        if self.speech_question is None and (
+            any(q.task == "voice_activity" for q in self.heads)
+            or (voice_activity is not None and voice_activity.status != "unavailable")
+        ):
+            self.internal_speech_question = Question.noul(
+                _SPEECH_QUESTION_TEXT, task="voice_activity", seconds=2.0
+            )
+            self.speech_question = self.internal_speech_question
         if len(self.heads) + len(self.turns) + len(self.reviews) != len(questions):
             raise ValueError("Unknown inference lane.")
+        stream_questions = list(questions)
+        if self.internal_speech_question is not None:
+            stream_questions.append(self.internal_speech_question)
         self.stream = model.stream(
-            questions,
+            stream_questions,
             window_seconds=8.0,
             context_seconds=8.0,
             hop_seconds=0.25,
@@ -65,48 +86,62 @@ class Scheduler:
         self.audio: npt.NDArray[np.float32] = np.empty(0, dtype=np.float32)
         self.audio_start = self.total = 0
         self.latest_capture = (0, 0.0)
+        self.latest_capture_start_sample = 0
         self.finished = self.aborted = False
         self.previous_end: dict[str, float] = {}
         self.coalesced = {lane: 0 for lane in self.changed}
+
+    @staticmethod
+    def _is_speech_question(question: Any) -> bool:
+        return (
+            question.task == "voice_activity"
+            and question.text == _SPEECH_QUESTION_TEXT
+            and question.kind == "noul"
+            and getattr(question, "seconds", None) == 2.0
+            and getattr(question, "threshold", None) is None
+            and getattr(question, "options", None) is None
+        )
 
     def snapshot(self, start: int, end: int) -> WindowSnapshot:
         audio = self.audio[start - self.audio_start : end - self.audio_start]
         window, mask = right_aligned_window(audio)
         return WindowSnapshot(window, mask, start / SAMPLE_RATE, end / SAMPLE_RATE)
 
-    def close_utterance(self, segment: SpeechSegment, frame: Frame) -> None:
+    def close_utterance(self, segment: SpeechSegment) -> None:
+        if segment.end <= segment.start:
+            return
+
         def work(start: int, end: int) -> Work:
-            # Capture timestamps refer to the first sample of a browser packet.
-            timestamp = (
-                frame.captured_at_ms + (end - (self.total - len(frame.pcm))) / 16
-            )
+            _, timestamp = self.latest_capture
             return Work(
                 self.snapshot(start, end),
-                (frame.sequence, frame.captured_at_ms),
-                timestamp,
+                self.latest_capture,
+                timestamp
+                + (end - self.latest_capture_start_sample) * 1000 / SAMPLE_RATE,
             )
 
         if self.turns:
             self.turn_queue.append(
                 work(max(0, segment.end - 8 * SAMPLE_RATE), segment.end)
             )
+            self.changed["turn"].set()
         if self.reviews:
             if self.pending_utterance is not None:
                 self.dropped_utterances += 1
             self.pending_utterance = [
                 work(s, e) for s, e in utterance_chunks(segment.start, segment.end)
             ]
+            self.changed["decoder"].set()
 
     def ingest(self, frame: Frame) -> None:
+        self.latest_capture_start_sample = self.total
         self.audio = np.concatenate(
             (self.audio, frame.pcm.astype(np.float32) / 32768.0)
         )
         self.total += len(frame.pcm)
         self.latest_capture = (frame.sequence, frame.captured_at_ms)
         self.stream.ingest(frame.pcm)
-        for segment in self.speech.ingest(frame.pcm):
-            self.close_utterance(segment, frame)
-        keep = max(0, self.total - 9 * SAMPLE_RATE)
+        keep = max(0, self.total - round(10.5 * SAMPLE_RATE))
         if self.speech.onset is not None:
             keep = min(keep, self.speech.onset)
         self.audio = self.audio[keep - self.audio_start :]
@@ -150,17 +185,45 @@ class Scheduler:
         )
         if self.aborted:
             return
+        silent_tail = lane == "encoder" and self._silent_tail(snapshot)
         interval = snapshot.window_end_s - self.previous_end.get(lane, 0.0)
         if lane == "encoder":
             self.coalesced[lane] += max(0, round(interval / 0.25) - 1)
         self.previous_end[lane] = snapshot.window_end_s
+        if lane == "encoder" and self.speech_question is not None:
+            speech_decision = next(
+                (
+                    decision
+                    for decision in decisions
+                    if decision.question == self.speech_question
+                ),
+                None,
+            )
+            if speech_decision is not None and isinstance(speech_decision.value, bool):
+                for segment in self.speech.observe(
+                    snapshot.window_end_s, speech_decision.value
+                ):
+                    self.close_utterance(segment)
         sequence, timestamp = work.capture
-        payloads = [{**d.to_dict(), "window_latency_ms": elapsed} for d in decisions]
-        payloads.extend(
-            {
-                "task": q.task,
-                "question": q.text,
-                "kind": q.kind,
+        visible_decisions = [
+            d
+            for d in decisions
+            if d.question != self.internal_speech_question and d.question not in neutral
+        ]
+        payloads = []
+        for decision in visible_decisions:
+            payload = {
+                **decision.to_dict(),
+                "window_latency_ms": elapsed,
+            }
+            if silent_tail and decision.task == "speaker_change":
+                payload.update(value=0.0, probability=0.0, gated="silence")
+            payloads.append(payload)
+        for question in neutral:
+            payload = {
+                "task": question.task,
+                "question": question.text,
+                "kind": question.kind,
                 "value": None,
                 "probability": None,
                 "probabilities": None,
@@ -172,8 +235,9 @@ class Scheduler:
                 "latency_ms": 0,
                 "window_latency_ms": 0,
             }
-            for q in neutral
-        )
+            if silent_tail and question.task == "speaker_change":
+                payload.update(value=0.0, probability=0.0, gated="silence")
+            payloads.append(payload)
         await self.send(
             {
                 "type": "update",
@@ -190,8 +254,17 @@ class Scheduler:
             }
         )
 
+    @staticmethod
+    def _silent_tail(snapshot: Any) -> bool:
+        audio = getattr(snapshot, "audio", None)
+        if audio is None:
+            return False
+        tail = audio[-2 * SAMPLE_RATE :].astype(np.float64, copy=False)
+        rms_dbfs = 20 * math.log10(max(float(np.sqrt(np.mean(tail**2))), 1e-12))
+        return rms_dbfs < -50.0
+
     async def live(self) -> None:
-        if not self.heads:
+        if not self.heads and self.internal_speech_question is None:
             return
         previous = 0.0
         event = self.changed["encoder"]
@@ -203,18 +276,23 @@ class Scheduler:
             snapshot = self.stream.snapshot()
             if snapshot is not None and snapshot.window_end_s > previous:
                 previous = snapshot.window_end_s
-                neutral = [
-                    q
-                    for q in self.heads
-                    if q.task == "speaker_change"
-                    and not speaker_change_eligible(snapshot, self.speech)
-                ]
                 questions = [
                     q
                     for q in self.heads
-                    if q not in neutral
-                    and (q.task != "speaker_count" or snapshot.mask.all())
+                    if q.task != "speaker_count" or snapshot.mask.all()
                 ]
+                neutral = [
+                    q
+                    for q in questions
+                    if q.task == "speaker_change"
+                    and not speaker_change_eligible(snapshot, self.speech)
+                ]
+                questions = [q for q in questions if q not in neutral]
+                if (
+                    self.internal_speech_question is not None
+                    and self.internal_speech_question not in questions
+                ):
+                    questions.append(self.internal_speech_question)
                 await self.emit(
                     Work(snapshot, self.latest_capture), questions, "encoder", neutral
                 )

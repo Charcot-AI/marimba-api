@@ -48,6 +48,7 @@ class Question:
     options: tuple[str, ...] | None = None
     task: str | None = None
     threshold: float | None = None
+    seconds: float | None = None
 
     def __post_init__(self) -> None:
         if not self.text.strip() or (self.threshold is not None and not 0 <= self.threshold <= 1):
@@ -63,6 +64,8 @@ class Question:
                 raise UnsupportedQuestion(
                     f"No routing template for {self.text!r}; pass task explicitly"
                 )
+        if self.seconds is not None and (self.task != "voice_activity" or self.seconds != 2.0):
+            raise UnsupportedQuestion("Only voice activity supports a two-second tail window")
         if self.task in ("same_speaker", "speaker_change") and self.kind not in ("noul", "score"):
             raise UnsupportedQuestion(f"Task {self.task} supports noul or score")
         if self.task == "speaker_count" and (
@@ -93,15 +96,25 @@ class Question:
 
     @classmethod
     def noul(
-        cls, text: str, *, task: str | None = None, threshold: float | None = None
+        cls,
+        text: str,
+        *,
+        task: str | None = None,
+        threshold: float | None = None,
+        seconds: float | None = None,
     ) -> Question:
-        return cls(text, "noul", task=task, threshold=threshold)
+        return cls(text, "noul", task=task, threshold=threshold, seconds=seconds)
 
     @classmethod
     def score(
-        cls, text: str, *, task: str | None = None, threshold: float | None = None
+        cls,
+        text: str,
+        *,
+        task: str | None = None,
+        threshold: float | None = None,
+        seconds: float | None = None,
     ) -> Question:
-        return cls(text, "score", task=task, threshold=threshold)
+        return cls(text, "score", task=task, threshold=threshold, seconds=seconds)
 
     @classmethod
     def choice(
