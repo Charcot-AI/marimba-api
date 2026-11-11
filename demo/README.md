@@ -59,6 +59,8 @@ the previous session, its trail, and timing samples. Inputs are not auto-reconne
 The **Live signals** grid contains encoder-lane cards only: turn completion,
 speech present, speaker change, and speaker count. Each encoder
 tick scores the latest eight-second window with `encode()` and `decide_encoded()`.
+Speaker-change scores are gated to zero and labeled "silence" when the final
+two seconds fall below -50 dBFS.
 Decoder work runs independently through `decide_snapshot()`; it must not hold the
 encoder/head lock. One review batch runs at a time, coalescing to the latest audio
 instead of building a backlog. Language and term questions due together share a

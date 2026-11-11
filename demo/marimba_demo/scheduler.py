@@ -8,7 +8,21 @@ from collections import OrderedDict
 from time import perf_counter
 from typing import Any
 
+import numpy as np
+
 from .protocol import SAMPLE_RATE, Frame
+
+
+def decision_payload(snapshot: Any, decision: Any) -> dict[str, Any]:
+    payload = decision.to_dict()
+    if decision.task != "speaker_change":
+        return payload
+    tail = np.asarray(snapshot.audio[-2 * SAMPLE_RATE :], dtype=np.float64)
+    rms = float(np.sqrt(np.mean(tail**2))) if tail.size else 0.0
+    dbfs = 20 * math.log10(rms) if rms else -math.inf
+    if dbfs < -50.0:
+        payload.update(value=0.0, probability=0.0, score=0.0, gated="silence")
+    return payload
 
 
 def cadence_settings(values: dict[str, float] | None) -> dict[str, float]:
@@ -116,7 +130,7 @@ class Scheduler:
                 "coalesced_hops": self.coalesced[lane],
                 "decisions": [
                     {
-                        **d.to_dict(),
+                        **decision_payload(snapshot, d),
                         "window_latency_ms": elapsed,
                         **(
                             {"status": "unvalidated"}

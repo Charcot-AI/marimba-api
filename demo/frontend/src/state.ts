@@ -24,6 +24,7 @@ export interface Decision {
   probabilities: Record<string, number> | null;
   score: number | null;
   threshold: number | null;
+  gated?: 'silence';
   window_end_s: number;
   window_start_s?: number;
   latency_ms: number;

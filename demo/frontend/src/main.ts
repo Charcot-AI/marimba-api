@@ -116,7 +116,9 @@ function renderCards(now: number) {
       ? card.kind === 'choice'
         ? 'OPTION PROBABILITIES'
         : `THRESHOLD / ${defaultThreshold(card.task).toFixed(2)}`
-      : stale
+      : d.gated === 'silence'
+        ? d.gated
+        : stale
         ? 'STALE / WAITING FOR MODEL'
         : card.kind === 'score'
           ? '5 SECOND TRAIL'

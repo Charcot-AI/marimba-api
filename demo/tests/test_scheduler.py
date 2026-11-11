@@ -59,6 +59,48 @@ def test_default_completion_pauses_are_per_card_and_overridable():
     assert review_pause("term", {"term": 1}) == 1
 
 
+@pytest.mark.parametrize(("tail_dbfs", "gated"), [(-70, True), (-40, False)])
+def test_speaker_change_is_gated_only_for_a_silent_tail(tail_dbfs, gated):
+    async def run():
+        updates = []
+        question = SimpleNamespace(task="speaker_change")
+        decision = SimpleNamespace(
+            task="speaker_change",
+            to_dict=lambda: {
+                "task": "speaker_change",
+                "value": 0.8,
+                "probability": 0.8,
+                "score": 0.8,
+                "threshold": 0.5,
+            },
+        )
+        model = Model()
+        model.lane = lambda _: "encoder"
+        model.decide_encoded = lambda encoded, questions: [decision]
+        audio = np.full(8 * 16000, 0.1, dtype=np.float32)
+        audio[-2 * 16000 :] = 10 ** (tail_dbfs / 20)
+
+        async def send(data):
+            updates.append(data)
+
+        scheduler = Scheduler(model, [question], send)
+        await scheduler.emit(
+            SimpleNamespace(audio=audio, window_end_s=8.0),
+            (31, 7750.0),
+            [question],
+            "encoder",
+        )
+        return updates[0]["decisions"][0]
+
+    result = asyncio.run(run())
+    if gated:
+        assert result["gated"] == "silence"
+        assert result["value"] == result["probability"] == result["score"] == 0.0
+    else:
+        assert "gated" not in result
+        assert result["value"] == result["probability"] == result["score"] == 0.8
+
+
 def test_slow_review_does_not_block_live_or_lose_capture_provenance():
     async def run():
         model = Model()
