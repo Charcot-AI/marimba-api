@@ -35,6 +35,15 @@ CARDS = (
         ("en", "pt", "es"),
     ),
     Card("term", "Heard marimba", 'Did someone say "marimba"?', "noul"),
+    Card("same_speaker", "Same speaker", "Is this the same speaker?", "noul"),
+    Card("speaker_change", "Speaker change", "Did the speaker change?", "score"),
+    Card(
+        "speaker_count",
+        "Speakers",
+        "How many speakers?",
+        "choice",
+        ("0", "1", "2", "3+"),
+    ),
 )
 
 

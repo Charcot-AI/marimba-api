@@ -125,8 +125,10 @@ the package does not include a detector. See [PII questions](docs/capabilities.m
 Empty real-model audio raises an error; silence with valid samples is supported.
 
 `marimba bench --per-question --audio public_speech.wav --json bench.json` measures
-the four demo cards, each card alone, and the encoder. Warmup and model
-loading are excluded. Language options are `en`, `pt`, and `es`.
+the four fixed benchmark questions (turn_end, voice_activity, language, and term),
+each question alone, and the encoder. The live demo also shows same_speaker,
+speaker_change, and speaker_count cards. Warmup and model loading are excluded.
+Language options are `en`, `pt`, and `es`.
 
 See [lane scheduling and long context](docs/scheduling.md) for immutable snapshots,
 reusable encoded windows, independent encoder/decoder locks, decoder cadence,

@@ -313,7 +313,31 @@ def test_unavailable_and_wrong_kind_cards_are_omitted():
     ]
 
 
-def test_demo_only_requests_four_released_tasks(tmp_path):
+def test_speaker_cards_use_validated_encoder_tasks():
+    model = ProtocolModel()
+    model.capabilities = {
+        "same_speaker": SimpleNamespace(status="validated", kinds=("noul", "score")),
+        "speaker_change": SimpleNamespace(status="validated", kinds=("noul", "score")),
+        "speaker_count": SimpleNamespace(status="validated", kinds=("choice",)),
+    }
+
+    cards = available_cards(model)
+    assert [(card.task, card.kind, card.lane) for card in cards] == [
+        ("same_speaker", "noul", "encoder"),
+        ("speaker_change", "score", "encoder"),
+        ("speaker_count", "choice", "encoder"),
+    ]
+    questions = questions_for(cards, Question)
+    assert [question.task for question in questions] == [
+        "same_speaker",
+        "speaker_change",
+        "speaker_count",
+    ]
+    assert questions[2].options == ("0", "1", "2", "3+")
+    assert [model.lane(question) for question in questions] == ["encoder"] * 3
+
+
+def test_demo_requests_all_seven_released_tasks(tmp_path):
     model = ProtocolModel()
     model.capabilities = {
         task: SimpleNamespace(status="validated", kinds=("score", "noul", "choice"))
@@ -331,7 +355,15 @@ def test_demo_only_requests_four_released_tasks(tmp_path):
     model.lane = lambda question: (
         "decoder" if question.task in ("language", "term") else "encoder"
     )
-    expected = ["turn_end", "voice_activity", "language", "term"]
+    expected = [
+        "turn_end",
+        "voice_activity",
+        "language",
+        "term",
+        "same_speaker",
+        "speaker_change",
+        "speaker_count",
+    ]
     cards = available_cards(model)
     assert [card.task for card in cards] == expected
     assert [question.task for question in questions_for(cards, Question)] == expected
@@ -344,6 +376,9 @@ def test_demo_only_requests_four_released_tasks(tmp_path):
         "encoder",
         "decoder",
         "decoder",
+        "encoder",
+        "encoder",
+        "encoder",
     ]
 
 

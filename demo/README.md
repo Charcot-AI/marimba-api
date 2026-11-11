@@ -56,8 +56,9 @@ the previous session, its trail, and timing samples. Inputs are not auto-reconne
 
 ## Live signals and buffered reviews
 
-The **Live signals** grid contains encoder-lane cards only. Each encoder tick
-scores the latest eight-second window with `encode()` and `decide_encoded()`.
+The **Live signals** grid contains encoder-lane cards only: turn completion,
+speech present, same speaker, speaker change, and speaker count. Each encoder
+tick scores the latest eight-second window with `encode()` and `decide_encoded()`.
 Decoder work runs independently through `decide_snapshot()`; it must not hold the
 encoder/head lock. One review batch runs at a time, coalescing to the latest audio
 instead of building a backlog. Language and term questions due together share a
@@ -116,9 +117,10 @@ omitted, not drawn with invented answers. Experimental tasks are explicitly mark
 Uncalibrated term support is labelled **UNCALIBRATED / RAW N-BEST**, not presented
 as a calibrated probability. The current language card is a closed set
 of the ISO codes `en`, `pt`, `es`; it does not claim an open-set "Other" detector.
-The demo requests only the four released tasks below, numbered 01–04 without gaps.
-Capability gating can reduce this set further; unreleased tasks are not requested.
-The two live signals and two buffered reviews reflow into equal-width groups.
+The demo requests seven released tasks, numbered 01–07 without gaps: turn_end,
+voice_activity, language, term, same_speaker, speaker_change, and speaker_count.
+Capability gating can reduce this set further; unavailable tasks are not requested.
+Five live signals and two buffered reviews reflow into equal-width groups.
 
 | Task | Instrument |
 |---|---|
@@ -126,6 +128,9 @@ The two live signals and two buffered reviews reflow into equal-width groups.
 | Speech present | P(yes) needle and a yes/no reading |
 | Language | One thin horizontal probability bar per option |
 | Heard marimba | Support needle; explicitly labelled when uncalibrated |
+| Same speaker | P(yes) needle and a yes/no reading |
+| Speaker change | 0–1 ruler, pointer, trailing positions from the last five seconds |
+| Speakers | Four-option probability bars for 0/1/2/3+ |
 
 Position on a shared scale and aligned bar lengths make small comparisons easier
 than interpreting colored areas or angles. See Cleveland and McGill,
