@@ -27,15 +27,22 @@ describe('production assets', () => {
     expect(entry.code).not.toContain('data:text/javascript');
   });
 
-  it('balances the live and review groups without an empty third column', async () => {
+  it('balances all decision cards in one responsive grid', async () => {
     const output = await productionAssets();
     const css = output
       .filter((asset) => asset.type === 'asset' && asset.fileName.endsWith('.css'))
       .map((asset) => (asset.type === 'asset' ? asset.source.toString() : ''))
       .join('');
     expect(css).toMatch(
-      /#decision-groups\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
+      /\.cards\s*\{[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/,
     );
-    expect(css).not.toMatch(/grid-template-columns:\s*repeat\(3,/);
+    expect(css).toMatch(/grid-template-columns:\s*repeat\(2,/);
+    expect(css).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+    expect(css).not.toContain('#decision-groups');
+    const entry = output.find((asset) => asset.type === 'chunk' && asset.isEntry);
+    if (entry?.type !== 'chunk') throw new Error('Entry chunk missing');
+    expect(entry.code).not.toContain('BUFFERED REVIEWS');
+    expect(entry.code).not.toContain('LIVE SIGNALS');
+    expect(entry.code).not.toContain('review-p95');
   });
 });

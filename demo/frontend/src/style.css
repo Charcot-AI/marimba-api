@@ -219,7 +219,7 @@ h2 {
 }
 .cards {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-top: 1px solid var(--line);
   border-left: 1px solid var(--line);
 }
@@ -269,38 +269,8 @@ h2 {
   color: var(--muted);
   white-space: nowrap;
 }
-.section-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 0;
-  font:
-    10px Mono,
-    monospace;
-  color: var(--muted);
-}
-.section-heading .eyebrow {
-  color: var(--ink);
-}
-.section-heading p {
-  margin: 10px 0 0;
-}
-.live-cards {
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-}
-#review-section {
-  margin-top: 30px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
-}
-#review-cards {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border: 0;
-  gap: 20px;
-}
-.review-cards .card {
-  border: 1px solid var(--line);
+.card-latency {
+  margin-top: 10px;
 }
 .card-interval,
 .card-window,
@@ -536,10 +506,6 @@ a {
   .cards {
     grid-template-columns: minmax(0, 1fr);
   }
-  .section-heading {
-    align-items: flex-start;
-    flex-direction: column;
-  }
 }
 @media (min-width: 1280px) {
   header {
@@ -553,45 +519,6 @@ a {
   }
   #status {
     margin: 10px 0 12px;
-  }
-  #decision-groups {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 24px;
-  }
-  #decision-groups.single-group {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  #decision-groups > section {
-    display: grid;
-    grid-template-rows: 74px 1fr;
-  }
-  #review-section {
-    margin: 0;
-    padding: 0;
-    border-top: 0;
-  }
-  .section-heading {
-    flex-direction: column;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 5px;
-  }
-  .section-heading .eyebrow {
-    margin: 0;
-  }
-  .section-heading p {
-    margin: 5px 0 0;
-    font-size: 9px;
-  }
-  .review-timing {
-    font-size: 8px;
-  }
-  .live-cards {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  }
-  #review-cards {
-    gap: 12px;
   }
   .card {
     padding: 16px 16px 14px;

@@ -6,16 +6,14 @@ import {
   defaultThreshold,
   initialState,
   PACKET_DURATION_MS,
-  percentile,
-  renderLatency,
   reduceCard,
-  scalar,
   type Card,
   type CardState,
   type Decision,
 } from './state';
 import type { SttAdapter, SttFactory, Transcript } from './stt';
 import { drainSocket } from './socket';
+import { reading, timing } from './presentation';
 
 interface Config {
   cards: Card[];
@@ -25,12 +23,10 @@ interface Config {
 }
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `<div class="shell"><header><a class="brand" href="https://charcot.ai" aria-label="Charcot AI"><img src="/marimba.svg" alt="marimba"></a><span class="edition">charcot.ai / live instruments</span><button id="theme" aria-label="Switch color theme">Dark ↗</button></header>
-<section class="intro"><div><p class="eyebrow">AUDIO → TYPED DECISIONS</p><h1>Listen. Decide. Repeat.</h1><p class="subtitle">One audio stream. Parallel questions. Continuous answers.</p></div><div class="latency"><span class="eyebrow">CAPTURE → RENDER · P95</span><div><span id="p95">—</span><span class="unit">ms</span></div><span id="target">target ≤ 300 ms / rolling 60 s</span></div></section>
+<section class="intro"><div><p class="eyebrow">AUDIO → TYPED DECISIONS</p><h1>Listen. Decide. Repeat.</h1><p class="subtitle">One audio stream. Parallel questions. Continuous answers.</p></div></section>
 <section class="source" aria-label="Audio input"><div class="source-label"><span id="live-dot"></span><span id="source-name">INPUT / IDLE</span></div><canvas id="wave" width="720" height="72" aria-label="Live audio amplitude"></canvas><span id="clock">00:00</span><label class="file-button">Open audio<input type="file" id="file" accept="audio/*"></label><button id="start" class="primary">Start microphone ↗</button><button id="stop" disabled>Stop ■</button></section>
 <p id="status" role="status">Loading local model capabilities…</p>
-<div id="decision-groups"><section id="live-section"><div class="section-heading"><span class="eyebrow">LIVE SIGNALS</span><span>8 s rolling context / every encoder tick</span></div><div id="cards" class="cards live-cards" aria-label="Live decision cards"></div></section>
-<section id="review-section" hidden><div class="section-heading"><div><span class="eyebrow">BUFFERED REVIEWS</span><p id="review-notice"></p></div><div class="review-timing">WINDOW END → RENDER · P95 <span id="review-p95">—</span> ms</div></div><div id="review-cards" class="cards review-cards" aria-label="Buffered audio reviews"></div></section>
-</div><section id="transcript" class="transcript" hidden><div class="eyebrow">LIVE TRANSCRIPT / OPTIONAL ADAPTER</div><p id="words" aria-live="polite"></p></section>
+<div id="cards" class="cards" aria-label="Audio decision cards"></div><section id="transcript" class="transcript" hidden><div class="eyebrow">LIVE TRANSCRIPT / OPTIONAL ADAPTER</div><p id="words" aria-live="polite"></p></section>
 <footer><span id="runtime">LOCAL INFERENCE</span><span>8 s window / 250 ms ingest</span><span id="dropped">0 coalesced decisions</span><span>Audio is not saved locally.</span></footer></div>`;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) =>
   document.querySelector<T>(selector)!;
@@ -62,7 +58,6 @@ let sequence = 0,
   started = 0,
   lastResult = 0,
   lastPaint = 0;
-let latency: { time: number; ms: number; lane: string }[] = [];
 const reviewsRunning = new Set<string>();
 let amplitudes: number[] = [];
 let transcriptEvents = new Map<string, Transcript>();
@@ -81,28 +76,11 @@ function renderCards(now: number) {
       !!d && now - state.receivedAt > Math.max(2500, (card.cadence_seconds ?? 0.25) * 2000);
     element.classList.toggle('crossed', now - state.crossedAt < 650);
     element.classList.toggle('stale', stale);
-    element.querySelector('.reading')!.textContent = !d
-      ? '—'
-      : card.kind === 'noul'
-        ? d.value
-          ? 'yes'
-          : 'no'
-        : card.kind === 'score'
-          ? scalar(d).toFixed(2)
-          : String(d.value);
-    element.querySelector('.card-latency')!.textContent = d
-      ? `${(d.window_latency_ms ?? d.latency_ms).toFixed(0)} ms / model`
-      : 'awaiting audio';
-    element.querySelector('.card-interval')!.textContent = d
-      ? `UPDATE ${state.intervalMs === undefined ? '—' : `${state.intervalMs.toFixed(0)} ms`} / RECEIVED ${((now - state.receivedAt) / 1000).toFixed(1)} s AGO`
-      : review && active
-        ? `COLLECTING ${contextSeconds} s OF AUDIO`
-        : `${contextSeconds} s CONTEXT`;
-    element.querySelector('.card-window')!.textContent = d
-      ? `AUDIO ${(d.window_start_s ?? Math.max(0, d.window_end_s - contextSeconds)).toFixed(2)}–${d.window_end_s.toFixed(2)} s / AGE ${(Math.max(0, now - (state.windowEndAt ?? state.receivedAt)) / 1000).toFixed(1)} s`
-      : review
-        ? `MIN PAUSE ${card.cadence_seconds ?? 2} s AFTER COMPLETION`
-        : 'EVERY ENCODER TICK';
+    element.querySelector('.reading')!.textContent = reading(card, d);
+    const footer = timing(card, state, now);
+    element.querySelector('.card-latency')!.textContent = footer.latency;
+    element.querySelector('.card-interval')!.textContent = footer.interval;
+    element.querySelector('.card-window')!.textContent = footer.window;
     element.querySelector('.review-progress')!.textContent = reviewsRunning.has(card.task)
       ? 'COMPUTING / PREVIOUS RESULT RETAINED'
       : review && contextSeconds > 8
@@ -131,17 +109,6 @@ function renderCards(now: number) {
 }
 function makeCards() {
   $('#cards').replaceChildren();
-  $('#review-cards').replaceChildren();
-  $('#live-section').hidden = !config.cards.some((card) => card.lane !== 'decoder');
-  $('#review-section').hidden = !config.cards.some((card) => card.lane === 'decoder');
-  $('#decision-groups').classList.toggle(
-    'single-group',
-    $('#live-section').hidden || $('#review-section').hidden,
-  );
-  $('#review-notice').textContent =
-    config.review_seconds > 8
-      ? `${config.review_seconds} s audio context · UNVALIDATED beyond 8 s · separate from live signals`
-      : '8 s audio context · independently scheduled, not a live-update promise';
   config.cards.forEach((card, index) => {
     states.set(card.task, initialState());
     const el = document.createElement('article');
@@ -153,13 +120,12 @@ function makeCards() {
       ? 'UNVALIDATED WINDOW'
       : card.status === 'experimental'
         ? 'EXPERIMENTAL'
-        : review
-          ? 'BUFFERED'
-          : 'LIVE';
-    el.innerHTML = `<div class="card-top"><span class="number">${String(index + 1).padStart(2, '0')} / ${card.kind.toUpperCase()}</span><span class="badge">${badge}${card.uncalibrated ? ' / UNCALIBRATED' : ''}</span></div><h2></h2><div class="reading-row"><span class="reading">—</span><span class="card-latency">awaiting audio</span></div><div class="instrument"></div><div class="card-bottom"></div><div class="card-interval"></div><div class="card-window"></div><div class="review-progress"></div>`;
+        : '';
+    const tags = [badge, card.uncalibrated ? 'UNCALIBRATED' : ''].filter(Boolean).join(' / ');
+    el.innerHTML = `<div class="card-top"><span class="number">${String(index + 1).padStart(2, '0')} / ${card.kind.toUpperCase()}</span><span class="badge">${tags}</span></div><h2></h2><div class="reading-row"><span class="reading">—</span></div><div class="instrument"></div><div class="card-bottom"></div><div class="card-window"></div><div class="card-interval"></div><div class="card-latency"></div><div class="review-progress"></div>`;
     el.title = card.evaluation ?? '';
     el.querySelector('h2')!.textContent = card.title;
-    $(review ? '#review-cards' : '#cards').append(el);
+    $('#cards').append(el);
   });
   renderCards(performance.now());
 }
@@ -213,16 +179,12 @@ async function start(file?: File) {
   try {
     active = true;
     sequence = 0;
-    latency = [];
     reviewsRunning.clear();
-    $('#review-p95').textContent = '—';
     amplitudes = [];
     transcriptEvents.clear();
     makeCards();
     $('#words').replaceChildren();
     $('#clock').textContent = '00:00';
-    $('#p95').textContent = '—';
-    $('#target').textContent = 'target ≤ 300 ms / rolling 60 s';
     $('#dropped').textContent = '0 coalesced decisions';
     status('Connecting to local inference…');
     try {
@@ -299,19 +261,6 @@ async function start(file?: File) {
       if (data.decisions.length)
         requestAnimationFrame(() => {
           renderCards(performance.now());
-          latency.push({
-            time: performance.now(),
-            ms: renderLatency(data.captured_at_ms, performance.now(), data.lane),
-            lane: data.lane,
-          });
-          latency = latency.filter((p) => p.time >= performance.now() - 60000);
-          const p95 = percentile(latency.filter((p) => p.lane === data.lane).map((p) => p.ms));
-          $(live ? '#p95' : '#review-p95').textContent = (p95 ?? 0).toFixed(0);
-          if (live)
-            $('#target').textContent =
-              (p95 ?? 0) > 300
-                ? 'above 300 ms target / rolling 60 s'
-                : 'live target ≤ 300 ms / rolling 60 s';
         });
       if (active && !stopping)
         status(
