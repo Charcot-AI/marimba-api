@@ -174,7 +174,8 @@ class SpeechReadout:
         self.tokenizer = CachedQuestionTokenizer(
             WhisperTokenizer.from_pretrained(TEXT_REPO, revision=TEXT_REVISION)
         )
-        ids, mask = GraphemeTokenizer()("yes")
+        # The head was validated with the "sim" option.
+        ids, mask = GraphemeTokenizer()("sim")
         with torch.inference_mode():
             self.option = self.model.text_options(ids.to(device), mask.to(device))
         self.option_mask = mask.to(device)

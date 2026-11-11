@@ -351,7 +351,10 @@ def vad_model():
 def test_vad_recognized_prompt(vad_model, text, task):
     question = Question.noul(text, task=task)
     decision = vad_model(np.zeros(16000, dtype=np.float32), [question], 16000)[0]
-    assert vad_model._engine.head_texts == ["Há fala humana neste áudio?"]
+    assert vad_model._engine.head_texts == [
+        "<|im_start|>user\nHá fala humana neste áudio?\nA. sim\nB. não\n"
+        "Responda só com a letra da opção.<|im_end|>\n<|im_start|>assistant\n"
+    ]
     assert decision.question is question
     assert decision.question.text == text
     assert decision.status == "validated"
@@ -362,6 +365,96 @@ def test_vad_recognized_prompt(vad_model, text, task):
     )
     assert "temperature-scaled on validation" in evaluation
     assert "default threshold 0.225 from validation" in evaluation
+
+
+def test_validated_vad_prompt_and_tokenization():
+    import unicodedata
+
+    torch = pytest.importorskip("torch")
+    transformers = pytest.importorskip("transformers")
+
+    from marimba._head import TEXT_REPO, TEXT_REVISION, CachedQuestionTokenizer
+    from marimba.pretrained import _CANONICAL_VAD_STEM, _render_vad_prompt
+
+    prompt = _render_vad_prompt(_CANONICAL_VAD_STEM)
+    assert prompt == (
+        "<|im_start|>user\nHá fala humana neste áudio?\nA. sim\nB. não\n"
+        "Responda só com a letra da opção.<|im_end|>\n<|im_start|>assistant\n"
+    )
+    assert len(prompt.encode("utf-8")) == 131
+    assert unicodedata.is_normalized("NFC", prompt)
+
+    try:
+        tokenizer = transformers.WhisperTokenizer.from_pretrained(
+            TEXT_REPO, revision=TEXT_REVISION, local_files_only=True
+        )
+    except OSError:
+        pytest.skip("Pinned Whisper tokenizer is not cached locally")
+    encoded = CachedQuestionTokenizer(tokenizer)([prompt])
+    assert isinstance(encoded["input_ids"], torch.Tensor)
+    assert encoded["input_ids"][0].tolist() == [
+        50258,
+        50363,
+        27,
+        91,
+        332,
+        62,
+        24419,
+        91,
+        29,
+        18088,
+        198,
+        39,
+        842,
+        21580,
+        1952,
+        64,
+        34739,
+        7352,
+        532,
+        1004,
+        30,
+        198,
+        32,
+        13,
+        1034,
+        198,
+        33,
+        13,
+        2431,
+        198,
+        49,
+        13361,
+        12233,
+        6238,
+        395,
+        257,
+        718,
+        424,
+        1120,
+        999,
+        2917,
+        13,
+        27,
+        91,
+        332,
+        62,
+        521,
+        91,
+        29,
+        198,
+        27,
+        91,
+        332,
+        62,
+        24419,
+        91,
+        29,
+        640,
+        10329,
+        198,
+        50257,
+    ]
 
 
 def test_vad_temperature_and_default_threshold(vad_model, monkeypatch):
@@ -383,7 +476,10 @@ def test_vad_temperature_and_default_threshold(vad_model, monkeypatch):
 def test_vad_explicit_prompt(vad_model, text):
     question = Question.noul(text, task="voice_activity")
     decision = vad_model(np.zeros(16000, dtype=np.float32), [question], 16000)[0]
-    assert vad_model._engine.head_texts == [text]
+    assert vad_model._engine.head_texts == [
+        f"<|im_start|>user\n{text}\nA. sim\nB. não\n"
+        "Responda só com a letra da opção.<|im_end|>\n<|im_start|>assistant\n"
+    ]
     assert decision.question is question
 
 

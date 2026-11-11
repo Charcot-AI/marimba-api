@@ -21,9 +21,16 @@ from .runtime import RuntimeInfo, select_backend, synchronize
 from .weights import load_manifest
 from .windows import EncodedWindow, WindowSnapshot, decoder_snapshot
 
-_CANONICAL_VAD_PROMPT = "Há fala humana neste áudio?"
+_CANONICAL_VAD_STEM = "Há fala humana neste áudio?"
 # Fitted on the validation calibration split for the shipped head.
 _VAD_TEMPERATURE = 0.6540604692061299
+
+
+def _render_vad_prompt(stem: str) -> str:
+    return (
+        f"<|im_start|>user\n{stem}\nA. sim\nB. não\n"
+        "Responda só com a letra da opção.<|im_end|>\n<|im_start|>assistant\n"
+    )
 
 
 class PretrainedMarimba(Marimba):
@@ -249,12 +256,12 @@ class PretrainedMarimba(Marimba):
                 ):
                     value = bool(self._pii_detector(pii_transcript))
                 elif task == "voice_activity":
-                    prompt = (
-                        _CANONICAL_VAD_PROMPT
+                    stem = (
+                        _CANONICAL_VAD_STEM
                         if matches_template("voice_activity", question.text)
                         else question.text
                     )
-                    score = float(self._engine.head_score(features, mask, prompt))
+                    score = float(self._engine.head_score(features, mask, _render_vad_prompt(stem)))
                     probability = sigmoid(score / _VAD_TEMPERATURE)
                     value = (
                         probability
