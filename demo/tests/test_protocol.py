@@ -6,9 +6,11 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
+from marimba import Question as MarimbaQuestion
+from marimba.questions import matches_template
 from starlette.websockets import WebSocketDisconnect
 
-from marimba_demo.cards import available_cards, questions_for
+from marimba_demo.cards import CARDS, available_cards, questions_for
 from marimba_demo.protocol import decode_frame
 from marimba_demo.server import create_app
 
@@ -316,28 +318,34 @@ def test_unavailable_and_wrong_kind_cards_are_omitted():
 def test_speaker_cards_use_validated_encoder_tasks():
     model = ProtocolModel()
     model.capabilities = {
-        "same_speaker": SimpleNamespace(status="validated", kinds=("noul", "score")),
         "speaker_change": SimpleNamespace(status="validated", kinds=("noul", "score")),
         "speaker_count": SimpleNamespace(status="validated", kinds=("choice",)),
     }
 
     cards = available_cards(model)
     assert [(card.task, card.kind, card.lane) for card in cards] == [
-        ("same_speaker", "noul", "encoder"),
         ("speaker_change", "score", "encoder"),
         ("speaker_count", "choice", "encoder"),
     ]
     questions = questions_for(cards, Question)
     assert [question.task for question in questions] == [
-        "same_speaker",
         "speaker_change",
         "speaker_count",
     ]
-    assert questions[2].options == ("0", "1", "2", "3+")
-    assert [model.lane(question) for question in questions] == ["encoder"] * 3
+    assert questions[1].options == ("0", "1", "2", "3+")
+    assert [model.lane(question) for question in questions] == ["encoder"] * 2
 
 
-def test_demo_requests_all_seven_released_tasks(tmp_path):
+def test_every_demo_card_text_routes_to_its_task():
+    for card in CARDS:
+        assert matches_template(card.task, card.text)
+        question = MarimbaQuestion(card.text, card.kind, card.options or None)
+        assert question.task == card.task
+        if card.task == "term":
+            assert question.term == "marimba"
+
+
+def test_demo_requests_all_six_released_tasks(tmp_path):
     model = ProtocolModel()
     model.capabilities = {
         task: SimpleNamespace(status="validated", kinds=("score", "noul", "choice"))
@@ -358,14 +366,36 @@ def test_demo_requests_all_seven_released_tasks(tmp_path):
     expected = [
         "turn_end",
         "voice_activity",
-        "language",
-        "term",
-        "same_speaker",
         "speaker_change",
         "speaker_count",
+        "language",
+        "term",
+    ]
+    expected_cards = [
+        ("turn_end", "Turn ended", "Has the speaker finished?", "score", ()),
+        ("voice_activity", "Speech", "Is someone speaking?", "noul", ()),
+        ("speaker_change", "Speaker changed", "Has the speaker changed?", "score", ()),
+        (
+            "speaker_count",
+            "People",
+            "How many people?",
+            "choice",
+            ("0", "1", "2", "3+"),
+        ),
+        (
+            "language",
+            "Language",
+            "Which language is spoken?",
+            "choice",
+            ("en", "pt", "es"),
+        ),
+        ("term", "Marimba spoken", 'Was "marimba" spoken?', "noul", ()),
     ]
     cards = available_cards(model)
     assert [card.task for card in cards] == expected
+    assert [
+        (card.task, card.title, card.text, card.kind, card.options) for card in cards
+    ] == expected_cards
     assert [question.task for question in questions_for(cards, Question)] == expected
     app = create_app(model, Question, static=tmp_path, local=tmp_path)
     with TestClient(app, headers={"host": "127.0.0.1:8765"}) as client:
@@ -374,11 +404,10 @@ def test_demo_requests_all_seven_released_tasks(tmp_path):
     assert [card["lane"] for card in configured] == [
         "encoder",
         "encoder",
+        "encoder",
+        "encoder",
         "decoder",
         "decoder",
-        "encoder",
-        "encoder",
-        "encoder",
     ]
 
 

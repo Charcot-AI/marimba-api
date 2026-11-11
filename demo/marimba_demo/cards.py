@@ -23,27 +23,24 @@ class Card:
 
 
 CARDS = (
-    Card(
-        "turn_end", "Turn completion", "Has the speaker finished their turn?", "score"
-    ),
-    Card("voice_activity", "Speech present", "Is someone speaking?", "noul"),
-    Card(
-        "language",
-        "Language",
-        "What language is being spoken?",
-        "choice",
-        ("en", "pt", "es"),
-    ),
-    Card("term", "Heard marimba", 'Did someone say "marimba"?', "noul"),
-    Card("same_speaker", "Same speaker", "Is this the same speaker?", "noul"),
-    Card("speaker_change", "Speaker change", "Did the speaker change?", "score"),
+    Card("turn_end", "Turn ended", "Has the speaker finished?", "score"),
+    Card("voice_activity", "Speech", "Is someone speaking?", "noul"),
+    Card("speaker_change", "Speaker changed", "Has the speaker changed?", "score"),
     Card(
         "speaker_count",
-        "Speakers",
-        "How many speakers?",
+        "People",
+        "How many people?",
         "choice",
         ("0", "1", "2", "3+"),
     ),
+    Card(
+        "language",
+        "Language",
+        "Which language is spoken?",
+        "choice",
+        ("en", "pt", "es"),
+    ),
+    Card("term", "Marimba spoken", 'Was "marimba" spoken?', "noul"),
 )
 
 

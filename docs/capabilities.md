@@ -37,6 +37,10 @@ questions = [
 ]
 ```
 
+Speaker-count routing also accepts `How many people?` and `How many people are
+talking?`. Term routing accepts quoted terms in `Was "marimba" spoken?` and
+`Was 'hello' said?`; the quotation marks are required.
+
 Same-speaker and change accept `noul` or `score`. Scores are calibrated
 positive-class probabilities; `noul` compares that probability to the threshold.
 Count requires exactly those four distinct string options, in any order; its

@@ -10,7 +10,7 @@ Kind = Literal["noul", "score", "choice"]
 
 _TEMPLATES = {
     "same_speaker": r"(is (this|it) the same speaker|are (they|these) the same speaker)",
-    "speaker_count": r"how many speakers( are there| are speaking)?",
+    "speaker_count": r"how many (speakers|people)( are (there|speaking|talking))?",
     "speaker_change": (
         r"(did the speaker change|has the speaker changed|is this a different speaker)"
     ),
@@ -19,7 +19,7 @@ _TEMPLATES = {
         r"(has (the speaker|someone) finished( speaking)?|"
         r"is (the )?turn (over|finished)|is it (the )?end of (the )?turn)"
     ),
-    "term": r"""did (someone|anyone) say ["“'].+?["”']""",
+    "term": r"""(did (someone|anyone) say ["“'].+?["”']|was ["“'].+?["”'] (said|spoken))""",
     "language": r"(what|which) language( is (being )?spoken| is this)?",
     "pii": (
         r"(does (this|the) audio contain (any )?(personal|personally identifiable) "

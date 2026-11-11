@@ -126,8 +126,8 @@ Empty real-model audio raises an error; silence with valid samples is supported.
 
 `marimba bench --per-question --audio public_speech.wav --json bench.json` measures
 the four fixed benchmark questions (turn_end, voice_activity, language, and term),
-each question alone, and the encoder. The live demo also shows same_speaker,
-speaker_change, and speaker_count cards. Warmup and model loading are excluded.
+each question alone, and the encoder. The live demo also shows speaker_change and
+speaker_count cards. Warmup and model loading are excluded.
 Language options are `en`, `pt`, and `es`.
 
 See [lane scheduling and long context](docs/scheduling.md) for immutable snapshots,
