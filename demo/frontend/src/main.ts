@@ -5,6 +5,7 @@ import {
   encodeFrame,
   defaultThreshold,
   initialState,
+  isRollingUpdate,
   PACKET_DURATION_MS,
   reduceCard,
   type Card,
@@ -19,7 +20,6 @@ interface Config {
   cards: Card[];
   runtime: { backend: string; device: string; dtype: string };
   stt: boolean;
-  review_seconds: number;
 }
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `<div class="shell"><header><a class="brand" href="https://charcot.ai" aria-label="Charcot AI"><img src="/marimba.svg" alt="marimba"></a><span class="edition">charcot.ai / live instruments</span><button id="theme" aria-label="Switch color theme">Dark ↗</button></header>
@@ -27,7 +27,7 @@ app.innerHTML = `<div class="shell"><header><a class="brand" href="https://charc
 <section class="source" aria-label="Audio input"><div class="source-label"><span id="live-dot"></span><span id="source-name">INPUT / IDLE</span></div><canvas id="wave" width="720" height="72" aria-label="Live audio amplitude"></canvas><span id="clock">00:00</span><label class="file-button">Open audio<input type="file" id="file" accept="audio/*"></label><button id="start" class="primary">Start microphone ↗</button><button id="stop" disabled>Stop ■</button></section>
 <p id="status" role="status">Loading local model capabilities…</p>
 <div id="cards" class="cards" aria-label="Audio decision cards"></div><section id="transcript" class="transcript" hidden><div class="eyebrow">LIVE TRANSCRIPT / OPTIONAL ADAPTER</div><p id="words" aria-live="polite"></p></section>
-<footer><span id="runtime">LOCAL INFERENCE</span><span>8 s window / 250 ms ingest</span><span id="dropped">0 coalesced decisions</span><span>Audio is not saved locally.</span></footer></div>`;
+<footer><span id="runtime">LOCAL INFERENCE</span><span>8 s maximum / 250 ms ingest</span><span id="dropped">0 coalesced decisions</span><span id="utterance-drops">0 dropped utterances</span><span>Audio is not saved locally.</span></footer></div>`;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) =>
   document.querySelector<T>(selector)!;
 const status = (text: string) => {
@@ -71,11 +71,11 @@ function renderCards(now: number) {
     const element = document.getElementById(`card-${card.task}`)!;
     const d = state.decision;
     const review = card.lane === 'decoder';
-    const contextSeconds = card.context_seconds ?? 8;
     const stale =
-      !!d && now - state.receivedAt > Math.max(2500, (card.cadence_seconds ?? 0.25) * 2000);
+      !!d && !review && card.task !== 'turn_end' && now - state.receivedAt > 2500;
     element.classList.toggle('crossed', now - state.crossedAt < 650);
     element.classList.toggle('stale', stale);
+    element.classList.toggle('neutral', d?.status === 'not_enough_speech');
     element.querySelector('.reading')!.textContent = reading(card, d);
     const footer = timing(card, state, now);
     element.querySelector('.card-latency')!.textContent = footer.latency;
@@ -83,9 +83,7 @@ function renderCards(now: number) {
     element.querySelector('.card-window')!.textContent = footer.window;
     element.querySelector('.review-progress')!.textContent = reviewsRunning.has(card.task)
       ? 'COMPUTING / PREVIOUS RESULT RETAINED'
-      : review && contextSeconds > 8
-        ? 'UNVALIDATED CONTEXT'
-        : '';
+      : '';
     element.querySelector('.instrument')!.innerHTML = instrument(card, state, now);
     element.querySelectorAll('[data-option]').forEach((el, i) => {
       el.textContent = card.options[i];
@@ -94,8 +92,8 @@ function renderCards(now: number) {
       ? card.kind === 'choice'
         ? 'OPTION PROBABILITIES'
         : `THRESHOLD / ${defaultThreshold(card.task)}`
-      : d.gated === 'silence'
-        ? d.gated
+      : d.status === 'not_enough_speech'
+        ? 'REQUIRES ≥0.5 s SPEECH IN EACH 6 s / 2 s INTERVAL'
         : stale
         ? 'STALE / WAITING FOR MODEL'
         : card.kind === 'score'
@@ -114,11 +112,7 @@ function makeCards() {
     const el = document.createElement('article');
     el.id = `card-${card.task}`;
     el.className = 'card';
-    const review = card.lane === 'decoder';
-    const unvalidated = review && (card.context_seconds ?? 8) > 8;
-    const badge = unvalidated
-      ? 'UNVALIDATED WINDOW'
-      : card.status === 'experimental'
+    const badge = card.status === 'experimental'
         ? 'EXPERIMENTAL'
         : '';
     const tags = [badge, card.uncalibrated ? 'UNCALIBRATED' : ''].filter(Boolean).join(' / ');
@@ -164,9 +158,8 @@ function sendPcm(pcm: Int16Array, capturedAt: number) {
 }
 function armTimeout() {
   clearTimeout(timeout);
-  const seconds = config.cards.some((card) => card.lane !== 'decoder')
-    ? 30
-    : config.review_seconds + 60;
+  if (!config.cards.some((card) => card.lane !== 'decoder' && card.task !== 'turn_end')) return;
+  const seconds = 30;
   timeout = setTimeout(() => {
     status(`Model timed out after ${seconds} seconds. Restart the input.`);
     void stop();
@@ -186,6 +179,7 @@ async function start(file?: File) {
     $('#words').replaceChildren();
     $('#clock').textContent = '00:00';
     $('#dropped').textContent = '0 coalesced decisions';
+    $('#utterance-drops').textContent = '0 dropped utterances';
     status('Connecting to local inference…');
     try {
       context = new AudioContext({ sampleRate: 16000 });
@@ -219,8 +213,10 @@ async function start(file?: File) {
         type: string;
         message?: string;
         captured_at_ms: number;
+        window_end_at_ms?: number;
         decision_interval_ms: number;
         coalesced_hops: number;
+        dropped_utterances?: number;
         decisions: Decision[];
         lane: 'encoder' | 'decoder';
         tasks: string[];
@@ -243,7 +239,8 @@ async function start(file?: File) {
         return;
       }
       if (data.type !== 'update') return;
-      const live = data.lane === 'encoder';
+      $('#utterance-drops').textContent = `${data.dropped_utterances ?? 0} dropped utterances`;
+      const live = isRollingUpdate(data.lane, data.decisions);
       if (active && !stopping && (live || !config.cards.some((card) => card.lane !== 'decoder')))
         armTimeout();
       const now = performance.now();
@@ -256,7 +253,7 @@ async function start(file?: File) {
         if (states.has(d.task))
           states.set(
             d.task,
-            reduceCard(states.get(d.task)!, d, now, data.captured_at_ms + PACKET_DURATION_MS),
+            reduceCard(states.get(d.task)!, d, now, data.window_end_at_ms ?? data.captured_at_ms + PACKET_DURATION_MS),
           );
       if (data.decisions.length)
         requestAnimationFrame(() => {
@@ -351,7 +348,7 @@ async function stop(message?: string) {
       status('Transcript adapter did not finish cleanly.');
     }
   })();
-  const drained = await drainSocket(socket, Math.max(30, (config?.review_seconds ?? 8) * 3) * 1000);
+  const drained = await drainSocket(socket, 90000);
   socket = undefined;
   await finishingTranscript;
   if (message && $('#status').textContent === finishing)
@@ -390,11 +387,8 @@ function paint(now: number) {
         .toString()
         .padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
       if (now - lastResult > 3000) {
-        const reviewOnly = !config.cards.some((card) => card.lane !== 'decoder');
         status(
-          reviewOnly && seconds < config.review_seconds
-            ? `Collecting ${config.review_seconds} seconds of audio for a buffered review.`
-            : 'Waiting for the model / audio context is retained; inference runs on the latest window.',
+          'Listening / rolling heads and end-of-speech decisions use their own audio windows.',
         );
       }
     }

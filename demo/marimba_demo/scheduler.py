@@ -1,46 +1,33 @@
-"""Independent live and buffered-review workers over one continuous audio ring."""
+"""Rolling heads, offset-triggered turns, and bounded utterance decoding."""
 
 from __future__ import annotations
 
 import asyncio
-import math
-from collections import OrderedDict
+from collections import deque
+from dataclasses import dataclass
 from time import perf_counter
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
+from marimba.audio import right_aligned_window
+from marimba.windows import WindowSnapshot
 
 from .protocol import SAMPLE_RATE, Frame
+from .speech import SpeechSegment, SpeechTimeline, speaker_change_eligible
 
 
-def decision_payload(snapshot: Any, decision: Any) -> dict[str, Any]:
-    payload = decision.to_dict()
-    if decision.task != "speaker_change":
-        return payload
-    tail = np.asarray(snapshot.audio[-2 * SAMPLE_RATE :], dtype=np.float64)
-    rms = float(np.sqrt(np.mean(tail**2))) if tail.size else 0.0
-    dbfs = 20 * math.log10(rms) if rms else -math.inf
-    if dbfs < -50.0:
-        payload.update(value=0.0, probability=0.0, score=0.0, gated="silence")
-    return payload
+def utterance_chunks(start: int, end: int) -> list[tuple[int, int]]:
+    return [
+        (s, min(s + 8 * SAMPLE_RATE, end)) for s in range(start, end, 8 * SAMPLE_RATE)
+    ]
 
 
-def cadence_settings(values: dict[str, float] | None) -> dict[str, float]:
-    result = dict(values or {})
-    if any(not math.isfinite(v) or v < 0.25 for v in result.values()):
-        raise ValueError("Review intervals must be finite and at least 0.25 seconds.")
-    return result
-
-
-def review_context(value: float | str) -> float:
-    seconds = float(value)
-    if not math.isfinite(seconds) or not 8 <= seconds <= 30:
-        raise ValueError("Review context must be between 8 and 30 seconds.")
-    return seconds
-
-
-def review_pause(task: str, overrides: dict[str, float]) -> float:
-    return overrides.get(task, 4.0 if task == "term" else 2.0)
+@dataclass(frozen=True)
+class Work:
+    snapshot: Any
+    capture: tuple[int, float]
+    window_end_at_ms: float | None = None
 
 
 class Scheduler:
@@ -50,37 +37,80 @@ class Scheduler:
         questions: list[Any],
         send: Any,
         *,
-        review_seconds: float = 8.0,
-        intervals: dict[str, float] | None = None,
+        speech: SpeechTimeline | None = None,
     ) -> None:
-        review_seconds = review_context(review_seconds)
-        self.model, self.send, self.review_seconds = model, send, review_seconds
-        self.intervals = cadence_settings(intervals)
-        self.heads = [q for q in questions if model.lane(q) == "encoder"]
+        self.model, self.send = model, send
+        self.speech = speech if speech is not None else SpeechTimeline()
+        self.heads = [
+            q for q in questions if model.lane(q) == "encoder" and q.task != "turn_end"
+        ]
+        self.turns = [q for q in questions if q.task == "turn_end"]
         self.reviews = [q for q in questions if model.lane(q) == "decoder"]
-        if len(self.heads) + len(self.reviews) != len(questions):
+        if len(self.heads) + len(self.turns) + len(self.reviews) != len(questions):
             raise ValueError("Unknown inference lane.")
         self.stream = model.stream(
             questions,
             window_seconds=8.0,
-            context_seconds=review_seconds,
+            context_seconds=8.0,
             hop_seconds=0.25,
             sample_rate=SAMPLE_RATE,
             coalesce=True,
         )
-        self.changed = {"encoder": asyncio.Event(), "decoder": asyncio.Event()}
-        self.captures: OrderedDict[float, tuple[int, float]] = OrderedDict()
-        self.frames = 0
+        self.changed = {
+            lane: asyncio.Event() for lane in ("encoder", "turn", "decoder")
+        }
+        self.turn_queue: deque[Work] = deque()
+        self.pending_utterance: list[Work] | None = None
+        self.dropped_utterances = 0
+        self.audio: npt.NDArray[np.float32] = np.empty(0, dtype=np.float32)
+        self.audio_start = self.total = 0
+        self.latest_capture = (0, 0.0)
         self.finished = self.aborted = False
         self.previous_end: dict[str, float] = {}
-        self.coalesced = {"encoder": 0, "decoder": 0}
+        self.coalesced = {lane: 0 for lane in self.changed}
+
+    def snapshot(self, start: int, end: int) -> WindowSnapshot:
+        audio = self.audio[start - self.audio_start : end - self.audio_start]
+        window, mask = right_aligned_window(audio)
+        return WindowSnapshot(window, mask, start / SAMPLE_RATE, end / SAMPLE_RATE)
+
+    def close_utterance(self, segment: SpeechSegment, frame: Frame) -> None:
+        def work(start: int, end: int) -> Work:
+            # Capture timestamps refer to the first sample of a browser packet.
+            timestamp = (
+                frame.captured_at_ms + (end - (self.total - len(frame.pcm))) / 16
+            )
+            return Work(
+                self.snapshot(start, end),
+                (frame.sequence, frame.captured_at_ms),
+                timestamp,
+            )
+
+        if self.turns:
+            self.turn_queue.append(
+                work(max(0, segment.end - 8 * SAMPLE_RATE), segment.end)
+            )
+        if self.reviews:
+            if self.pending_utterance is not None:
+                self.dropped_utterances += 1
+            self.pending_utterance = [
+                work(s, e) for s, e in utterance_chunks(segment.start, segment.end)
+            ]
 
     def ingest(self, frame: Frame) -> None:
-        self.frames += 1
-        self.captures[self.frames * 0.25] = (frame.sequence, frame.captured_at_ms)
-        if len(self.captures) > 128:
-            self.captures.popitem(last=False)
+        self.audio = np.concatenate(
+            (self.audio, frame.pcm.astype(np.float32) / 32768.0)
+        )
+        self.total += len(frame.pcm)
+        self.latest_capture = (frame.sequence, frame.captured_at_ms)
         self.stream.ingest(frame.pcm)
+        for segment in self.speech.ingest(frame.pcm):
+            self.close_utterance(segment, frame)
+        keep = max(0, self.total - 9 * SAMPLE_RATE)
+        if self.speech.onset is not None:
+            keep = min(keep, self.speech.onset)
+        self.audio = self.audio[keep - self.audio_start :]
+        self.audio_start = keep
         for event in self.changed.values():
             event.set()
 
@@ -90,17 +120,17 @@ class Scheduler:
         for event in self.changed.values():
             event.set()
 
-    def capture(self, snapshot: Any) -> tuple[int, float]:
-        return self.captures[round(snapshot.window_end_s, 6)]
-
     def compute(
         self, snapshot: Any, questions: list[Any], lane: str
     ) -> tuple[list[Any], float]:
         started = perf_counter()
         try:
-            if lane == "encoder":
-                encoded = self.model.encode(snapshot)
-                decisions = self.model.decide_encoded(encoded, questions)
+            if not questions:
+                decisions = []
+            elif lane != "decoder":
+                decisions = self.model.decide_encoded(
+                    self.model.encode(snapshot), questions
+                )
             else:
                 decisions = self.model.decide_snapshot(snapshot, questions)
         except Exception as error:
@@ -108,38 +138,55 @@ class Scheduler:
         return decisions, (perf_counter() - started) * 1000
 
     async def emit(
-        self, snapshot: Any, capture: tuple[int, float], questions: list[Any], lane: str
+        self,
+        work: Work,
+        questions: list[Any],
+        lane: str,
+        neutral: tuple[Any, ...] | list[Any] = (),
     ) -> None:
+        snapshot = work.snapshot
         decisions, elapsed = await asyncio.to_thread(
             self.compute, snapshot, questions, lane
         )
         if self.aborted:
             return
-        previous = self.previous_end.get(lane, 0.0)
-        interval = snapshot.window_end_s - previous
-        self.coalesced[lane] += max(0, round(interval / 0.25) - 1)
+        interval = snapshot.window_end_s - self.previous_end.get(lane, 0.0)
+        if lane == "encoder":
+            self.coalesced[lane] += max(0, round(interval / 0.25) - 1)
         self.previous_end[lane] = snapshot.window_end_s
-        sequence, timestamp = capture
+        sequence, timestamp = work.capture
+        payloads = [{**d.to_dict(), "window_latency_ms": elapsed} for d in decisions]
+        payloads.extend(
+            {
+                "task": q.task,
+                "question": q.text,
+                "kind": q.kind,
+                "value": None,
+                "probability": None,
+                "probabilities": None,
+                "score": None,
+                "threshold": None,
+                "status": "not_enough_speech",
+                "window_start_s": snapshot.window_start_s,
+                "window_end_s": snapshot.window_end_s,
+                "latency_ms": 0,
+                "window_latency_ms": 0,
+            }
+            for q in neutral
+        )
         await self.send(
             {
                 "type": "update",
-                "lane": lane,
+                "lane": "decoder" if lane == "decoder" else "encoder",
                 "sequence": sequence,
                 "captured_at_ms": timestamp,
+                "window_end_at_ms": work.window_end_at_ms
+                if work.window_end_at_ms is not None
+                else timestamp + 250,
                 "decision_interval_ms": interval * 1000,
                 "coalesced_hops": self.coalesced[lane],
-                "decisions": [
-                    {
-                        **decision_payload(snapshot, d),
-                        "window_latency_ms": elapsed,
-                        **(
-                            {"status": "unvalidated"}
-                            if lane == "decoder" and self.review_seconds > 8
-                            else {}
-                        ),
-                    }
-                    for d in decisions
-                ],
+                "dropped_utterances": self.dropped_utterances,
+                "decisions": payloads,
             }
         )
 
@@ -155,56 +202,57 @@ class Scheduler:
                 return
             snapshot = self.stream.snapshot()
             if snapshot is not None and snapshot.window_end_s > previous:
-                capture = self.capture(snapshot)
                 previous = snapshot.window_end_s
-                await self.emit(snapshot, capture, self.heads, "encoder")
+                neutral = [
+                    q
+                    for q in self.heads
+                    if q.task == "speaker_change"
+                    and not speaker_change_eligible(snapshot, self.speech)
+                ]
+                questions = [
+                    q
+                    for q in self.heads
+                    if q not in neutral
+                    and (q.task != "speaker_count" or snapshot.mask.all())
+                ]
+                await self.emit(
+                    Work(snapshot, self.latest_capture), questions, "encoder", neutral
+                )
             if self.finished and not event.is_set():
+                return
+
+    async def turn(self) -> None:
+        if not self.turns:
+            return
+        event = self.changed["turn"]
+        while not self.aborted:
+            await event.wait()
+            event.clear()
+            while self.turn_queue and not self.aborted:
+                await self.emit(self.turn_queue.popleft(), self.turns, "turn")
+            if self.finished:
                 return
 
     async def review(self) -> None:
         if not self.reviews:
             return
-        due = {q.task: 0.0 for q in self.reviews}
-        previous = {q.task: 0.0 for q in self.reviews}
         event = self.changed["decoder"]
-        while not self.finished:
+        while not self.aborted:
+            await event.wait()
             event.clear()
-            delay = None
-            snapshot = self.stream.snapshot(seconds=self.review_seconds)
-            if snapshot is not None and snapshot.window_end_s >= self.review_seconds:
-                eligible = [
-                    q for q in self.reviews if snapshot.window_end_s > previous[q.task]
-                ]
-                now = asyncio.get_running_loop().time()
-                questions = [q for q in eligible if due[q.task] <= now]
-                if questions:
-                    capture = self.capture(snapshot)
+            while self.pending_utterance is not None and not self.aborted:
+                utterance, self.pending_utterance = self.pending_utterance, None
+                tasks = [q.task for q in self.reviews]
+                await self.send(
+                    {"type": "review_status", "tasks": tasks, "running": True}
+                )
+                for work in utterance:
+                    if self.aborted:
+                        return
+                    await self.emit(work, self.reviews, "decoder")
+                if not self.aborted:
                     await self.send(
-                        {
-                            "type": "review_status",
-                            "tasks": [q.task for q in questions],
-                            "running": True,
-                        }
+                        {"type": "review_status", "tasks": tasks, "running": False}
                     )
-                    await self.emit(snapshot, capture, questions, "decoder")
-                    completed = asyncio.get_running_loop().time()
-                    for q in questions:
-                        previous[q.task] = snapshot.window_end_s
-                        due[q.task] = completed + review_pause(q.task, self.intervals)
-                    if not self.aborted:
-                        await self.send(
-                            {
-                                "type": "review_status",
-                                "tasks": [q.task for q in questions],
-                                "running": False,
-                            }
-                        )
-                    continue
-                if eligible:
-                    delay = max(0.0, min(due[q.task] for q in eligible) - now)
             if self.finished:
                 return
-            try:
-                await asyncio.wait_for(event.wait(), timeout=delay)
-            except asyncio.TimeoutError:
-                pass

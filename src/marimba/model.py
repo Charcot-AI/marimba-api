@@ -20,7 +20,7 @@ from .pii import PIIDetector
 from .questions import Question, UnsupportedQuestion
 from .runtime import RuntimeInfo, select_backend, synchronize
 from .stream import Stream
-from .windows import MAX_DECODER_SECONDS, EncodedWindow, WindowSnapshot
+from .windows import MAX_DECODER_SECONDS, EncodedWindow, WindowSnapshot, decoder_snapshot
 
 
 class Marimba:
@@ -61,7 +61,7 @@ class Marimba:
             )
         if not questions:
             return []
-        return self.decide_encoded(self._encode_snapshot(snapshot), questions)
+        return self.decide_encoded(self._encode_snapshot(decoder_snapshot(snapshot)), questions)
 
     def calibrate(
         self,

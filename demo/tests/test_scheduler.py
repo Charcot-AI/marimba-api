@@ -1,216 +1,156 @@
 import asyncio
 import threading
-from types import SimpleNamespace
 
 import numpy as np
 import pytest
+from marimba import Question, WindowSnapshot
+from marimba.testing import FakeMarimba
 
 from marimba_demo.protocol import Frame
-from marimba_demo.scheduler import Scheduler, cadence_settings, review_pause
+from marimba_demo.scheduler import Scheduler, utterance_chunks
+from marimba_demo.speech import SpeechSegment, SpeechTimeline, speaker_change_eligible
 
 
-class Stream:
-    def __init__(self):
-        self.count = 0
-
-    def ingest(self, pcm):
-        self.count += len(pcm)
-
-    def snapshot(self, seconds=8):
-        if not self.count:
-            return None
-        end = self.count / 16000
-        return SimpleNamespace(window_start_s=max(0, end - seconds), window_end_s=end)
-
-
-class Model:
-    def __init__(self):
-        self.decoder_started = threading.Event()
-        self.release = threading.Event()
-        self.calls = []
-
-    def lane(self, question):
-        return "encoder" if question.task == "voice_activity" else "decoder"
-
-    def stream(self, questions, **kwargs):
-        self.settings = kwargs
-        return Stream()
-
-    def encode(self, snapshot):
-        return SimpleNamespace(snapshot=snapshot, encoder_latency_ms=0.0)
-
-    def decide_encoded(self, encoded, questions):
-        return []
-
-    def decide_snapshot(self, snapshot, questions):
-        self.calls.append((snapshot, [q.task for q in questions]))
-        self.decoder_started.set()
-        assert self.release.wait(5)
-        return []
+def timeline():
+    return SpeechTimeline(iterator=lambda *args, **kwargs: None)
 
 
 def packet(sequence):
-    return Frame(sequence, sequence * 250.0, np.zeros(4000, dtype=np.int16))
+    return Frame(
+        sequence, sequence * 250.0, np.full(4000, sequence + 1, dtype=np.int16)
+    )
 
 
-def test_default_completion_pauses_are_per_card_and_overridable():
-    assert review_pause("language", {}) == 2
-    assert review_pause("term", {}) == 4
-    assert review_pause("term", {"term": 1}) == 1
+@pytest.mark.parametrize(
+    ("segments", "full", "expected"),
+    [
+        ([(0, 0.5), (6, 6.5)], True, True),
+        ([(0, 0.49), (6, 8)], True, False),
+        ([(0, 6), (6, 6.49)], True, False),
+        ([(0, 8)], False, False),
+        ([], True, False),
+        ([(0, 0.25), (2, 2.25), (6, 6.5)], True, True),
+    ],
+)
+def test_speaker_change_eligibility(segments, full, expected):
+    speech = timeline()
+    speech.segments = [
+        SpeechSegment(round(s * 16000), round(e * 16000)) for s, e in segments
+    ]
+    mask = np.ones(128000, dtype=bool)
+    mask[0] = full
+    snapshot = WindowSnapshot(np.zeros(128000, np.float32), mask, 0, 8)
+    assert speaker_change_eligible(snapshot, speech) is expected
 
 
-@pytest.mark.parametrize(("tail_dbfs", "gated"), [(-70, True), (-40, False)])
-def test_speaker_change_is_gated_only_for_a_silent_tail(tail_dbfs, gated):
+def test_coverage_includes_current_speech_without_removing_real_silence():
+    speech = timeline()
+    speech.onset, speech.processed = 6 * 16000, 7 * 16000
+    assert speech.coverage(6, 8) == 1
+    assert speech.coverage(0, 6) == 0
+
+
+def test_iterator_receives_contiguous_512_sample_blocks_and_preserves_exact_endpoints():
+    blocks = []
+
+    def iterator(audio, **kwargs):
+        blocks.append(audio.copy())
+        return {1: {"start": 0}, 9: {"end": 3584}}.get(len(blocks))
+
+    speech = SpeechTimeline(iterator)
+    source = np.arange(8000, dtype=np.int16)
+    assert speech.ingest(source[:4000]) == []
+    assert speech.ingest(source[4000:]) == [SpeechSegment(0, 3584)]
+    np.testing.assert_array_equal(np.concatenate(blocks), source[:7680] / 32768.0)
+    assert speech.segments[0].seconds == (0, 0.224)
+
+
+def test_utterance_splitting_is_consecutive_bounded_and_sample_exact():
+    assert utterance_chunks(123, 123) == []
+    assert utterance_chunks(123, 123 + 128001) == [(123, 128123), (128123, 128124)]
+    assert utterance_chunks(16000, 288000) == [
+        (16000, 144000),
+        (144000, 272000),
+        (272000, 288000),
+    ]
+
+
+class Model(FakeMarimba):
+    def __init__(self):
+        super().__init__()
+        self.calls = []
+        self.started, self.release = threading.Event(), threading.Event()
+        self.release.set()
+
+    def decide_encoded(self, encoded, questions):
+        self.calls.append((encoded.snapshot, [q.task for q in questions]))
+        return super().decide_encoded(encoded, questions)
+
+    def decide_snapshot(self, snapshot, questions):
+        self.started.set()
+        assert self.release.wait(5)
+        return super().decide_snapshot(snapshot, questions)
+
+
+def test_turn_end_runs_only_on_offsets_and_ends_exactly_there():
     async def run():
-        updates = []
-        question = SimpleNamespace(task="speaker_change")
-        decision = SimpleNamespace(
-            task="speaker_change",
-            to_dict=lambda: {
-                "task": "speaker_change",
-                "value": 0.8,
-                "probability": 0.8,
-                "score": 0.8,
-                "threshold": 0.5,
-            },
-        )
-        model = Model()
-        model.lane = lambda _: "encoder"
-        model.decide_encoded = lambda encoded, questions: [decision]
-        audio = np.full(8 * 16000, 0.1, dtype=np.float32)
-        audio[-2 * 16000 :] = 10 ** (tail_dbfs / 20)
-
-        async def send(data):
-            updates.append(data)
-
-        scheduler = Scheduler(model, [question], send)
-        await scheduler.emit(
-            SimpleNamespace(audio=audio, window_end_s=8.0),
-            (31, 7750.0),
-            [question],
-            "encoder",
-        )
-        return updates[0]["decisions"][0]
-
-    result = asyncio.run(run())
-    if gated:
-        assert result["gated"] == "silence"
-        assert result["value"] == result["probability"] == result["score"] == 0.0
-    else:
-        assert "gated" not in result
-        assert result["value"] == result["probability"] == result["score"] == 0.8
-
-
-def test_slow_review_does_not_block_live_or_lose_capture_provenance():
-    async def run():
-        model = Model()
-        updates = []
-        live_advanced, review_returned = asyncio.Event(), asyncio.Event()
-
-        async def send(data):
-            updates.append(data)
-            if data["type"] == "update":
-                if data["lane"] == "encoder" and data["sequence"] >= 32:
-                    live_advanced.set()
-                if data["lane"] == "decoder":
-                    review_returned.set()
-
-        scheduler = Scheduler(
-            model,
-            [SimpleNamespace(task=t) for t in ("voice_activity", "language")],
-            send,
-        )
-        workers = [
-            asyncio.create_task(scheduler.live()),
-            asyncio.create_task(scheduler.review()),
-        ]
-        try:
-            for i in range(32):
-                scheduler.ingest(packet(i))
-            assert await asyncio.to_thread(model.decoder_started.wait, 2)
-            scheduler.ingest(packet(32))
-            await asyncio.wait_for(live_advanced.wait(), 2)
-            assert not model.release.is_set()
-            for i in range(33, 233):
-                scheduler.ingest(packet(i))
-            assert 8.0 not in scheduler.captures
-            model.release.set()
-            await asyncio.wait_for(review_returned.wait(), 2)
-            review = next(
-                d for d in updates if d["type"] == "update" and d["lane"] == "decoder"
-            )
-            assert review["sequence"] == 31
-            assert review["captured_at_ms"] == 31 * 250
-            assert len(model.calls) == 1
-        finally:
-            model.release.set()
-            scheduler.finish(aborted=True)
-            await asyncio.gather(*workers)
-
-    asyncio.run(run())
-
-
-def test_long_review_waits_for_its_entire_audio_context():
-    async def run():
-        model = Model()
-        observed = asyncio.Event()
-
-        async def send(data):
-            if data["type"] == "update":
-                observed.set()
-
-        scheduler = Scheduler(
-            model, [SimpleNamespace(task="language")], send, review_seconds=30
-        )
-        worker = asyncio.create_task(scheduler.review())
-        try:
-            for i in range(119):
-                scheduler.ingest(packet(i))
-            await asyncio.get_running_loop().run_in_executor(None, lambda: None)
-            assert not model.decoder_started.is_set()
-            scheduler.ingest(packet(119))
-            assert await asyncio.to_thread(model.decoder_started.wait, 2)
-            snapshot, _ = model.calls[0]
-            assert (snapshot.window_start_s, snapshot.window_end_s) == (0, 30)
-            assert model.settings["context_seconds"] == 30
-            model.release.set()
-            await asyncio.wait_for(observed.wait(), 2)
-        finally:
-            model.release.set()
-            scheduler.finish(aborted=True)
-            await worker
-
-    asyncio.run(run())
-
-
-def test_per_card_pause_does_not_enqueue_old_review_windows():
-    async def run():
-        model = Model()
-        model.release.set()
         updates = asyncio.Queue()
-
-        async def send(data):
-            if data["type"] == "update":
-                updates.put_nowait(data)
-
-        scheduler = Scheduler(
-            model,
-            [SimpleNamespace(task=t) for t in ("language", "term")],
-            send,
-            intervals={"language": 0.25, "term": 10},
+        speech, model = timeline(), Model()
+        questions = [
+            Question.score("Has the speaker finished?"),
+            Question.noul("Is someone speaking?"),
+        ]
+        scheduler = Scheduler(model, questions, updates.put, speech=speech)
+        live, turn = (
+            asyncio.create_task(scheduler.live()),
+            asyncio.create_task(scheduler.turn()),
         )
-        worker = asyncio.create_task(scheduler.review())
         try:
-            for i in range(32):
-                scheduler.ingest(packet(i))
+            scheduler.ingest(packet(0))
             await asyncio.wait_for(updates.get(), 2)
-            for i in range(32, 40):
-                scheduler.ingest(packet(i))
+            assert not any("turn_end" in tasks for _, tasks in model.calls)
+            scheduler.close_utterance(SpeechSegment(200, 3500), packet(0))
+            scheduler.changed["turn"].set()
+            result = await asyncio.wait_for(updates.get(), 2)
+            decision = result["decisions"][0]
+            assert decision["task"] == "turn_end"
+            assert decision["window_end_s"] == 3500 / 16000
+            snapshot = model.calls[-1][0]
+            assert snapshot.mask.sum() == 3500
+            assert not snapshot.mask[:-3500].any()
+            np.testing.assert_array_equal(
+                snapshot.audio[-3500:], np.full(3500, 1 / 32768)
+            )
+            scheduler.ingest(packet(1))
             await asyncio.wait_for(updates.get(), 2)
-            assert model.calls[0][1] == ["language", "term"]
-            assert model.calls[1][1] == ["language"]
-            assert model.calls[1][0].window_end_s == 10
-            assert len(model.calls) == 2
+            assert sum("turn_end" in tasks for _, tasks in model.calls) == 1
+        finally:
+            scheduler.finish(aborted=True)
+            await asyncio.gather(live, turn)
+
+    asyncio.run(run())
+
+
+def test_live_neutral_change_skips_model_but_does_not_override_people():
+    async def run():
+        updates = asyncio.Queue()
+        model = Model()
+        questions = [
+            Question.score("Has the speaker changed?"),
+            Question.choice("How many people?", ["0", "1", "2", "3+"]),
+        ]
+        scheduler = Scheduler(model, questions, updates.put, speech=timeline())
+        for i in range(32):
+            scheduler.ingest(packet(i))
+        worker = asyncio.create_task(scheduler.live())
+        try:
+            result = await asyncio.wait_for(updates.get(), 2)
+            neutral = next(
+                d for d in result["decisions"] if d["task"] == "speaker_change"
+            )
+            assert neutral["status"] == "not_enough_speech"
+            assert neutral["score"] is neutral["value"] is None
+            assert model.calls[0][1] == ["speaker_count"]
         finally:
             scheduler.finish(aborted=True)
             await worker
@@ -218,13 +158,58 @@ def test_per_card_pause_does_not_enqueue_old_review_windows():
     asyncio.run(run())
 
 
-@pytest.mark.parametrize("value", [0, -1, 0.1, float("nan"), float("inf")])
-def test_invalid_review_interval(value):
-    with pytest.raises(ValueError):
-        cadence_settings({"term": value})
+def test_slow_decoder_keeps_newest_pending_utterance_and_capture_provenance():
+    async def run():
+        updates = asyncio.Queue()
+        model = Model()
+        model.release.clear()
+        scheduler = Scheduler(
+            model,
+            [Question.noul('Was "marimba" spoken?')],
+            updates.put,
+            speech=timeline(),
+        )
+        for i in range(4):
+            scheduler.ingest(packet(i))
+        scheduler.close_utterance(SpeechSegment(0, 2000), packet(3))
+        worker = asyncio.create_task(scheduler.review())
+        try:
+            assert await asyncio.to_thread(model.started.wait, 2)
+            scheduler.close_utterance(SpeechSegment(4000, 6000), packet(3))
+            scheduler.close_utterance(SpeechSegment(8000, 10000), packet(3))
+            assert scheduler.dropped_utterances == 1
+            for i in range(4, 44):
+                scheduler.ingest(packet(i))
+            assert scheduler.audio_start > 10000
+            model.release.set()
+            scheduler.finish()
+            await asyncio.wait_for(worker, 3)
+            assert [s.window_end_s for s, _ in model.calls] == [0.125, 0.625]
+            messages = []
+            while not updates.empty():
+                messages.append(updates.get_nowait())
+            decisions = [m for m in messages if m["type"] == "update"]
+            assert decisions[0]["captured_at_ms"] == 750
+            assert decisions[0]["window_end_at_ms"] == 125
+            assert decisions[-1]["dropped_utterances"] == 1
+        finally:
+            model.release.set()
+            scheduler.finish(aborted=True)
+            await worker
+
+    asyncio.run(run())
 
 
-@pytest.mark.parametrize("seconds", [0, 7, 31, float("nan"), float("inf")])
-def test_invalid_review_context(seconds):
-    with pytest.raises(ValueError):
-        Scheduler(Model(), [], None, review_seconds=seconds)
+def test_long_closed_utterance_preserves_all_chunks_until_worker_claims_it():
+    scheduler = Scheduler(
+        Model(), [Question.noul('Was "marimba" spoken?')], None, speech=timeline()
+    )
+    scheduler.speech.onset = 1000
+    for i in range(80):
+        scheduler.ingest(packet(i))
+    scheduler.close_utterance(SpeechSegment(1000, 300000), packet(79))
+    chunks = scheduler.pending_utterance
+    assert [w.snapshot.mask.sum() for w in chunks] == [128000, 128000, 43000]
+    joined = np.concatenate([w.snapshot.audio[w.snapshot.mask] for w in chunks])
+    expected = np.repeat(np.arange(1, 81, dtype=np.float32), 4000)[1000:300000] / 32768
+    np.testing.assert_array_equal(joined, expected)

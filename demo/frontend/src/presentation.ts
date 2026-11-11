@@ -1,6 +1,7 @@
 import { scalar, type Card, type CardState, type Decision } from './state';
 
 export function reading(card: Card, decision?: Decision): string {
+  if (decision?.status === 'not_enough_speech') return 'not enough speech';
   if (decision?.value == null) return '—';
   if (card.kind === 'noul') return decision.value ? 'yes' : 'no';
   if (card.kind === 'score') return scalar(decision).toFixed(2);
@@ -10,14 +11,14 @@ export function reading(card: Card, decision?: Decision): string {
 export function timing(card: Card, state: CardState, now: number) {
   const d = state.decision;
   const seconds = card.context_seconds ?? 8;
-  const cadence = card.lane === 'decoder'
-    ? `MIN PAUSE ${card.cadence_seconds ?? 2} s AFTER COMPLETION`
-    : 'EVERY ENCODER TICK';
+  const cadence = (card.cadence ?? (card.lane === 'decoder' ? 'per utterance' : 'every 250 ms')).toUpperCase();
   return {
-    latency: d ? `${(d.window_latency_ms ?? d.latency_ms).toFixed(0)} ms / model` : 'awaiting audio',
+    latency: d?.status === 'not_enough_speech' ? 'NOT SCORED' : d ? `${(d.window_latency_ms ?? d.latency_ms).toFixed(0)} ms / model` : 'awaiting audio',
     interval: `${cadence} / UPDATE ${state.intervalMs === undefined ? '—' : `${state.intervalMs.toFixed(0)} ms`} / RECEIVED ${d ? `${((now - state.receivedAt) / 1000).toFixed(1)} s AGO` : '—'}`,
     window: d
       ? `AUDIO ${(d.window_start_s ?? Math.max(0, d.window_end_s - seconds)).toFixed(2)}–${d.window_end_s.toFixed(2)} s / AGE ${(Math.max(0, now - (state.windowEndAt ?? state.receivedAt)) / 1000).toFixed(1)} s`
-      : `COLLECTING ${seconds} s OF AUDIO`,
+      : card.cadence === 'at end of speech' || card.lane === 'decoder'
+        ? 'WAITING FOR END OF SPEECH / UP TO 8 s'
+        : `COLLECTING ${seconds} s OF AUDIO`,
   };
 }

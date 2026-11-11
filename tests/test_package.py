@@ -12,6 +12,30 @@ from marimba.cli import main
 from marimba.questions import matches_template
 from marimba.runtime import select_backend
 from marimba.testing import FakeMarimba
+from marimba.windows import WindowSnapshot
+
+
+@pytest.mark.parametrize("duration", [0.5, 3, 8])
+def test_decoder_snapshot_left_aligns_audio_but_preserves_timestamps_and_internal_silence(duration):
+    from marimba.windows import EncodedWindow
+
+    class CaptureModel(FakeMarimba):
+        def _encode_snapshot(self, snapshot):
+            self.input = snapshot
+            return EncodedWindow(snapshot)
+
+    model = CaptureModel()
+    samples = np.ones(round(duration * 16000), np.float32)
+    samples[100:200] = 0
+    audio, mask = right_aligned_window(samples)
+    snapshot = WindowSnapshot(audio, mask, 12, 12 + duration)
+    model.decide_snapshot(snapshot, [Question.noul('Was "hello" spoken?')])
+    np.testing.assert_array_equal(model.input.audio[: len(samples)], samples)
+    assert not model.input.audio[len(samples) :].any()
+    assert model.input.mask[: len(samples)].all()
+    assert not model.input.mask[len(samples) :].any()
+    assert (model.input.window_start_s, model.input.window_end_s) == (12, 12 + duration)
+    np.testing.assert_array_equal(snapshot.audio, audio)
 
 
 @pytest.mark.parametrize(

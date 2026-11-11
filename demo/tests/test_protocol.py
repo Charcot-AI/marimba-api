@@ -13,6 +13,15 @@ from starlette.websockets import WebSocketDisconnect
 from marimba_demo.cards import CARDS, available_cards, questions_for
 from marimba_demo.protocol import decode_frame
 from marimba_demo.server import create_app
+from marimba_demo.speech import SpeechTimeline
+
+
+@pytest.fixture(autouse=True)
+def no_speech(monkeypatch):
+    monkeypatch.setattr(
+        "marimba_demo.scheduler.SpeechTimeline",
+        lambda: SpeechTimeline(iterator=lambda *args, **kwargs: None),
+    )
 
 
 @dataclass
@@ -162,7 +171,7 @@ def test_capability_gating(client):
     assert client.get("/local/stt_adapter.js").status_code == 404
 
 
-def test_long_context_is_excluded_from_validated_cards(tmp_path):
+def test_decoder_uses_utterance_cadence(tmp_path):
     model = ProtocolModel()
     model.capabilities = {
         "term": SimpleNamespace(
@@ -171,13 +180,12 @@ def test_long_context_is_excluded_from_validated_cards(tmp_path):
     }
     model.lane = lambda question: "decoder"
     (tmp_path / "index.html").write_text("<title>Test</title>")
-    app = create_app(
-        model, Question, static=tmp_path, local=tmp_path, review_seconds=30
-    )
+    app = create_app(model, Question, static=tmp_path, local=tmp_path)
     with TestClient(app, headers={"host": "127.0.0.1:8765"}) as client:
         card = client.get("/api/config").json()["cards"][0]
-    assert card["status"] == "unvalidated"
-    assert card["context_seconds"] == 30
+    assert card["status"] == "validated"
+    assert card["context_seconds"] == 8
+    assert card["cadence"] == "per utterance"
     assert card["uncalibrated"] is True
     assert card["lane"] == "decoder"
 
@@ -217,8 +225,10 @@ def test_decision_echoes_its_capture_timestamp(client):
             "lane": "encoder",
             "sequence": 0,
             "captured_at_ms": 100.0,
+            "window_end_at_ms": 350.0,
             "decision_interval_ms": 250.0,
             "coalesced_hops": 0,
+            "dropped_utterances": 0,
             "decisions": [],
         }
         socket.send_bytes(frame(1, 350))
@@ -373,11 +383,11 @@ def test_demo_requests_all_six_released_tasks(tmp_path):
     ]
     expected_cards = [
         ("turn_end", "Turn ended", "Has the speaker finished?", "score", ()),
-        ("voice_activity", "Speech", "Is someone speaking?", "noul", ()),
+        ("voice_activity", "Speech (last 8 s)", "Is someone speaking?", "noul", ()),
         ("speaker_change", "Speaker changed", "Has the speaker changed?", "score", ()),
         (
             "speaker_count",
-            "People",
+            "People (last 8 s)",
             "How many people?",
             "choice",
             ("0", "1", "2", "3+"),

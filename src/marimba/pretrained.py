@@ -19,7 +19,7 @@ from .questions import Question, UnsupportedQuestion, matches_template
 from .readout import sigmoid
 from .runtime import RuntimeInfo, select_backend, synchronize
 from .weights import load_manifest
-from .windows import EncodedWindow, WindowSnapshot
+from .windows import EncodedWindow, WindowSnapshot, decoder_snapshot
 
 _CANONICAL_VAD_PROMPT = "Há fala humana neste áudio?"
 # Fitted on the validation calibration split for the shipped head.
@@ -133,8 +133,16 @@ class PretrainedMarimba(Marimba):
             if not group:
                 continue
             if lane == "decoder":
+                aligned = (
+                    decoder_snapshot(encoded.snapshot)
+                    if any(self._capabilities[q.task or ""].status != "unavailable" for q in group)
+                    else encoded.snapshot
+                )
+                decoder_encoded = (
+                    encoded if aligned is encoded.snapshot else self._encode_snapshot(aligned)
+                )
                 with self._decoder_lock:
-                    decisions = self._timed_decide(encoded, group)
+                    decisions = self._timed_decide(decoder_encoded, group)
             else:
                 decisions = self._timed_decide(encoded, group)
             results.update(zip(group, decisions, strict=True))
@@ -164,6 +172,8 @@ class PretrainedMarimba(Marimba):
                 "Expected a nonempty right-aligned eight-second window with a valid mask"
             )
         snapshot = WindowSnapshot(window, mask, start_s, end_s)
+        if all(self.lane(q) == "decoder" for q in questions):
+            snapshot = decoder_snapshot(snapshot)
         active = any(self._capabilities[q.task or ""].status != "unavailable" for q in questions)
         encoded = self.encode(snapshot) if active else EncodedWindow(snapshot)
         return self.decide_encoded(encoded, questions)

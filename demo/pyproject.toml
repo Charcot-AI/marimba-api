@@ -7,7 +7,7 @@ name = "marimba-demo"
 version = "0.1.0"
 description = "Local streaming audio decision instruments"
 requires-python = ">=3.10"
-dependencies = ["fastapi>=0.115.14,<0.116", "uvicorn[standard]>=0.34.3,<0.35", "numpy>=1.26,<2.3"]
+dependencies = ["fastapi>=0.115.14,<0.116", "uvicorn[standard]>=0.34.3,<0.35", "numpy>=1.26,<2.3", "silero-vad==6.2.0"]
 
 [project.scripts]
 marimba-demo = "marimba_demo.cli:main"
@@ -34,3 +34,7 @@ ignore_missing_imports = true
 module = ["marimba", "marimba.*"]
 follow_imports = "skip"
 check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["torch", "silero_vad"]
+follow_imports = "skip"

@@ -17,6 +17,7 @@ class Card:
     lane: str = "encoder"
     context_seconds: float = 8.0
     cadence_seconds: float = 0.25
+    cadence: str = "every 250 ms"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -24,11 +25,11 @@ class Card:
 
 CARDS = (
     Card("turn_end", "Turn ended", "Has the speaker finished?", "score"),
-    Card("voice_activity", "Speech", "Is someone speaking?", "noul"),
+    Card("voice_activity", "Speech (last 8 s)", "Is someone speaking?", "noul"),
     Card("speaker_change", "Speaker changed", "Has the speaker changed?", "score"),
     Card(
         "speaker_count",
-        "People",
+        "People (last 8 s)",
         "How many people?",
         "choice",
         ("0", "1", "2", "3+"),

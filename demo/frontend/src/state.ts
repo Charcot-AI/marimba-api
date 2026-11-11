@@ -14,17 +14,18 @@ export interface Card {
   lane?: 'encoder' | 'decoder';
   context_seconds?: number;
   cadence_seconds?: number;
+  cadence?: 'every 250 ms' | 'at end of speech' | 'per utterance';
 }
 export interface Decision {
   task: string;
   question: string;
   kind: Kind;
-  value: boolean | number | string;
+  value: boolean | number | string | null;
   probability: number | null;
   probabilities: Record<string, number> | null;
   score: number | null;
   threshold: number | null;
-  gated?: 'silence';
+  status?: string;
   window_end_s: number;
   window_start_s?: number;
   latency_ms: number;
@@ -38,6 +39,8 @@ export interface CardState {
   intervalMs?: number;
   windowEndAt?: number;
 }
+export const isRollingUpdate = (lane: 'encoder' | 'decoder', decisions: Decision[]): boolean =>
+  lane === 'encoder' && decisions.some((decision) => decision.task !== 'turn_end');
 export const initialState = (): CardState => ({
   trail: [],
   crossedAt: -Infinity,
@@ -54,7 +57,7 @@ export function reduceCard(
   if (state.decision && decision.window_end_s <= state.decision.window_end_s) return state;
   const previous = state.decision;
   const crossed =
-    previous &&
+    previous && previous.value !== null && decision.value !== null &&
     decision.kind !== 'choice' &&
     scalar(previous) >= (previous.threshold ?? defaultThreshold(previous.task)) !==
       scalar(decision) >= (decision.threshold ?? defaultThreshold(decision.task));
@@ -65,7 +68,7 @@ export function reduceCard(
     windowEndAt,
     trail: [
       ...state.trail.filter((p) => p.time >= now - 5000),
-      { time: now, value: scalar(decision) },
+      ...(decision.value === null ? [] : [{ time: now, value: scalar(decision) }]),
     ].slice(-100),
     crossedAt: crossed ? now : state.crossedAt,
   };

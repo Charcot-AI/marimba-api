@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .cards import available_cards, questions_for
 from .protocol import SAMPLE_RATE, decode_frame
-from .scheduler import Scheduler, cadence_settings, review_context, review_pause
+from .scheduler import Scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -29,33 +29,23 @@ def create_app(
     port: int = 8765,
     stt_config: dict[str, Any] | None = None,
     tasks: set[str] | None = None,
-    review_seconds: float = 8.0,
-    review_intervals: dict[str, float] | None = None,
 ) -> FastAPI:
-    review_seconds = review_context(review_seconds)
     cards = available_cards(model)
     if tasks is not None:
         cards = [card for card in cards if card.task in tasks]
     questions = questions_for(cards, question_class)
-    intervals = cadence_settings(review_intervals)
     cards = [
         replace(
             card,
-            status="unvalidated"
-            if model.lane(question) == "decoder" and review_seconds > 8
-            else card.status,
             lane=model.lane(question),
-            context_seconds=review_seconds
+            cadence="per utterance"
             if model.lane(question) == "decoder"
-            else 8.0,
-            cadence_seconds=review_pause(card.task, intervals)
-            if model.lane(question) == "decoder"
-            else 0.25,
+            else "at end of speech"
+            if card.task == "turn_end"
+            else "every 250 ms",
         )
         for card, question in zip(cards, questions, strict=True)
     ]
-    if set(intervals) - {card.task for card in cards if card.lane == "decoder"}:
-        raise ValueError("Review intervals must name selected decoder tasks.")
     hosts = {f"127.0.0.1:{port}", f"localhost:{port}"}
     origins = {f"http://{host}" for host in hosts}
     busy = asyncio.Lock()
@@ -86,7 +76,7 @@ def create_app(
             "sample_rate": SAMPLE_RATE,
             "hop_seconds": 0.25,
             "window_seconds": 8,
-            "review_seconds": review_seconds,
+            "review_seconds": 8,
             "stt": (local / "stt_adapter.js").is_file(),
         }
 
@@ -133,8 +123,6 @@ def create_app(
                     model,
                     questions,
                     send,
-                    review_seconds=review_seconds,
-                    intervals=intervals,
                 )
 
                 async def receive():
@@ -161,6 +149,7 @@ def create_app(
                 readers = [
                     asyncio.create_task(receive()),
                     asyncio.create_task(scheduler.live()),
+                    asyncio.create_task(scheduler.turn()),
                     asyncio.create_task(scheduler.review()),
                 ]
                 done, _ = await asyncio.wait(

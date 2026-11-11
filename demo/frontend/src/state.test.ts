@@ -3,6 +3,7 @@ import {
   encodeFrame,
   defaultThreshold,
   initialState,
+  isRollingUpdate,
   percentile,
   reduceCard,
   renderLatency,
@@ -22,6 +23,12 @@ const decision = (p: number, end = 1): Decision => ({
   latency_ms: 12,
 });
 describe('card state', () => {
+  it('does not replace rolling counters or watchdog timing with offset-triggered turns', () => {
+    expect(isRollingUpdate('encoder', [{ ...decision(0.9), task: 'turn_end' }])).toBe(false);
+    expect(isRollingUpdate('encoder', [decision(0.9)])).toBe(true);
+    expect(isRollingUpdate('decoder', [{ ...decision(0.9), task: 'language' }])).toBe(false);
+    expect(isRollingUpdate('encoder', [])).toBe(false);
+  });
   it('uses task-specific defaults when a decision has no threshold', () => {
     expect(defaultThreshold('voice_activity')).toBe(0.225);
     expect(defaultThreshold('turn_end')).toBe(0.5);

@@ -35,7 +35,13 @@ describe('card presentation', () => {
       expect(result.window).toBe('AUDIO 64.75–72.75 s / AGE 0.5 s');
       expect(result.interval).toContain('UPDATE — / RECEIVED 0.5 s AGO');
       expect(result.latency).toBe('12 ms / model');
-      expect(result.interval).toContain(lane === 'encoder' ? 'EVERY ENCODER TICK' : 'MIN PAUSE 2 s AFTER COMPLETION');
+      expect(result.interval).toContain(lane === 'encoder' ? 'EVERY 250 MS' : 'PER UTTERANCE');
     }
+  });
+  it('shows offset cadence and neutral speaker eligibility without a score', () => {
+    const turn = { ...card, task: 'turn_end', cadence: 'at end of speech' as const };
+    expect(timing(turn, initialState(), 0).window).toContain('WAITING FOR END OF SPEECH');
+    expect(timing(turn, initialState(), 0).interval).toContain('AT END OF SPEECH');
+    expect(reading(card, { ...decision, value: null, status: 'not_enough_speech' })).toBe('not enough speech');
   });
 });

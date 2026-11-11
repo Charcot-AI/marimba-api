@@ -80,7 +80,7 @@ def test_shared_lanes(model):
         Question.noul('Did someone say "absent"?'),
     ]
     decisions = model(np.zeros(16000, dtype=np.float32), questions, 16000)
-    assert model._engine.calls == ["encode", "turn_end", "language", "hypotheses"]
+    assert model._engine.calls == ["encode", "turn_end", "encode", "language", "hypotheses"]
     assert decisions[0].probability == 0.7
     assert decisions[0].score == 0.6
     assert decisions[1].value == "en"
@@ -89,6 +89,42 @@ def test_shared_lanes(model):
     assert all(json.loads(json.dumps(d.to_dict())) == d.to_dict() for d in decisions)
     assert model.capabilities["term"].status == "validated"
     assert "Uncalibrated" in model.capabilities["term"].evaluation
+
+
+@pytest.mark.parametrize("route", ["call", "snapshot", "encoded"])
+def test_partial_decoder_audio_is_left_aligned_on_every_entry_point(model, route):
+    windows = []
+    masks = []
+    original_encode = model._engine.encode
+    original_turn = model._engine.turn_end
+
+    def encode(window):
+        windows.append(window.copy())
+        return original_encode(window)
+
+    def turn(features, mask):
+        masks.append(mask.copy())
+        return original_turn(features, mask)
+
+    model._engine.encode, model._engine.turn_end = encode, turn
+    samples = np.ones(16000, np.float32)
+    samples[400:800] = 0
+    window, mask = right_aligned_window(samples)
+    snapshot = WindowSnapshot(window, mask, 10, 11)
+    decoder = Question.noul('Was "hello" spoken?')
+    questions = [Question.score("Has the speaker finished?"), decoder]
+    if route == "call":
+        decisions = model(samples, questions, 16000)
+    elif route == "snapshot":
+        decisions = model.decide_snapshot(snapshot, [decoder])
+    else:
+        decisions = model.decide_encoded(model.encode(snapshot), questions)
+    np.testing.assert_array_equal(windows[-1][:16000], samples)
+    assert not windows[-1][16000:].any()
+    if route != "snapshot":
+        np.testing.assert_array_equal(windows[0], window)
+        np.testing.assert_array_equal(masks[0], mask)
+    assert decisions[-1].window_end_s == (1 if route == "call" else 11)
 
 
 def test_language_names_other_dispatch_and_calibration(model):
