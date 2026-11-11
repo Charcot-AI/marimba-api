@@ -255,55 +255,11 @@ def test_live_neutral_change_skips_model_but_does_not_override_people():
                 d for d in result["decisions"] if d["task"] == "speaker_change"
             )
             assert neutral["status"] == "not_enough_speech"
-            assert neutral["score"] is None
-            assert neutral["value"] == neutral["probability"] == 0.0
-            assert neutral["gated"] == "silence"
+            assert neutral["score"] is neutral["value"] is None
             assert model.calls[0][1] == ["speaker_count", "voice_activity"]
         finally:
             scheduler.finish(aborted=True)
             await worker
-
-    asyncio.run(run())
-
-
-@pytest.mark.parametrize(("tail_value", "gated"), [(0.0, True), (0.1, False)])
-def test_speaker_change_silence_gate(tail_value, gated):
-    async def run():
-        class ScoreModel(Model):
-            def decide_encoded(self, encoded, questions):
-                snapshot = encoded.snapshot
-                return [
-                    Decision(
-                        question,
-                        question.task or "",
-                        question.kind,
-                        0.8,
-                        probability=0.8,
-                        score=0.8,
-                        threshold=question.resolved_threshold,
-                        window_start_s=snapshot.window_start_s,
-                        window_end_s=snapshot.window_end_s,
-                        status="validated",
-                    )
-                    for question in questions
-                ]
-
-        updates = asyncio.Queue()
-        question = Question.score("Has the speaker changed?")
-        scheduler = Scheduler(ScoreModel(), [question], updates.put, speech=timeline())
-        audio = np.zeros(128000, np.float32)
-        audio[-32000:] = tail_value
-        snapshot = WindowSnapshot(audio, np.ones(128000, bool), 0, 8)
-
-        await scheduler.emit(Work(snapshot, (0, 0)), [question], "encoder")
-
-        decision = (await updates.get())["decisions"][0]
-        if gated:
-            assert decision["value"] == decision["probability"] == 0.0
-            assert decision["gated"] == "silence"
-        else:
-            assert decision["value"] == decision["probability"] == 0.8
-            assert "gated" not in decision
 
     asyncio.run(run())
 

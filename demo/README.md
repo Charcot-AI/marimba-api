@@ -77,8 +77,6 @@ the previous answer pending, with a shimmer on its value only. Before its first
 eligible answer it shows a dash. This is a necessary coverage rule, not a
 guarantee of a single dominant identity on either side. Silences remain in the
 model input.
-The speaker-change card reports `silence` when the final 2 s are below −50 dBFS.
-
 Decoder questions use audio at the **start** of the clip with zero padding at the
 **end**, matching their evaluation alignment. Real internal silences are retained.
 No wall-clock review pause or longer review context is used. Hard 8 s chunk

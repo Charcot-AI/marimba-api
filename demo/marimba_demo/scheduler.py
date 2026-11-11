@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import math
 from collections import deque
 from dataclasses import dataclass
 from time import perf_counter
@@ -185,7 +184,6 @@ class Scheduler:
         )
         if self.aborted:
             return
-        silent_tail = lane == "encoder" and self._silent_tail(snapshot)
         interval = snapshot.window_end_s - self.previous_end.get(lane, 0.0)
         if lane == "encoder":
             self.coalesced[lane] += max(0, round(interval / 0.25) - 1)
@@ -216,8 +214,6 @@ class Scheduler:
                 **decision.to_dict(),
                 "window_latency_ms": elapsed,
             }
-            if silent_tail and decision.task == "speaker_change":
-                payload.update(value=0.0, probability=0.0, gated="silence")
             payloads.append(payload)
         for question in neutral:
             payload = {
@@ -235,8 +231,6 @@ class Scheduler:
                 "latency_ms": 0,
                 "window_latency_ms": 0,
             }
-            if silent_tail and question.task == "speaker_change":
-                payload.update(value=0.0, probability=0.0, gated="silence")
             payloads.append(payload)
         await self.send(
             {
@@ -253,15 +247,6 @@ class Scheduler:
                 "decisions": payloads,
             }
         )
-
-    @staticmethod
-    def _silent_tail(snapshot: Any) -> bool:
-        audio = getattr(snapshot, "audio", None)
-        if audio is None:
-            return False
-        tail = audio[-2 * SAMPLE_RATE :].astype(np.float64, copy=False)
-        rms_dbfs = 20 * math.log10(max(float(np.sqrt(np.mean(tail**2))), 1e-12))
-        return rms_dbfs < -50.0
 
     async def live(self) -> None:
         if not self.heads and self.internal_speech_question is None:
