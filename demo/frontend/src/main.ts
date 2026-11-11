@@ -3,6 +3,7 @@ import workletUrl from './audio-worklet.js?url';
 import { instrument } from './instruments';
 import {
   encodeFrame,
+  defaultThreshold,
   initialState,
   PACKET_DURATION_MS,
   percentile,
@@ -114,7 +115,7 @@ function renderCards(now: number) {
     element.querySelector('.card-bottom')!.textContent = !d
       ? card.kind === 'choice'
         ? 'OPTION PROBABILITIES'
-        : 'THRESHOLD / 0.50'
+        : `THRESHOLD / ${defaultThreshold(card.task).toFixed(2)}`
       : stale
         ? 'STALE / WAITING FOR MODEL'
         : card.kind === 'score'

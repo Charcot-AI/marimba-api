@@ -1,10 +1,10 @@
-import { type Card, type CardState, scalar } from './state';
+import { defaultThreshold, type Card, type CardState, scalar } from './state';
 
 const clamp = (n: number) => Math.max(0, Math.min(1, n));
 export function instrument(card: Card, state: CardState, now: number): string {
   const decision = state.decision;
   const value = decision ? clamp(scalar(decision)) : 0;
-  const threshold = decision?.threshold ?? 0.5;
+  const threshold = decision?.threshold ?? defaultThreshold(card.task);
   if (card.kind === 'choice') {
     return card.options
       .map(

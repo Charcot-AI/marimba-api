@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 Kind = Literal["noul", "score", "choice"]
+_VOICE_ACTIVITY_THRESHOLD = 0.225
 
 _TEMPLATES = {
     "same_speaker": r"(is (this|it) the same speaker|are (they|these) the same speaker)",
@@ -46,10 +47,10 @@ class Question:
     kind: Kind
     options: tuple[str, ...] | None = None
     task: str | None = None
-    threshold: float = 0.5
+    threshold: float | None = None
 
     def __post_init__(self) -> None:
-        if not self.text.strip() or not 0 <= self.threshold <= 1:
+        if not self.text.strip() or (self.threshold is not None and not 0 <= self.threshold <= 1):
             raise ValueError("Question text and a threshold between zero and one are required")
         if self.kind not in ("noul", "score", "choice"):
             raise ValueError("Invalid question kind")
@@ -76,6 +77,12 @@ class Question:
             object.__setattr__(self, "options", tuple(self.options))
 
     @property
+    def resolved_threshold(self) -> float:
+        if self.threshold is not None:
+            return self.threshold
+        return _VOICE_ACTIVITY_THRESHOLD if self.task == "voice_activity" else 0.5
+
+    @property
     def term(self) -> str | None:
         match = re.search(r"""(?:"([^"]+)"|“([^”]+)”|'([^']+)')""", self.text)
         return (
@@ -85,11 +92,15 @@ class Question:
         )
 
     @classmethod
-    def noul(cls, text: str, *, task: str | None = None, threshold: float = 0.5) -> Question:
+    def noul(
+        cls, text: str, *, task: str | None = None, threshold: float | None = None
+    ) -> Question:
         return cls(text, "noul", task=task, threshold=threshold)
 
     @classmethod
-    def score(cls, text: str, *, task: str | None = None, threshold: float = 0.5) -> Question:
+    def score(
+        cls, text: str, *, task: str | None = None, threshold: float | None = None
+    ) -> Question:
         return cls(text, "score", task=task, threshold=threshold)
 
     @classmethod

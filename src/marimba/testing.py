@@ -109,7 +109,7 @@ class FakeMarimba(Marimba):
                         question.task or "",
                         question.kind,
                         None,
-                        threshold=question.threshold,
+                        threshold=question.resolved_threshold,
                         window_start_s=start_s,
                         window_end_s=end_s,
                         status=cap.status,
@@ -123,7 +123,7 @@ class FakeMarimba(Marimba):
             probabilities = None
             value: bool | float | str = probability
             if question.kind == "noul":
-                value = probability >= question.threshold
+                value = probability >= question.resolved_threshold
             elif question.kind == "choice":
                 options = question.options or ()
                 weights = np.arange(1, len(options) + 1, dtype=np.float64) + probability
@@ -140,7 +140,7 @@ class FakeMarimba(Marimba):
                     probability,
                     probabilities,
                     probability,
-                    question.threshold,
+                    question.resolved_threshold,
                     start_s,
                     end_s,
                     status="experimental",

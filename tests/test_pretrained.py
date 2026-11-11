@@ -257,8 +257,10 @@ def test_shared_speech_head(model):
         "unavailable",
     ]
     assert decisions[1].score == 2.0
-    assert decisions[1].probability == pytest.approx(1 / (1 + np.exp(-2)))
+    assert decisions[1].probability == pytest.approx(1 / (1 + np.exp(-2 / 0.6540604692061299)))
     assert decisions[1].value is True
+    assert decisions[1].threshold == 0.225
+    assert not decisions[1].calibrated
     for decision in decisions[2:]:
         assert (
             decision.value
@@ -298,6 +300,21 @@ def test_vad_recognized_prompt(vad_model, text, task):
     assert "validated with Portuguese prompts and held-out Arabic, Hindi, Korean and Russian" in (
         evaluation
     )
+    assert "temperature-scaled on validation" in evaluation
+    assert "default threshold 0.225 from validation" in evaluation
+
+
+def test_vad_temperature_and_default_threshold(vad_model, monkeypatch):
+    monkeypatch.setattr(vad_model._engine, "head_score", lambda features, mask, text: -0.6)
+    question = Question.noul("Is someone speaking?")
+    decision = vad_model(np.zeros(16000, dtype=np.float32), [question], 16000)[0]
+    expected = 1 / (1 + np.exp(0.6 / 0.6540604692061299))
+    assert decision.score == -0.6
+    assert decision.probability == pytest.approx(expected)
+    assert decision.probability == pytest.approx(0.2855, abs=0.0001)
+    assert decision.threshold == 0.225
+    assert decision.value is True
+    assert not decision.calibrated
 
 
 @pytest.mark.parametrize(

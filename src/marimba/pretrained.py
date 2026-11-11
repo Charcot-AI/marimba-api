@@ -22,6 +22,8 @@ from .weights import load_manifest
 from .windows import EncodedWindow, WindowSnapshot
 
 _CANONICAL_VAD_PROMPT = "Há fala humana neste áudio?"
+# Fitted on the validation calibration split for the shipped head.
+_VAD_TEMPERATURE = 0.6540604692061299
 
 
 class PretrainedMarimba(Marimba):
@@ -56,7 +58,10 @@ class PretrainedMarimba(Marimba):
                 cap,
                 status=lane["status"],
                 evaluation=(
-                    cap.evaluation
+                    (
+                        f"{cap.evaluation}; temperature-scaled on validation; "
+                        "default threshold 0.225 from validation"
+                    )
                     if task == "voice_activity"
                     else lane.get("evaluation", cap.evaluation)
                 ),
@@ -224,7 +229,7 @@ class PretrainedMarimba(Marimba):
                     probability = probabilities[value]
                 elif task == "term":
                     probability = score = float(self._engine.term_score(question.term, hypotheses))
-                    value = probability >= question.threshold
+                    value = probability >= question.resolved_threshold
                 elif (
                     task == "pii" and pii_transcript is not None and self._pii_detector is not None
                 ):
@@ -236,11 +241,11 @@ class PretrainedMarimba(Marimba):
                         else question.text
                     )
                     score = float(self._engine.head_score(features, mask, prompt))
-                    probability = sigmoid(score)
+                    probability = sigmoid(score / _VAD_TEMPERATURE)
                     value = (
                         probability
                         if question.kind == "score"
-                        else probability >= question.threshold
+                        else probability >= question.resolved_threshold
                     )
                 elif task in diarization:
                     distribution = diarization[task]
@@ -256,7 +261,7 @@ class PretrainedMarimba(Marimba):
                         value = (
                             probability
                             if question.kind == "score"
-                            else probability >= question.threshold
+                            else probability >= question.resolved_threshold
                         )
             decisions.append(
                 Decision(
@@ -267,7 +272,7 @@ class PretrainedMarimba(Marimba):
                     probability,
                     probabilities,
                     score,
-                    question.threshold,
+                    question.resolved_threshold,
                     start_s,
                     end_s,
                     status=cap.status,

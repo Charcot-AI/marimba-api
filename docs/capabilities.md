@@ -8,7 +8,7 @@ through unchanged but is not automatically validated.
 | Task | Kind | Lane | Installed status | Evidence / limitation |
 |---|---|---|---|---|
 | turn_end | score | encoder / readout | validated | AUROC 0.930 on Smart Turn v3.2 evaluation; 0.716 out of domain |
-| voice_activity | noul | encoder / head | validated | validated with Portuguese prompts and held-out Arabic, Hindi, Korean and Russian prompts; recognized questions use the canonical prompt; AMI AUROC 0.995, VoxConverse 0.9996 |
+| voice_activity | noul | encoder / head | validated | validated with Portuguese prompts and held-out Arabic, Hindi, Korean and Russian prompts; recognized questions use the canonical prompt; probabilities are temperature-scaled on validation; default threshold 0.225 from validation; AMI AUROC 0.995, VoxConverse 0.9996 |
 | language | choice | decoder | validated | Native Qwen LID, 30 supported languages; closed-set FLEURS 100%, Common Voice 93% (300 each) |
 | term | noul | decoder | validated | Greedy + four beam hypotheses; raw exact-match fraction, no fitted lexical Platt map |
 | pii | noul | decoder | experimental with a supplied detector; otherwise unavailable | Caller-supplied text detector on greedy transcript; no detector included |

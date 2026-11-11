@@ -1,5 +1,7 @@
 export type Kind = 'noul' | 'score' | 'choice';
 export const PACKET_DURATION_MS = 250;
+export const defaultThreshold = (task: string): number =>
+  task === 'voice_activity' ? 0.225 : 0.5;
 export interface Card {
   task: string;
   title: string;
@@ -53,8 +55,8 @@ export function reduceCard(
   const crossed =
     previous &&
     decision.kind !== 'choice' &&
-    scalar(previous) >= (previous.threshold ?? 0.5) !==
-      scalar(decision) >= (decision.threshold ?? 0.5);
+    scalar(previous) >= (previous.threshold ?? defaultThreshold(previous.task)) !==
+      scalar(decision) >= (decision.threshold ?? defaultThreshold(decision.task));
   return {
     decision,
     receivedAt: now,

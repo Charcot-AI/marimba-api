@@ -142,6 +142,22 @@ def test_question_errors():
     assert Question.score("Custom", task="turn_end").task == "turn_end"
 
 
+def test_question_resolved_threshold_defaults_and_override():
+    assert Question.noul("Is someone speaking?").threshold is None
+    assert Question.noul("Is someone speaking?").resolved_threshold == 0.225
+    assert Question.score("Is someone speaking?", task="voice_activity").resolved_threshold == 0.225
+    assert Question.noul("Has the speaker finished?").resolved_threshold == 0.5
+    assert Question.noul('Did someone say "hello"?').resolved_threshold == 0.5
+    assert Question.noul("Is someone speaking?", threshold=0.8).resolved_threshold == 0.8
+    assert Question.noul("Is someone speaking?", threshold=None).resolved_threshold == 0.225
+
+
+@pytest.mark.parametrize("threshold", [-0.1, 1.1, float("nan")])
+def test_question_threshold_validation(threshold):
+    with pytest.raises(ValueError, match="threshold"):
+        Question.noul("Is someone speaking?", threshold=threshold)
+
+
 @pytest.mark.parametrize(
     "question",
     [

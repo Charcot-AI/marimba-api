@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   encodeFrame,
+  defaultThreshold,
   initialState,
   percentile,
   reduceCard,
@@ -21,6 +22,14 @@ const decision = (p: number, end = 1): Decision => ({
   latency_ms: 12,
 });
 describe('card state', () => {
+  it('uses task-specific defaults when a decision has no threshold', () => {
+    expect(defaultThreshold('voice_activity')).toBe(0.225);
+    expect(defaultThreshold('turn_end')).toBe(0.5);
+    const first = reduceCard(initialState(), { ...decision(0.2), threshold: null }, 100);
+    expect(
+      reduceCard(first, { ...decision(0.23, 2), threshold: null }, 300).crossedAt,
+    ).toBe(300);
+  });
   it('does not flash on the first result; flashes only at threshold crossings', () => {
     const first = reduceCard(initialState(), decision(0.1), 100);
     expect(first.crossedAt).toBe(-Infinity);
