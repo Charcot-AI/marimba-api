@@ -18,7 +18,9 @@ class Capability:
 DEFAULT_CAPABILITIES = {
     item.task: item
     for item in (
-        Capability("turn_end", "validated", "readout", ("score",), "Public turn-end AUROC 0.930"),
+        Capability(
+            "turn_end", "validated", "readout", ("score", "noul"), "Public turn-end AUROC 0.930"
+        ),
         Capability(
             "voice_activity",
             "validated",

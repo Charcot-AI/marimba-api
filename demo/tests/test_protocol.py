@@ -315,7 +315,7 @@ def test_unavailable_and_wrong_kind_cards_are_omitted():
     model = ProtocolModel()
     model.capabilities.update(
         {
-            "turn_end": SimpleNamespace(status="validated", kinds=("noul",)),
+            "turn_end": SimpleNamespace(status="validated", kinds=("score",)),
             "language": SimpleNamespace(status="unavailable", kinds=("choice",)),
         }
     )
@@ -344,6 +344,19 @@ def test_speaker_cards_use_validated_encoder_tasks():
     ]
     assert questions[1].options == ("0", "1", "2", "3+")
     assert [model.lane(question) for question in questions] == ["encoder"] * 2
+
+
+def test_turn_end_card_requests_yes_no_with_the_default_probability_threshold():
+    model = ProtocolModel()
+    model.capabilities = {
+        "turn_end": SimpleNamespace(status="validated", kinds=("score", "noul")),
+    }
+    (card,) = available_cards(model)
+    (question,) = questions_for([card], MarimbaQuestion)
+    assert card.kind == question.kind == "noul"
+    assert question.task == "turn_end"
+    assert question.threshold is None
+    assert question.resolved_threshold == 0.5
 
 
 def test_every_demo_card_text_routes_to_its_task():
@@ -382,7 +395,7 @@ def test_demo_requests_all_six_released_tasks(tmp_path):
         "term",
     ]
     expected_cards = [
-        ("turn_end", "Turn ended", "Has the speaker finished?", "score", ()),
+        ("turn_end", "Turn ended", "Has the speaker finished?", "noul", ()),
         ("voice_activity", "Speech (last 8 s)", "Is someone speaking?", "noul", ()),
         ("speaker_change", "Speaker changed", "Has the speaker changed?", "score", ()),
         (

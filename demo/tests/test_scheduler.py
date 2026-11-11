@@ -1,5 +1,7 @@
 import asyncio
+import sys
 import threading
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -65,6 +67,41 @@ def test_iterator_receives_contiguous_512_sample_blocks_and_preserves_exact_endp
     assert speech.segments[0].seconds == (0, 0.224)
 
 
+def test_silero_uses_200ms_silence_and_preserves_the_cpu_thread_budget(monkeypatch):
+    settings = {}
+    restored = []
+
+    def iterator(model, **kwargs):
+        assert model == "onnx-model"
+        settings.update(kwargs)
+        return lambda *args, **kwargs: None
+
+    monkeypatch.setitem(
+        sys.modules,
+        "torch",
+        SimpleNamespace(
+            get_num_threads=lambda: 4,
+            set_num_threads=restored.append,
+        ),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "silero_vad",
+        SimpleNamespace(
+            load_silero_vad=lambda *, onnx: "onnx-model" if onnx else None,
+            VADIterator=iterator,
+        ),
+    )
+    SpeechTimeline()
+    assert settings == {
+        "threshold": 0.5,
+        "sampling_rate": 16000,
+        "min_silence_duration_ms": 200,
+        "speech_pad_ms": 0,
+    }
+    assert restored == [4]
+
+
 def test_utterance_splitting_is_consecutive_bounded_and_sample_exact():
     assert utterance_chunks(123, 123) == []
     assert utterance_chunks(123, 123 + 128001) == [(123, 128123), (128123, 128124)]
@@ -97,7 +134,7 @@ def test_turn_end_runs_only_on_offsets_and_ends_exactly_there():
         updates = asyncio.Queue()
         speech, model = timeline(), Model()
         questions = [
-            Question.score("Has the speaker finished?"),
+            Question.noul("Has the speaker finished?"),
             Question.noul("Is someone speaking?"),
         ]
         scheduler = Scheduler(model, questions, updates.put, speech=speech)
@@ -114,6 +151,9 @@ def test_turn_end_runs_only_on_offsets_and_ends_exactly_there():
             result = await asyncio.wait_for(updates.get(), 2)
             decision = result["decisions"][0]
             assert decision["task"] == "turn_end"
+            assert decision["kind"] == "noul"
+            assert isinstance(decision["value"], bool)
+            assert decision["threshold"] == 0.5
             assert decision["window_end_s"] == 3500 / 16000
             snapshot = model.calls[-1][0]
             assert snapshot.mask.sum() == 3500

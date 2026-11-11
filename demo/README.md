@@ -48,21 +48,26 @@ timing and drop counters. Inputs are not auto-reconnected.
 ## Windows and cadence
 
 Silero's CPU streaming iterator processes contiguous 512-sample (32 ms) blocks
-with threshold **0.5**, 100 ms minimum silence, and zero speech padding. Endpoints
+with threshold **0.5**, 200 ms minimum silence, and zero speech padding. Endpoints
 are sample-exact iterator timestamps, not the later packet that confirms silence.
-Packetization adds at most 250 ms; silence confirmation adds about 128 ms. These
+Packetization adds at most 250 ms; silence confirmation adds about 224 ms. These
 are algorithmic delays, not a hardware latency guarantee. The timeline stores
 onset/offset pairs in stream seconds and includes ongoing speech for coverage.
 Silero does not replace Marimba's speech or people predictions.
 
 | Card | Audio window | Cadence |
 |---|---|---|
-| Turn ended | Up to 8 s ending exactly at each Silero offset; left padding masked False | At end of speech |
+| Turn ended (yes/no) | Up to 8 s ending exactly at each Silero offset; left padding masked False | At end of speech |
 | Speech (last 8 s) | Rolling 8 s, using Marimba's calibrated voice-activity head | Every 250 ms, coalesced under load |
 | Speaker changed | Full rolling 8 s, including internal silences | Every 250 ms when eligible |
 | People (last 8 s) | Full rolling 8 s, unchanged model count | Every 250 ms, coalesced under load |
 | Language | Each closed Silero utterance, split into consecutive clips of at most 8 s | Per utterance/chunk |
 | Marimba spoken | Same utterance chunks as language | Per utterance/chunk |
+
+Turn ended uses the Platt probability with the default 0.5 threshold; no fitted
+event threshold is available. The 200 ms silence interval avoids shorter
+within-sentence pauses and matches the minimum gap in the turn-end evaluation
+protocol. It does not guarantee that every detected speech offset ends a turn.
 
 Speech measures window occupancy: its training target is at least 50% speech
 frames across 8 s, not instantaneous speech. The existing temperature and 0.225
@@ -71,7 +76,8 @@ conversation, and is never forced to zero by VAD.
 
 Speaker change requires a full mask and at least **0.5 s** of Silero speech in
 **each** of the window-relative intervals [0,6) and [6,8). Otherwise the card shows
-**not enough speech**, with no score. This is a necessary coverage rule, not a
+the previous answer pending, with a shimmer on its value only. Before its first
+eligible answer it shows a dash. This is a necessary coverage rule, not a
 guarantee of a single dominant identity on either side. Silences remain in the
 model input; the former RMS silence gate is removed.
 
@@ -91,6 +97,11 @@ Stop drains queued closed utterances and offsets (up to a 90 s browser timeout).
 An open utterance is not treated as a Silero offset just because capture stops.
 Disconnect discards subsequent results; an in-flight model call must still finish
 before another session can own the model.
+
+Ineligible speaker updates do not replace the last value, trail or audio-window
+footer. Only the reading shimmers while that update is pending, while a decoder
+is computing, or when a rolling result is stale. The rest of the card is not
+dimmed. The shimmer follows the selected theme and stops with reduced motion.
 
 One rolling encoder worker, one turn worker and one decoder worker run separately.
 The model serializes encoder passes but does not hold the encoder lock during

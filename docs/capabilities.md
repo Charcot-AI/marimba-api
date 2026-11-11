@@ -7,7 +7,7 @@ through unchanged but is not automatically validated.
 
 | Task | Kind | Lane | Installed status | Evidence / limitation |
 |---|---|---|---|---|
-| turn_end | score | encoder / readout | validated | AUROC 0.930 on Smart Turn v3.2 evaluation; 0.716 out of domain |
+| turn_end | score, noul | encoder / readout | validated | AUROC 0.930 on Smart Turn v3.2 evaluation; 0.716 out of domain |
 | voice_activity | noul | encoder / head | validated | validated with Portuguese prompts and held-out Arabic, Hindi, Korean and Russian prompts; recognized questions use the canonical prompt; probabilities are temperature-scaled on validation; default threshold 0.225 from validation; AMI AUROC 0.995, VoxConverse 0.9996 |
 | language | choice | decoder | validated | Native Qwen LID, 30 supported languages; closed-set FLEURS 100%, Common Voice 93% (300 each) |
 | term | noul | decoder | validated | Greedy + four beam hypotheses; raw exact-match fraction, no fitted lexical Platt map |
@@ -21,6 +21,10 @@ This is the installed-model table; generic capability metadata alone does not
 prove weights are available. Inspect `model.capabilities` after loading.
 The historical decoder study's calibrated lexical scores must not be substituted
 for this package's uncalibrated raw fractions.
+
+Turn-end `score` returns the Platt probability. `noul` compares that probability
+with the question's threshold, defaulting to 0.5. No event threshold has been
+fitted; the AUROC above does not establish performance at that default threshold.
 
 ## Diarization questions
 

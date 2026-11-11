@@ -264,9 +264,21 @@ h2 {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.card.neutral .reading {
-  font-size: 20px;
-  letter-spacing: -0.5px;
+.reading.pending {
+  background-image: linear-gradient(100deg, var(--ink) 25%, var(--muted) 50%, var(--ink) 75%);
+  background-size: 240% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: reading-pending 2.4s linear infinite;
+}
+@keyframes reading-pending {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -150% 0;
+  }
 }
 .card-latency {
   font-size: 8px;
@@ -277,17 +289,12 @@ h2 {
   margin-top: 10px;
 }
 .card-interval,
-.card-window,
-.review-progress {
+.card-window {
   font:
     8px Mono,
     monospace;
   color: var(--muted);
   margin-top: 10px;
-}
-.review-progress {
-  min-height: 10px;
-  color: var(--ink);
 }
 .instrument {
   height: 83px;
@@ -324,10 +331,6 @@ h2 {
   color: var(--muted);
   padding-top: 9px;
   min-height: 19px;
-}
-.stale .instrument,
-.stale .reading {
-  opacity: 0.35;
 }
 .vu-row {
   display: flex;
@@ -502,6 +505,11 @@ a {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .reading.pending {
+    animation: none;
+    background: none;
+    color: var(--muted);
+  }
   .vu-track i {
     transition: none;
   }
@@ -543,8 +551,7 @@ a {
     height: 60px;
   }
   .card-interval,
-  .card-window,
-  .review-progress {
+  .card-window {
     margin-top: 6px;
   }
   .transcript {

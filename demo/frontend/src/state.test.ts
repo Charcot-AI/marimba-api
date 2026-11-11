@@ -23,6 +23,36 @@ const decision = (p: number, end = 1): Decision => ({
   latency_ms: 12,
 });
 describe('card state', () => {
+  it('retains the last real decision, trail and timing while an update is ineligible', () => {
+    const first = reduceCard(initialState(), decision(0.2, 8), 1000, 800);
+    const pending = reduceCard(first, {
+      ...decision(0, 9), value: null, status: 'not_enough_speech',
+    }, 2000, 1800);
+    expect(pending).toEqual({ ...first, pending: true });
+    expect(pending.decision).toBe(first.decision);
+    expect(pending.trail).toBe(first.trail);
+    const next = reduceCard(pending, decision(0.4, 10), 3000, 2800);
+    expect(next.pending).toBe(false);
+    expect(next.decision?.window_end_s).toBe(10);
+    expect(next.trail).toEqual([{ time: 1000, value: 0.2 }, { time: 3000, value: 0.4 }]);
+  });
+  it('keeps an empty reading pending until the first real decision', () => {
+    const pending = reduceCard(initialState(), {
+      ...decision(0), value: null, status: 'not_enough_speech',
+    }, 1000);
+    expect(pending).toEqual({ ...initialState(), pending: true });
+    const next = reduceCard(pending, decision(0.2, 2), 2000);
+    expect(next.pending).toBe(false);
+    expect(next.trail).toEqual([{ time: 2000, value: 0.2 }]);
+    expect(next.crossedAt).toBe(-Infinity);
+  });
+  it('ignores an older ineligible update after a newer real decision', () => {
+    const first = reduceCard(initialState(), decision(0.2, 8), 1000);
+    expect(reduceCard(first, {
+      ...decision(0, 7), value: null, status: 'not_enough_speech',
+    }, 2000)).toBe(first);
+    expect(first.pending).toBe(false);
+  });
   it('does not replace rolling counters or watchdog timing with offset-triggered turns', () => {
     expect(isRollingUpdate('encoder', [{ ...decision(0.9), task: 'turn_end' }])).toBe(false);
     expect(isRollingUpdate('encoder', [decision(0.9)])).toBe(true);

@@ -33,6 +33,7 @@ export interface Decision {
 }
 export interface CardState {
   decision?: Decision;
+  pending: boolean;
   trail: { time: number; value: number }[];
   crossedAt: number;
   receivedAt: number;
@@ -42,6 +43,7 @@ export interface CardState {
 export const isRollingUpdate = (lane: 'encoder' | 'decoder', decisions: Decision[]): boolean =>
   lane === 'encoder' && decisions.some((decision) => decision.task !== 'turn_end');
 export const initialState = (): CardState => ({
+  pending: false,
   trail: [],
   crossedAt: -Infinity,
   receivedAt: -Infinity,
@@ -55,6 +57,7 @@ export function reduceCard(
   windowEndAt = now,
 ): CardState {
   if (state.decision && decision.window_end_s <= state.decision.window_end_s) return state;
+  if (decision.status === 'not_enough_speech') return { ...state, pending: true };
   const previous = state.decision;
   const crossed =
     previous && previous.value !== null && decision.value !== null &&
@@ -63,6 +66,7 @@ export function reduceCard(
       scalar(decision) >= (decision.threshold ?? defaultThreshold(decision.task));
   return {
     decision,
+    pending: false,
     receivedAt: now,
     intervalMs: state.decision ? now - state.receivedAt : undefined,
     windowEndAt,

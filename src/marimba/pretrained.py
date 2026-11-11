@@ -232,7 +232,11 @@ class PretrainedMarimba(Marimba):
             if cap.status != "unavailable":
                 if task == "turn_end" and turn is not None:
                     score, probability = map(float, turn)
-                    value = probability
+                    value = (
+                        probability
+                        if question.kind == "score"
+                        else probability >= question.resolved_threshold
+                    )
                 elif task == "language":
                     probabilities = option_probabilities(language, resolved[question])
                     value = max(probabilities, key=probabilities.__getitem__)

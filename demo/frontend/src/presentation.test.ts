@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { instrument } from './instruments';
 import { reading, timing } from './presentation';
 import { initialState, reduceCard, type Card, type Decision } from './state';
 
@@ -12,6 +13,14 @@ const decision: Decision = {
   window_end_s: 72.75, window_start_s: 64.75, latency_ms: 12,
 };
 describe('card presentation', () => {
+  it('shows turn-end yes/no and a 0.5 probability marker', () => {
+    const turn = { ...card, task: 'turn_end', kind: 'noul' as const, options: [] };
+    const no = { ...decision, task: 'turn_end', kind: 'noul' as const, value: false, probability: 0.49, threshold: 0.5 };
+    const state = reduceCard(initialState(), no, 1000);
+    expect(reading(turn, state.decision)).toBe('no');
+    expect(reading(turn, { ...no, value: true, probability: 0.5 })).toBe('yes');
+    expect(instrument(turn, state, 1000)).toContain('class="threshold" x1="150"');
+  });
   it('uses a neutral collecting state before any decision', () => {
     expect(reading(card)).toBe('—');
     expect(timing(card, initialState(), 0).window).toBe('COLLECTING 8 s OF AUDIO');
@@ -38,10 +47,20 @@ describe('card presentation', () => {
       expect(result.interval).toContain(lane === 'encoder' ? 'EVERY 250 MS' : 'PER UTTERANCE');
     }
   });
-  it('shows offset cadence and neutral speaker eligibility without a score', () => {
+  it('shows offset cadence and preserves the reading and audio footer while pending', () => {
     const turn = { ...card, task: 'turn_end', cadence: 'at end of speech' as const };
     expect(timing(turn, initialState(), 0).window).toContain('WAITING FOR END OF SPEECH');
     expect(timing(turn, initialState(), 0).interval).toContain('AT END OF SPEECH');
-    expect(reading(card, { ...decision, value: null, status: 'not_enough_speech' })).toBe('not enough speech');
+    const previous = reduceCard(initialState(), decision, 1000, 800);
+    const pending = reduceCard(previous, {
+      ...decision, window_end_s: 73, value: null, status: 'not_enough_speech',
+    }, 2000, 1800);
+    expect(reading(card, pending.decision)).toBe('2');
+    expect(timing(card, pending, 2000)).toEqual(timing(card, previous, 2000));
+    const first = reduceCard(initialState(), {
+      ...decision, value: null, status: 'not_enough_speech',
+    }, 2000);
+    expect(reading(card, first.decision)).toBe('—');
+    expect(timing(card, first, 2000).latency).toBe('awaiting audio');
   });
 });

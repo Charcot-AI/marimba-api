@@ -91,6 +91,30 @@ def test_shared_lanes(model):
     assert "Uncalibrated" in model.capabilities["term"].evaluation
 
 
+@pytest.mark.parametrize(
+    "probability,threshold,expected",
+    [
+        (0.49, None, False),
+        (0.5, None, True),
+        (0.9, None, True),
+        (0.7, 0.8, False),
+    ],
+)
+def test_turn_end_noul_thresholds_platt_probability_not_raw_score(
+    model, probability, threshold, expected
+):
+    model._engine.turn_end = lambda features, mask: (40.0, probability)
+    question = Question.noul("Has the speaker finished?", threshold=threshold)
+    binary, score = model(np.ones(16000), [question, Question.score(question.text)], 16000)
+    assert "noul" in model.capabilities["turn_end"].kinds
+    assert binary.kind == "noul"
+    assert binary.value is expected
+    assert binary.probability == probability
+    assert binary.score == 40.0
+    assert binary.threshold == (0.5 if threshold is None else threshold)
+    assert score.value == probability
+
+
 @pytest.mark.parametrize("route", ["call", "snapshot", "encoded"])
 def test_partial_decoder_audio_is_left_aligned_on_every_entry_point(model, route):
     windows = []

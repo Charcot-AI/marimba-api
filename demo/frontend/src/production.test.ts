@@ -15,6 +15,28 @@ async function productionAssets() {
 }
 
 describe('production assets', () => {
+  it('scopes the theme-aware pending shimmer to reading text and disables motion on request', async () => {
+    const output = await productionAssets();
+    const css = output
+      .filter((asset) => asset.type === 'asset' && asset.fileName.endsWith('.css'))
+      .map((asset) => (asset.type === 'asset' ? asset.source.toString() : ''))
+      .join('');
+    const pendingRules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter((rule) => rule[1].includes('.pending'));
+    expect(pendingRules.map((rule) => rule[1])).toEqual(['.reading.pending', '.reading.pending']);
+    expect(pendingRules[0][2]).toContain('linear-gradient(');
+    expect(pendingRules[0][2]).toContain('var(--ink)');
+    expect(pendingRules[0][2]).toContain('var(--muted)');
+    expect(pendingRules[0][2]).toContain('background-clip:text');
+    expect(pendingRules[0][2]).toContain('animation:reading-pending');
+    expect(css).toContain('@keyframes reading-pending');
+    expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)\{\.reading\.pending\{[^}]*animation:none/);
+    expect(css).not.toMatch(/\.stale|\.neutral/);
+    const entry = output.find((asset) => asset.type === 'chunk' && asset.isEntry);
+    if (entry?.type !== 'chunk') throw new Error('Entry chunk missing');
+    for (const text of ['not enough speech', 'NOT SCORED', 'REQUIRES ≥0.5', 'COMPUTING / PREVIOUS RESULT RETAINED'])
+      expect(entry.code).not.toContain(text);
+  });
   it('emits a same-origin asset compatible with the restrictive server CSP', async () => {
     const output = await productionAssets();
     const worklet = output.find((asset) => /audio-worklet-[\w-]+\.js$/.test(asset.fileName));

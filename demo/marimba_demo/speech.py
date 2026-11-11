@@ -37,7 +37,7 @@ class SpeechTimeline:
                 load_silero_vad(onnx=True),
                 threshold=0.5,
                 sampling_rate=SAMPLE_RATE,
-                min_silence_duration_ms=100,
+                min_silence_duration_ms=200,
                 speech_pad_ms=0,
             )
         self.iterator = iterator

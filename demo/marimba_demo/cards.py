@@ -24,7 +24,7 @@ class Card:
 
 
 CARDS = (
-    Card("turn_end", "Turn ended", "Has the speaker finished?", "score"),
+    Card("turn_end", "Turn ended", "Has the speaker finished?", "noul"),
     Card("voice_activity", "Speech (last 8 s)", "Is someone speaking?", "noul"),
     Card("speaker_change", "Speaker changed", "Has the speaker changed?", "score"),
     Card(

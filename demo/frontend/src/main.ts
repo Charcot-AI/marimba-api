@@ -73,17 +73,16 @@ function renderCards(now: number) {
     const review = card.lane === 'decoder';
     const stale =
       !!d && !review && card.task !== 'turn_end' && now - state.receivedAt > 2500;
+    const pending = state.pending || (review && reviewsRunning.has(card.task)) || stale;
     element.classList.toggle('crossed', now - state.crossedAt < 650);
-    element.classList.toggle('stale', stale);
-    element.classList.toggle('neutral', d?.status === 'not_enough_speech');
-    element.querySelector('.reading')!.textContent = reading(card, d);
+    const value = element.querySelector<HTMLElement>('.reading')!;
+    value.textContent = reading(card, d);
+    value.classList.toggle('pending', pending);
+    value.setAttribute('aria-busy', String(pending));
     const footer = timing(card, state, now);
     element.querySelector('.card-latency')!.textContent = footer.latency;
     element.querySelector('.card-interval')!.textContent = footer.interval;
     element.querySelector('.card-window')!.textContent = footer.window;
-    element.querySelector('.review-progress')!.textContent = reviewsRunning.has(card.task)
-      ? 'COMPUTING / PREVIOUS RESULT RETAINED'
-      : '';
     element.querySelector('.instrument')!.innerHTML = instrument(card, state, now);
     element.querySelectorAll('[data-option]').forEach((el, i) => {
       el.textContent = card.options[i];
@@ -92,17 +91,13 @@ function renderCards(now: number) {
       ? card.kind === 'choice'
         ? 'OPTION PROBABILITIES'
         : `THRESHOLD / ${defaultThreshold(card.task)}`
-      : d.status === 'not_enough_speech'
-        ? 'REQUIRES ≥0.5 s SPEECH IN EACH 6 s / 2 s INTERVAL'
-        : stale
-        ? 'STALE / WAITING FOR MODEL'
-        : card.kind === 'score'
-          ? '5 SECOND TRAIL'
-          : card.kind === 'noul'
-            ? `${card.uncalibrated ? 'RAW N-BEST' : 'P(YES)'} / ${(d.probability ?? 0).toFixed(3)}`
-            : card.task === 'language'
-              ? 'EN/PT/ES CLOSED SET'
-              : 'OPTION PROBABILITIES';
+      : card.kind === 'score'
+        ? '5 SECOND TRAIL'
+        : card.kind === 'noul'
+          ? `${card.uncalibrated ? 'RAW N-BEST' : 'P(YES)'} / ${(d.probability ?? 0).toFixed(3)}`
+          : card.task === 'language'
+            ? 'EN/PT/ES CLOSED SET'
+            : 'OPTION PROBABILITIES';
   }
 }
 function makeCards() {
@@ -116,7 +111,7 @@ function makeCards() {
         ? 'EXPERIMENTAL'
         : '';
     const tags = [badge, card.uncalibrated ? 'UNCALIBRATED' : ''].filter(Boolean).join(' / ');
-    el.innerHTML = `<div class="card-top"><span class="number">${String(index + 1).padStart(2, '0')} / ${card.kind.toUpperCase()}</span><span class="badge">${tags}</span></div><h2></h2><div class="reading-row"><span class="reading">—</span></div><div class="instrument"></div><div class="card-bottom"></div><div class="card-window"></div><div class="card-interval"></div><div class="card-latency"></div><div class="review-progress"></div>`;
+    el.innerHTML = `<div class="card-top"><span class="number">${String(index + 1).padStart(2, '0')} / ${card.kind.toUpperCase()}</span><span class="badge">${tags}</span></div><h2></h2><div class="reading-row"><span class="reading">—</span></div><div class="instrument"></div><div class="card-bottom"></div><div class="card-window"></div><div class="card-interval"></div><div class="card-latency"></div>`;
     el.title = card.evaluation ?? '';
     el.querySelector('h2')!.textContent = card.title;
     $('#cards').append(el);
