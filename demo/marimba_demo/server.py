@@ -173,7 +173,7 @@ def create_app(
             except RuntimeError as error:
                 if scheduler:
                     scheduler.finish(aborted=True)
-                logger.error("Inference failure: %s", type(error).__name__)
+                logger.exception("Inference failure: %s", type(error).__name__)
                 await send(
                     {
                         "type": "error",

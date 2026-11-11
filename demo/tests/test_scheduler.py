@@ -195,6 +195,105 @@ def test_no_flip_closes_turn_window_at_the_lag_adjusted_sample():
     asyncio.run(run())
 
 
+def test_lagging_encoder_retains_complete_turn_and_utterance_windows():
+    async def run():
+        class LaggingModel(Model):
+            def encode(self, snapshot):
+                self.started.set()
+                assert self.release.wait(5)
+                return super().encode(snapshot)
+
+            def decide_encoded(self, encoded, questions):
+                return [
+                    Decision(
+                        question,
+                        question.task or "",
+                        question.kind,
+                        False,
+                        probability=0.1,
+                        score=0.1,
+                        threshold=question.resolved_threshold,
+                        window_start_s=encoded.snapshot.window_start_s,
+                        window_end_s=encoded.snapshot.window_end_s,
+                        status="validated",
+                    )
+                    for question in questions
+                ]
+
+        updates = asyncio.Queue()
+        model = LaggingModel()
+        model.release.clear()
+        speech = timeline()
+        scheduler = Scheduler(
+            model,
+            [
+                Question.noul(
+                    "Is someone speaking?", task="voice_activity", seconds=2.0
+                ),
+                Question.noul("Has the speaker finished?"),
+                Question.noul('Was "marimba" spoken?'),
+            ],
+            updates.put,
+            speech=speech,
+        )
+        for i in range(52):
+            scheduler.ingest(packet(i))
+        speech.observe(6.5, True)
+        snapshot = scheduler.snapshot(2 * 16000, 10 * 16000)
+        emitting = asyncio.create_task(
+            scheduler.emit(
+                Work(snapshot, scheduler.latest_capture),
+                [scheduler.speech_question],
+                "encoder",
+            )
+        )
+        try:
+            assert await asyncio.to_thread(model.started.wait, 2)
+            for i in range(52, 64):
+                scheduler.ingest(packet(i))
+            assert scheduler.total == 16 * 16000
+            model.release.set()
+            await asyncio.wait_for(emitting, 3)
+
+            (turn_work,) = scheduler.turn_queue
+            turn_snapshot = turn_work.snapshot
+            assert turn_snapshot.window_start_s == 0.25
+            assert turn_snapshot.window_end_s == 8.25
+            assert turn_snapshot.mask.all()
+            expected_turn = np.repeat(np.arange(2, 34, dtype=np.float32), 4000) / 32768
+            np.testing.assert_array_equal(turn_snapshot.audio, expected_turn)
+
+            (utterance_work,) = scheduler.pending_utterance
+            utterance_snapshot = utterance_work.snapshot
+            assert utterance_snapshot.window_start_s == 6.0
+            assert utterance_snapshot.window_end_s == 8.25
+            assert utterance_snapshot.mask.sum() == 36000
+            assert not utterance_snapshot.mask[:-36000].any()
+            expected_utterance = (
+                np.repeat(np.arange(25, 34, dtype=np.float32), 4000) / 32768
+            )
+            np.testing.assert_array_equal(
+                utterance_snapshot.audio[-36000:], expected_utterance
+            )
+        finally:
+            model.release.set()
+            scheduler.finish(aborted=True)
+            await asyncio.gather(emitting, return_exceptions=True)
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize(("start", "end"), [(0, 8000), (4000, 12001)])
+def test_snapshot_rejects_ranges_outside_retained_audio(start, end):
+    scheduler = Scheduler(Model(), [], None, speech=timeline())
+    scheduler.audio = np.zeros(8000, np.float32)
+    scheduler.audio_start = 4000
+    scheduler.total = 12000
+
+    with pytest.raises(ValueError, match="outside retained audio"):
+        scheduler.snapshot(start, end)
+
+
 def test_turn_end_runs_only_on_offsets_and_ends_exactly_there():
     async def run():
         updates = asyncio.Queue()
@@ -277,6 +376,7 @@ def test_slow_decoder_keeps_newest_pending_utterance_and_capture_provenance():
         )
         for i in range(4):
             scheduler.ingest(packet(i))
+            scheduler.speech.observe((i + 1) * 0.25, False)
         scheduler.close_utterance(SpeechSegment(0, 2000))
         worker = asyncio.create_task(scheduler.review())
         try:
@@ -286,7 +386,8 @@ def test_slow_decoder_keeps_newest_pending_utterance_and_capture_provenance():
             assert scheduler.dropped_utterances == 1
             for i in range(4, 44):
                 scheduler.ingest(packet(i))
-            assert scheduler.audio_start == 8000
+                scheduler.speech.observe((i + 1) * 0.25, False)
+            assert scheduler.audio_start == 4000
             model.release.set()
             scheduler.finish()
             await asyncio.wait_for(worker, 3)

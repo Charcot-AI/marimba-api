@@ -102,6 +102,11 @@ class Scheduler:
         )
 
     def snapshot(self, start: int, end: int) -> WindowSnapshot:
+        if start < self.audio_start or end > self.total:
+            raise ValueError(
+                f"Snapshot range [{start}, {end}) is outside retained audio "
+                f"[{self.audio_start}, {self.total})"
+            )
         audio = self.audio[start - self.audio_start : end - self.audio_start]
         window, mask = right_aligned_window(audio)
         return WindowSnapshot(window, mask, start / SAMPLE_RATE, end / SAMPLE_RATE)
@@ -140,9 +145,13 @@ class Scheduler:
         self.total += len(frame.pcm)
         self.latest_capture = (frame.sequence, frame.captured_at_ms)
         self.stream.ingest(frame.pcm)
-        keep = max(0, self.total - round(10.5 * SAMPLE_RATE))
-        if self.speech.onset is not None:
-            keep = min(keep, self.speech.onset)
+        retention_samples = 10 * SAMPLE_RATE + SAMPLE_RATE // 2
+        keep = min(
+            self.total - retention_samples,
+            self.speech.last_observed_end - retention_samples,
+            self.speech.onset if self.speech.onset is not None else self.total,
+        )
+        keep = max(0, keep)
         self.audio = self.audio[keep - self.audio_start :]
         self.audio_start = keep
         for event in self.changed.values():
