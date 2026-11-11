@@ -115,7 +115,7 @@ function renderCards(now: number) {
     element.querySelector('.card-bottom')!.textContent = !d
       ? card.kind === 'choice'
         ? 'OPTION PROBABILITIES'
-        : `THRESHOLD / ${defaultThreshold(card.task).toFixed(2)}`
+        : `THRESHOLD / ${defaultThreshold(card.task)}`
       : d.gated === 'silence'
         ? d.gated
         : stale
