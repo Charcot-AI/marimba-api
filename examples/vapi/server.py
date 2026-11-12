@@ -101,12 +101,15 @@ class Bridge:
             if self.start is not None:
                 endpoint = min(self.offset + 4800, self.start + self.max_turn)
                 keep = min(keep, self.start, endpoint - WINDOW)
-            if self.pinned is not None:
-                keep = min(keep, self.pinned - WINDOW)
             discard = max(0, keep - self.base)
             self.audio = self.audio[discard:]
             self.base += discard
-            if len(self.audio) > self.max_turn + WINDOW:
+            retained = len(self.audio)
+            if self.pinned is not None:
+                first, last = self.pinned
+                overlap = max(0, min(self.total, last) - max(self.base, first))
+                retained += last - first - overlap
+            if retained > self.max_turn + WINDOW:
                 raise BufferError("Inference capacity exceeded")
         self.pending = self.pending[count:]
 
@@ -131,7 +134,7 @@ class Bridge:
         end = self.start + self.max_turn if forced else self.offset + 4800
         if forced or quiet >= 4800:
             if self.scored is None or self.scored[0] != end:
-                self.pinned = end
+                self.pinned = max(0, end - WINDOW), end
                 return ("score", end, None if forced else self.offset, self.window(end))
             _, turn, window = self.scored
             reason = (
@@ -144,7 +147,7 @@ class Bridge:
                 else None
             )
             if reason:
-                self.pinned = end
+                self.pinned = max(0, min(self.start, end - WINDOW)), end
                 audio = self.slice(self.start, end)
                 future = self.slice(end, self.total)
                 self.reset()

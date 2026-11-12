@@ -166,8 +166,9 @@ def test_delayed_endpoint_retains_exact_history():
     np.testing.assert_array_equal(bridge.window(score[1]), expected)
     bridge.complete(score, bridge.compute(score))
     final = bridge.next_job()
-    bridge.ingest(silence(1))
-    np.testing.assert_array_equal(bridge.window(final[1]), expected)
+    bridge.ingest(silence(40))
+    np.testing.assert_array_equal(final[4], expected)
+    assert len(bridge.audio) == server.WINDOW
     assert len(bridge.audio) <= bridge.max_turn + server.WINDOW
     bridge.complete(final, bridge.compute(final))
     assert bridge.pinned is None
