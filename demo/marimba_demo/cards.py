@@ -17,24 +17,39 @@ class Card:
     lane: str = "encoder"
     context_seconds: float = 8.0
     cadence_seconds: float = 0.25
+    cadence: str = "every 250 ms"
+    seconds: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
 CARDS = (
+    Card("turn_end", "Turn ended", "Has the speaker finished?", "noul"),
     Card(
-        "turn_end", "Turn completion", "Has the speaker finished their turn?", "score"
+        "voice_activity",
+        "Speech (last 2 s)",
+        "Is someone speaking?",
+        "noul",
+        context_seconds=2.0,
+        seconds=2.0,
     ),
-    Card("voice_activity", "Speech present", "Is someone speaking?", "noul"),
+    Card("speaker_change", "Speaker changed", "Has the speaker changed?", "score"),
+    Card(
+        "speaker_count",
+        "People (last 8 s)",
+        "How many people?",
+        "choice",
+        ("0", "1", "2", "3+"),
+    ),
     Card(
         "language",
         "Language",
-        "What language is being spoken?",
+        "Which language is spoken?",
         "choice",
         ("en", "pt", "es"),
     ),
-    Card("term", "Heard marimba", 'Did someone say "marimba"?', "noul"),
+    Card("term", "Marimba spoken", 'Was "marimba" spoken?', "noul"),
 )
 
 
@@ -61,9 +76,15 @@ def available_cards(model: Any) -> list[Card]:
 
 
 def questions_for(cards: list[Card], question_class: Any) -> list[Any]:
-    return [
-        getattr(question_class, card.kind)(card.text, card.options, task=card.task)
-        if card.kind == "choice"
-        else getattr(question_class, card.kind)(card.text, task=card.task)
-        for card in cards
-    ]
+    questions = []
+    for card in cards:
+        kwargs: dict[str, Any] = {"task": card.task}
+        if card.seconds is not None:
+            kwargs["seconds"] = card.seconds
+        constructor = getattr(question_class, card.kind)
+        questions.append(
+            constructor(card.text, card.options, **kwargs)
+            if card.kind == "choice"
+            else constructor(card.text, **kwargs)
+        )
+    return questions

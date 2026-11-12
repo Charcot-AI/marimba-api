@@ -8,7 +8,7 @@ from time import perf_counter
 from typing import Any
 
 from ._diarization import TASKS
-from .audio import AudioArray, Mask
+from .audio import SAMPLE_RATE, AudioArray, Mask
 from .capabilities import Capability
 from .decision import Decision
 from .language import LANGUAGES, option_probabilities, resolve_options
@@ -19,9 +19,20 @@ from .questions import Question, UnsupportedQuestion, matches_template
 from .readout import sigmoid
 from .runtime import RuntimeInfo, select_backend, synchronize
 from .weights import load_manifest
-from .windows import EncodedWindow, WindowSnapshot
+from .windows import EncodedWindow, WindowSnapshot, decoder_snapshot
 
-_CANONICAL_VAD_PROMPT = "Há fala humana neste áudio?"
+_CANONICAL_VAD_STEM = "Há fala humana neste áudio?"
+# Fitted on the validation calibration split for the shipped head.
+_VAD_TEMPERATURE = 0.6540604692061299
+# Fitted on the validation calibration split for the two-second tail.
+_VAD_TAIL_TEMPERATURE = 0.7869027171235091
+
+
+def _render_vad_prompt(stem: str) -> str:
+    return (
+        f"<|im_start|>user\n{stem}\nA. sim\nB. não\n"
+        "Responda só com a letra da opção.<|im_end|>\n<|im_start|>assistant\n"
+    )
 
 
 class PretrainedMarimba(Marimba):
@@ -56,7 +67,10 @@ class PretrainedMarimba(Marimba):
                 cap,
                 status=lane["status"],
                 evaluation=(
-                    cap.evaluation
+                    (
+                        f"{cap.evaluation}; temperature-scaled on validation; "
+                        "default threshold 0.225 from validation"
+                    )
                     if task == "voice_activity"
                     else lane.get("evaluation", cap.evaluation)
                 ),
@@ -128,8 +142,16 @@ class PretrainedMarimba(Marimba):
             if not group:
                 continue
             if lane == "decoder":
+                aligned = (
+                    decoder_snapshot(encoded.snapshot)
+                    if any(self._capabilities[q.task or ""].status != "unavailable" for q in group)
+                    else encoded.snapshot
+                )
+                decoder_encoded = (
+                    encoded if aligned is encoded.snapshot else self._encode_snapshot(aligned)
+                )
                 with self._decoder_lock:
-                    decisions = self._timed_decide(encoded, group)
+                    decisions = self._timed_decide(decoder_encoded, group)
             else:
                 decisions = self._timed_decide(encoded, group)
             results.update(zip(group, decisions, strict=True))
@@ -159,6 +181,8 @@ class PretrainedMarimba(Marimba):
                 "Expected a nonempty right-aligned eight-second window with a valid mask"
             )
         snapshot = WindowSnapshot(window, mask, start_s, end_s)
+        if all(self.lane(q) == "decoder" for q in questions):
+            snapshot = decoder_snapshot(snapshot)
         active = any(self._capabilities[q.task or ""].status != "unavailable" for q in questions)
         encoded = self.encode(snapshot) if active else EncodedWindow(snapshot)
         return self.decide_encoded(encoded, questions)
@@ -217,30 +241,43 @@ class PretrainedMarimba(Marimba):
             if cap.status != "unavailable":
                 if task == "turn_end" and turn is not None:
                     score, probability = map(float, turn)
-                    value = probability
+                    value = (
+                        probability
+                        if question.kind == "score"
+                        else probability >= question.resolved_threshold
+                    )
                 elif task == "language":
                     probabilities = option_probabilities(language, resolved[question])
                     value = max(probabilities, key=probabilities.__getitem__)
                     probability = probabilities[value]
                 elif task == "term":
                     probability = score = float(self._engine.term_score(question.term, hypotheses))
-                    value = probability >= question.threshold
+                    value = probability >= question.resolved_threshold
                 elif (
                     task == "pii" and pii_transcript is not None and self._pii_detector is not None
                 ):
                     value = bool(self._pii_detector(pii_transcript))
                 elif task == "voice_activity":
-                    prompt = (
-                        _CANONICAL_VAD_PROMPT
+                    stem = (
+                        _CANONICAL_VAD_STEM
                         if matches_template("voice_activity", question.text)
                         else question.text
                     )
-                    score = float(self._engine.head_score(features, mask, prompt))
-                    probability = sigmoid(score)
+                    head_mask = mask
+                    temperature = _VAD_TEMPERATURE
+                    if question.seconds is not None:
+                        head_mask = mask.copy()
+                        tail_samples = int(question.seconds * SAMPLE_RATE)
+                        head_mask[:-tail_samples] = False
+                        temperature = _VAD_TAIL_TEMPERATURE
+                    score = float(
+                        self._engine.head_score(features, head_mask, _render_vad_prompt(stem))
+                    )
+                    probability = sigmoid(score / temperature)
                     value = (
                         probability
                         if question.kind == "score"
-                        else probability >= question.threshold
+                        else probability >= question.resolved_threshold
                     )
                 elif task in diarization:
                     distribution = diarization[task]
@@ -256,7 +293,7 @@ class PretrainedMarimba(Marimba):
                         value = (
                             probability
                             if question.kind == "score"
-                            else probability >= question.threshold
+                            else probability >= question.resolved_threshold
                         )
             decisions.append(
                 Decision(
@@ -267,8 +304,10 @@ class PretrainedMarimba(Marimba):
                     probability,
                     probabilities,
                     score,
-                    question.threshold,
-                    start_s,
+                    question.resolved_threshold,
+                    max(start_s, end_s - question.seconds)
+                    if question.seconds is not None
+                    else start_s,
                     end_s,
                     status=cap.status,
                 )

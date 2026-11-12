@@ -100,8 +100,9 @@ and held-out Arabic, Hindi, Korean and Russian prompts; recognized questions use
 canonical prompt; custom wording passes through unchanged. It uses L9 features
 interpolated to 100 frames from the same encoder pass as turn-end.
 The head uses the physical valid-frame mask, a frozen Whisper question embedding, a small
-text tower, grapheme-encoded English `yes`, and sigmoid on the head logit. Its probabilities
-are not additionally temperature-calibrated.
+text tower, grapheme-encoded Portuguese `sim`, and sigmoid on the head logit.
+Probabilities are temperature-scaled on validation; the default threshold is 0.225.
+The validated two-second tail option is documented in [capabilities](docs/capabilities.md).
 
 Three L12 encoder readouts share that same pass:
 
@@ -123,8 +124,10 @@ the package does not include a detector. See [PII questions](docs/capabilities.m
 Empty real-model audio raises an error; silence with valid samples is supported.
 
 `marimba bench --per-question --audio public_speech.wav --json bench.json` measures
-the four demo cards, each card alone, and the encoder. Warmup and model
-loading are excluded. Language options are `en`, `pt`, and `es`.
+the four fixed benchmark questions (turn_end, voice_activity, language, and term),
+each question alone, and the encoder. The live demo also shows speaker_change and
+speaker_count cards. Warmup and model loading are excluded.
+Language options are `en`, `pt`, and `es`.
 
 See [lane scheduling and long context](docs/scheduling.md) for immutable snapshots,
 reusable encoded windows, independent encoder/decoder locks, decoder cadence,
