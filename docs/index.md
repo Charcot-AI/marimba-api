@@ -1,7 +1,7 @@
 # Marimba documentation
 
 Marimba returns typed decisions over audio windows using frozen model weights.
-This is a pre-release interface, not a real-time service guarantee.
+No real-time service guarantee is provided.
 
 1. [Quickstart](quickstart.md)
 2. [Audio inputs](audio.md)
