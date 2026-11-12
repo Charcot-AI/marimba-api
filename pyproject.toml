@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "marimba-audio"
-version = "0.1.0"
+version = "0.1.1"
 description = "Question-driven audio decisions with portable inference interfaces."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -19,6 +19,7 @@ datasets = ["datasets>=3"]
 demo = ["gradio>=5"]
 server = ["fastapi>=0.115", "uvicorn>=0.30"]
 pipecat = ["pipecat-ai>=1.15,<2; python_version >= '3.11'"]
+livekit = ["livekit-agents>=1.6.3,<2"]
 
 [project.scripts]
 marimba = "marimba.cli:main"
@@ -53,7 +54,7 @@ ignore_errors = true
 module = ["soundfile", "soxr", "torch", "torch.*", "transformers", "onnxruntime", "qwen_asr", "qwen_asr.*", "runpod"]
 ignore_missing_imports = true
 [[tool.mypy.overrides]]
-module = ["pipecat.*"]
+module = ["pipecat.*", "livekit.*"]
 ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = ["marimba.integrations.pipecat"]
