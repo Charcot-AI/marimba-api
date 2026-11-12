@@ -6,6 +6,8 @@ Pre-release. The inference package, live demo, framework integrations and public
 
 An open-source project by charcot.ai
 
+Try the [Vapi custom-transcriber example](examples/vapi/README.md).
+
 ## Documentation and release scaffold
 
 Start with the [documentation index](docs/index.md), [executed notebooks](notebooks/README.md),
