@@ -9,3 +9,8 @@
 !.runpod/handler.py
 **/__pycache__/
 **/*.pyc
+!cog/
+!cog/predict.py
+!cog/requirements.txt
+!.cog/
+!.cog/**
