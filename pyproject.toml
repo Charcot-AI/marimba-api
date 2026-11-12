@@ -24,6 +24,7 @@ marimba = "marimba.cli:main"
 
 [project.urls]
 Repository = "https://github.com/Charcot-AI/marimba-api"
+Documentation = "https://github.com/Charcot-AI/marimba-api/tree/main/docs"
 
 [dependency-groups]
 dev = ["pytest>=8.3", "ruff>=0.8", "mypy>=1.13"]
