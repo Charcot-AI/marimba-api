@@ -1,6 +1,7 @@
 import base64
 import io
 import json
+import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -93,6 +94,90 @@ def test_invalid_questions(client: TestClient, text: str) -> None:
     response = client.post("/v1/chat/completions", json=body(text))
     assert response.status_code == 400
     assert response.json()["error"]["type"] == "invalid_request_error"
+
+
+MARKER = "synthetic-marker-xyz"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        f'{{"kind": "noul", "text": "{MARKER}?", "task": "{MARKER}"}}',
+        f'{{"kind": "choice", "text": "Is someone speaking?", "options": ["{MARKER}", "b"]}}',
+        f'{{"kind": "noul", "text": "{MARKER}?", "task": "turn_end"}}',
+        f'{{"kind": "noul", "text": "Did someone say it?", "task": "term", "x": "{MARKER}"}}',
+        '{"kind": "noul", "text": "Did someone say it?", "task": "term"}',
+        """{"kind": "noul", "text": "Did someone say '...'?", "task": "term"}""",
+        f'{{"kind": "noul", "text": "Is someone speaking?", "options": ["{MARKER}"]}}',
+        f'{{"kind": "{MARKER}", "text": "Is someone speaking?"}}',
+        '{"kind": "noul", "text": "Is someone speaking?", "threshold": 2}',
+        f'{{"kind": "choice", "text": "Which language?", "options": ["{MARKER}"]}}',
+        f'{{"questions": "{MARKER}"}}',
+        "[1, 2]",
+        "[]",
+        f"language? en, {MARKER}",
+        "language? en, English",
+        f"{MARKER}?",
+        "\n".join(["speech?"] * 9),
+    ],
+)
+def test_invalid_questions_are_rejected_without_logging_content(
+    client: TestClient, caplog: pytest.LogCaptureFixture, text: str
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    response = client.post("/v1/chat/completions", json=body(text))
+    assert response.status_code == 400
+    error = response.json()["error"]
+    assert error["type"] == "invalid_request_error"
+    assert error["code"] == "invalid_request_error"
+    assert MARKER not in error["message"]
+    assert not [r for r in caplog.records if r.exc_info or r.levelno >= logging.WARNING]
+    assert MARKER not in caplog.text
+
+
+@pytest.mark.parametrize(
+    "request_body",
+    [
+        body("speech?", model=MARKER),
+        body("speech?", stream=MARKER),
+        body("speech?", data=base64.b64encode(MARKER.encode()).decode()),
+        {"model": "charcot-ai/marimba", "messages": [{"role": "user", "content": [MARKER]}]},
+    ],
+)
+def test_request_errors_do_not_echo_content(
+    client: TestClient, caplog: pytest.LogCaptureFixture, request_body: dict[str, Any]
+) -> None:
+    caplog.set_level(logging.DEBUG)
+    response = client.post("/v1/chat/completions", json=request_body)
+    assert 400 <= response.status_code < 500
+    assert MARKER not in response.text
+    assert not [r for r in caplog.records if r.exc_info]
+    assert MARKER not in caplog.text
+
+
+class FailingMarimba(FakeMarimba):
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        raise RuntimeError(MARKER)
+
+
+@pytest.mark.parametrize("stream", [False, True])
+def test_inference_failure_logs_type_only(caplog: pytest.LogCaptureFixture, stream: bool) -> None:
+    caplog.set_level(logging.DEBUG)
+    failing = TestClient(create_app(FailingMarimba()), raise_server_exceptions=False)
+    response = failing.post("/v1/chat/completions", json=body("speech?", stream=stream))
+    assert MARKER not in response.text
+    if stream:
+        assert response.status_code == 200
+        assert '"server_error"' in response.text
+        assert "[DONE]" not in response.text
+    else:
+        assert response.status_code == 500
+        assert response.json()["error"]["type"] == "server_error"
+    assert not [r for r in caplog.records if r.exc_info]
+    assert MARKER not in caplog.text
+    assert "Request inference failed: RuntimeError" in caplog.text
+    ok = failing.get("/health")
+    assert ok.status_code == 200
 
 
 def test_token_accounting() -> None:

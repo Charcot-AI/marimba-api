@@ -78,8 +78,12 @@ kind. For full control, send a JSON question object, a JSON list, or
 {"kind": "choice", "text": "Which language is spoken?", "options": ["fr", "de"]}
 ```
 
-Questions for tasks this deployment cannot answer (for example `pii` without a
-detector) return `400`.
+Every question is validated before the model runs. Unknown tasks, kinds a task does
+not support, malformed JSON questions, `options` on non-choice questions, unsupported
+or repeated language options, term questions without a quoted term, and tasks this
+deployment cannot answer (for example `pii` without a detector) return `400`. The
+error message names the question by position and never repeats its text, options, or
+task string.
 
 ## Response
 
@@ -95,7 +99,13 @@ Streaming (`"stream": true`) returns `text/event-stream`: an SSE comment while t
 model runs, one chunk carrying the whole content, a final chunk with
 `finish_reason: "stop"` and `usage`, then `data: [DONE]`. Errors use the OpenAI shape
 `{"error": {"message", "type", "code"}}` with `400`, `401`, `404` (unknown model),
-`413`, or `429` (all `--max-concurrency` slots busy; retry).
+`413`, or `429` (all `--max-concurrency` slots busy; retry). An unexpected failure
+returns `500` with a generic message, or a final `data: {"error": ...}` event when
+streaming.
+
+The server does not log request content. Uvicorn access logs record the method,
+path, status, and client address; an unexpected failure logs only the exception type,
+without a traceback.
 
 ## Token accounting
 

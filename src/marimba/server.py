@@ -9,6 +9,7 @@ import base64
 import binascii
 import hmac
 import json
+import logging
 import math
 import re
 import threading
@@ -25,9 +26,10 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.background import BackgroundTask
 
 from .audio import SAMPLE_RATE, AudioArray, decode_audio
-from .capabilities import DEFAULT_CAPABILITIES
+from .capabilities import DEFAULT_CAPABILITIES, Capability
 from .decision import Decision
-from .language import LANGUAGES
+from .language import LANGUAGES, resolve_options
+from .lexical import normalize
 from .model import Marimba
 from .questions import Question, UnsupportedQuestion
 
@@ -53,6 +55,8 @@ _SHORTHANDS = {
     "speaker count?": ("speaker_count", "How many speakers are there?"),
 }
 _QUESTION_KEYS = {"kind", "text", "options", "task", "threshold"}
+
+logger = logging.getLogger(__name__)
 
 
 class RequestError(ValueError):
@@ -108,12 +112,14 @@ def _parse_object(item: Any) -> Question:
         raise RequestError("Each JSON question needs at least kind and text")
     extra = set(item) - _QUESTION_KEYS
     if extra:
-        raise RequestError(f"Unknown question fields: {', '.join(sorted(extra))}")
+        raise RequestError(f"Unknown question fields; allowed: {', '.join(sorted(_QUESTION_KEYS))}")
     options = item.get("options")
     if options is not None and (
         not isinstance(options, list) or not all(isinstance(o, str) for o in options)
     ):
         raise RequestError("options must be a list of strings")
+    if options is not None and item["kind"] != "choice":
+        raise RequestError("options are only allowed for choice questions")
     threshold = item.get("threshold", 0.5)
     if isinstance(threshold, bool) or not isinstance(threshold, (int, float)):
         raise RequestError("threshold must be a number")
@@ -136,6 +142,8 @@ def parse_questions(text: str) -> list[Question]:
     source = text.strip()
     if not source:
         raise RequestError("A text part with at least one question is required")
+    items: list[Any]
+    parse_item: Any
     try:
         if source[0] in "[{":
             try:
@@ -145,16 +153,55 @@ def parse_questions(text: str) -> list[Question]:
             if isinstance(payload, Mapping) and "questions" in payload:
                 payload = payload["questions"]
             items = payload if isinstance(payload, list) else [payload]
-            questions = [_parse_object(item) for item in items]
+            parse_item = _parse_object
         else:
-            questions = [_parse_line(line.strip()) for line in source.splitlines() if line.strip()]
+            items = [line.strip() for line in source.splitlines() if line.strip()]
+            parse_item = _parse_line
     except RequestError:
         raise
-    except (UnsupportedQuestion, ValueError) as error:
-        raise RequestError(str(error)) from error
-    if not questions or len(questions) > MAX_QUESTIONS:
+    if not items or len(items) > MAX_QUESTIONS:
         raise RequestError(f"Send between one and {MAX_QUESTIONS} questions")
+    questions = []
+    for index, item in enumerate(items, 1):
+        try:
+            questions.append(parse_item(item))
+        except RequestError as error:
+            raise RequestError(f"Question {index}: {error}") from None
+        except (UnsupportedQuestion, ValueError) as error:
+            raise RequestError(f"Question {index}: {_question_message(error)}") from None
     return questions
+
+
+def _question_message(error: ValueError) -> str:
+    # Question echoes unmatched text; error bodies never repeat request content.
+    if str(error).startswith("No routing template"):
+        return "no routing template matches the question text; pass task explicitly"
+    return str(error)
+
+
+def validate_questions(questions: list[Question], capabilities: Mapping[str, Capability]) -> None:
+    """Reject questions the model would refuse at inference time, before it runs."""
+    for index, question in enumerate(questions, 1):
+        cap = capabilities.get(question.task or "")
+        if cap is None:
+            supported = ", ".join(sorted(capabilities))
+            raise RequestError(f"Question {index}: unknown task; supported tasks: {supported}")
+        if cap.status == "unavailable":
+            raise RequestError(f"Question {index}: task {cap.task} is unavailable here")
+        if question.kind not in cap.kinds:
+            raise RequestError(
+                f"Question {index}: task {cap.task} supports kinds {', '.join(cap.kinds)}"
+            )
+        if cap.task == "term" and not normalize(question.term or ""):
+            raise RequestError(f"Question {index}: term questions need a nonempty quoted term")
+        if cap.task == "language":
+            try:
+                resolve_options(question.options or ())
+            except ValueError:
+                raise RequestError(
+                    f"Question {index}: language options must be distinct supported language "
+                    "codes or names, or other"
+                ) from None
 
 
 def decode_input_audio(part: Any) -> AudioArray:
@@ -183,7 +230,7 @@ def decode_input_audio(part: Any) -> AudioArray:
         else:
             samples = decode_audio(raw)
     except (RuntimeError, ValueError) as error:
-        raise RequestError(f"Could not decode {audio_format} audio: {error}") from error
+        raise RequestError(f"Could not decode {audio_format} audio") from error
     if not samples.size:
         raise RequestError("Audio is empty")
     if samples.size / SAMPLE_RATE > MAX_AUDIO_SECONDS:
@@ -209,8 +256,10 @@ def parse_request(body: Any, model_id: str) -> ParsedRequest:
         raise RequestError("Request body must be a JSON object")
     if body.get("model", model_id) != model_id:
         raise RequestError(
-            f"Model {body.get('model')!r} is not served here", status=404, code="model_not_found"
+            "The requested model is not served here", status=404, code="model_not_found"
         )
+    if not isinstance(body.get("stream", False), bool):
+        raise RequestError("stream must be a boolean")
     if body.get("n", 1) != 1:
         raise RequestError("Only n=1 is supported")
     messages = body.get("messages")
@@ -353,6 +402,21 @@ def _error(message: str, status: int, code: str) -> JSONResponse:
     )
 
 
+_INTERNAL_ERROR = {
+    "error": {"message": "Internal server error", "type": "server_error", "code": "server_error"}
+}
+
+
+def _log_failure(stage: str, error: Exception) -> None:
+    # Exception messages and tracebacks can carry request content, so log the type only.
+    logger.error("Request %s failed: %s", stage, type(error).__name__)
+
+
+def _internal_error(stage: str, error: Exception) -> JSONResponse:
+    _log_failure(stage, error)
+    return JSONResponse(_INTERNAL_ERROR, status_code=500)
+
+
 def create_app(model: Marimba, config: ServerConfig | None = None) -> FastAPI:
     """Build the FastAPI app serving ``/v1/chat/completions`` and ``/v1/models``."""
     settings = config or ServerConfig()
@@ -367,14 +431,7 @@ def create_app(model: Marimba, config: ServerConfig | None = None) -> FastAPI:
 
     def parse(body: Any) -> ParsedRequest:
         parsed = parse_request(body, settings.model_id)
-        capabilities = model.capabilities
-        unavailable = [
-            str(q.task)
-            for q in parsed.questions
-            if capabilities[q.task or ""].status == "unavailable"
-        ]
-        if unavailable:
-            raise RequestError(f"Unavailable tasks in this deployment: {', '.join(unavailable)}")
+        validate_questions(parsed.questions, model.capabilities)
         return parsed
 
     def answer(parsed: ParsedRequest) -> tuple[str, dict[str, Any]]:
@@ -407,6 +464,8 @@ def create_app(model: Marimba, config: ServerConfig | None = None) -> FastAPI:
             parsed = await run_in_threadpool(parse, body)
         except RequestError as error:
             return _error(str(error), error.status, error.code)
+        except Exception as error:
+            return _internal_error("validation", error)
         if not slots.acquire(blocking=False):
             return _error("Server is at capacity; retry shortly", 429, "rate_limited")
         completion_id = f"chatcmpl-{uuid.uuid4().hex}"
@@ -415,6 +474,8 @@ def create_app(model: Marimba, config: ServerConfig | None = None) -> FastAPI:
         if not parsed.stream:
             try:
                 content, counts = await run_in_threadpool(answer, parsed)
+            except Exception as error:
+                return _internal_error("inference", error)
             finally:
                 slots.release()
             return JSONResponse(
@@ -444,7 +505,12 @@ def create_app(model: Marimba, config: ServerConfig | None = None) -> FastAPI:
             try:
                 # An SSE comment reaches the client before inference finishes.
                 yield ": processing\n\n"
-                content, counts = await run_in_threadpool(answer, parsed)
+                try:
+                    content, counts = await run_in_threadpool(answer, parsed)
+                except Exception as error:
+                    _log_failure("inference", error)
+                    yield f"data: {json.dumps(_INTERNAL_ERROR)}\n\n"
+                    return
                 delta = {"role": "assistant", "content": content}
                 first = {**chunk, "choices": [{"index": 0, "delta": delta, "finish_reason": None}]}
                 yield f"data: {json.dumps(first)}\n\n"
