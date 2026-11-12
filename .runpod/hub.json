@@ -1,0 +1,26 @@
+{
+  "title": "Marimba Decoder",
+  "description": "Language identification and term detection from audio with Marimba.",
+  "type": "serverless",
+  "category": "audio",
+  "config": {
+    "runsOn": "GPU",
+    "gpuCount": 1,
+    "gpuIds": "ADA_24,AMPERE_48",
+    "containerDiskInGb": 30,
+    "allowedCudaVersions": ["12.8"],
+    "env": [
+      {
+        "key": "HF_TOKEN",
+        "input": {
+          "name": "Hugging Face token",
+          "type": "string",
+          "description": "Optional read token, needed only when model access requires authentication.",
+          "default": "",
+          "required": false,
+          "advanced": true
+        }
+      }
+    ]
+  }
+}
