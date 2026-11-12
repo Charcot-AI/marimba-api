@@ -7,7 +7,7 @@ An open-source project by charcot.ai. [Source code](https://github.com/Charcot-A
 ## Documentation and release scaffold
 
 Start with the [documentation index](docs/index.md), [executed notebooks](notebooks/README.md),
-[model card](hf/README.md), or [local-only Space scaffold](space/README.md).
+[model card](hf/README.md), or [Gradio Space](space/README.md).
 Decoder context above eight seconds is **unvalidated**. No real-time guarantee is
 claimed; see [benchmarks](docs/benchmarks.md) for measured Mac CPU latency. Converted
 head/readout weights are Apache-2.0; see the model card.

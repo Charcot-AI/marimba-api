@@ -24,6 +24,7 @@ node_modules/
 *.pt
 *.safetensors
 *.onnx
+!space/examples/*.wav
 
 # OS
 .DS_Store
