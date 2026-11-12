@@ -103,6 +103,8 @@ def test_space_examples_are_eight_second_pcm():
     manifest = json.loads((examples / "manifest.json").read_text())
     assert len(manifest["scenes"]) == 8
     for scene in manifest["scenes"]:
+        assert scene["end_sample"] == scene["segments"][-1]["end_sample"] + 4800
+        assert scene["post_speech_samples"] == 4800
         path = examples / f"{scene['id']}.wav"
         info = sf.info(path)
         assert info.samplerate == 16000

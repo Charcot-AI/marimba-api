@@ -52,13 +52,16 @@ def main() -> None:
         "voices": [voice["name"] for voice in source["voices"].values()],
         "permission": "Generated on a paid plan permitting commercial use, as confirmed by owner.",
         "processing": (
-            "Final eight seconds per scene; left-pad shorter scenes with digital silence."
+            "End every clip at the final speech segment end plus 0.3 seconds; "
+            "take the last eight seconds and left-pad shorter scenes with digital silence."
         ),
         "scenes": [],
     }
     for name in SCENE_IDS:
         scene = scenes[name]
-        start, end = scene["start_sample"], scene["end_sample"]
+        start = scene["start_sample"]
+        speech_end = scene["segments"][-1]["end_sample"]
+        end = speech_end + 4800
         path = EXAMPLES / f"{name}.wav"
         sf.write(path, cut_scene(audio, start, end), 16000, subtype="PCM_16")
         manifest["scenes"].append(
@@ -67,10 +70,16 @@ def main() -> None:
                 "event": scene["event"],
                 "start_sample": start,
                 "end_sample": end,
+                "original_scene_end_sample": scene["end_sample"],
+                "last_speech_end_sample": speech_end,
+                "post_speech_samples": 4800,
                 "left_padding_samples": max(0, 128000 - (end - start)),
                 "trimmed_start_samples": max(0, end - start - 128000),
                 "segments": [
-                    {key: segment[key] for key in ("voice_name", "language", "text")}
+                    {
+                        key: segment[key]
+                        for key in ("voice_name", "language", "text", "start_sample", "end_sample")
+                    }
                     for segment in scene["segments"]
                 ],
                 "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),

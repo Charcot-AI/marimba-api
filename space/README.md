@@ -86,11 +86,11 @@ Transcripts, source sample intervals, source SHA256, and clip hashes are recorde
 in `examples/manifest.json`. All eight scenes are included without selecting by
 model output. These are functionality examples, not an accuracy benchmark.
 
-Each clip retains the scene's final eight seconds, including its original trailing
-silence. Short scenes are left-padded with digital silence so speaker tasks receive
-a full eight-second window; the 8.26-second two-speaker scene loses its first 0.26 s.
-No timing is selected from model predictions. Speech reads only the final two
-seconds, so false is expected when those two seconds contain only trailing silence.
+Every clip ends at the final speech segment's end plus 0.3 seconds, using the
+source manifest's sample timings. The last eight seconds are retained; shorter
+scenes are left-padded with digital silence so speaker tasks receive a full
+eight-second window. The same rule applies to every scene, without selecting
+timings from model predictions.
 
 Reproduce the cuts from the original assembly and its timing manifest:
 

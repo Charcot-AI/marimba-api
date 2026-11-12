@@ -9,150 +9,196 @@
     "Bella - Professional, Bright, Warm"
   ],
   "permission": "Generated on a paid plan permitting commercial use, as confirmed by owner.",
-  "processing": "Final eight seconds per scene; left-pad shorter scenes with digital silence.",
+  "processing": "End every clip at the final speech segment end plus 0.3 seconds; take the last eight seconds and left-pad shorter scenes with digital silence.",
   "scenes": [
     {
       "id": "01_turn_end",
       "event": "turn ended",
       "start_sample": 0,
-      "end_sample": 114560,
-      "left_padding_samples": 13440,
+      "end_sample": 71360,
+      "original_scene_end_sample": 114560,
+      "last_speech_end_sample": 66560,
+      "post_speech_samples": 4800,
+      "left_padding_samples": 56640,
       "trimmed_start_samples": 0,
       "segments": [
         {
           "voice_name": "Sarah",
           "language": "en",
-          "text": "Thanks for joining today. That covers everything I wanted to share with you."
+          "text": "Thanks for joining today. That covers everything I wanted to share with you.",
+          "start_sample": 0,
+          "end_sample": 66560
         }
       ],
-      "sha256": "8a68e30cfd6bd358a1c92acd80e482f3fdc0bd9d12866a6fe76941c82834b434"
+      "sha256": "14b429013d953cd1542b495d3573102fe7884ef8ca6be6f7b9a995262c8863f4"
     },
     {
       "id": "02_turn_not_ended",
       "event": "turn cut off mid-sentence",
       "start_sample": 146560,
-      "end_sample": 261760,
-      "left_padding_samples": 12800,
+      "end_sample": 234560,
+      "original_scene_end_sample": 261760,
+      "last_speech_end_sample": 229760,
+      "post_speech_samples": 4800,
+      "left_padding_samples": 40000,
       "trimmed_start_samples": 0,
       "segments": [
         {
           "voice_name": "Sarah",
           "language": "en",
-          "text": "So the next thing I wanted to mention is that the, um, the"
+          "text": "So the next thing I wanted to mention is that the, um, the",
+          "start_sample": 146560,
+          "end_sample": 229760
         }
       ],
-      "sha256": "30a629282133c363b67e2e5b77b3c2fb16270904c9c8de470c50096762b65dc9"
+      "sha256": "bec8122f4d8ae3d1d39a84b90356ee4f264acc0619d5dc2815f2ccdf3fbda0dd"
     },
     {
       "id": "03_term",
       "event": "word detected",
       "start_sample": 293760,
-      "end_sample": 375040,
-      "left_padding_samples": 46720,
+      "end_sample": 363840,
+      "original_scene_end_sample": 375040,
+      "last_speech_end_sample": 359040,
+      "post_speech_samples": 4800,
+      "left_padding_samples": 57920,
       "trimmed_start_samples": 0,
       "segments": [
         {
           "voice_name": "Sarah",
           "language": "en",
-          "text": "Last weekend I finally bought a marimba for the music studio."
+          "text": "Last weekend I finally bought a marimba for the music studio.",
+          "start_sample": 293760,
+          "end_sample": 359040
         }
       ],
-      "sha256": "55f61498265d82a58dbbb54ffbc329775d9f779da94a9b2a3fb27e17bb7303f9"
+      "sha256": "eb69dd43adcda28d01aab5f0d2ee908b44367183631f14f4209d5954fc501e28"
     },
     {
       "id": "04_near_term",
       "event": "near-sounding words, not the term",
       "start_sample": 407040,
-      "end_sample": 501120,
-      "left_padding_samples": 33920,
+      "end_sample": 489920,
+      "original_scene_end_sample": 501120,
+      "last_speech_end_sample": 485120,
+      "post_speech_samples": 4800,
+      "left_padding_samples": 45120,
       "trimmed_start_samples": 0,
       "segments": [
         {
           "voice_name": "Sarah",
           "language": "en",
-          "text": "We walked along the marina, ate some mariscos, and listened to a maraca band."
+          "text": "We walked along the marina, ate some mariscos, and listened to a maraca band.",
+          "start_sample": 407040,
+          "end_sample": 485120
         }
       ],
-      "sha256": "99c82a4b924bff8e1419a0425a80c047661075db04e49d3f1cdc28d3a0d400b8"
+      "sha256": "2c8f73be9056299b6fd8e28b126e970f70918c485899c114d68da2a937cb4fd3"
     },
     {
       "id": "05_speaker_change",
       "event": "speaker changed",
       "start_sample": 533120,
-      "end_sample": 665280,
-      "left_padding_samples": 0,
-      "trimmed_start_samples": 4160,
+      "end_sample": 654080,
+      "original_scene_end_sample": 665280,
+      "last_speech_end_sample": 649280,
+      "post_speech_samples": 4800,
+      "left_padding_samples": 7040,
+      "trimmed_start_samples": 0,
       "segments": [
         {
           "voice_name": "Sarah",
           "language": "en",
-          "text": "I think the schedule works well for everyone on the team."
+          "text": "I think the schedule works well for everyone on the team.",
+          "start_sample": 533120,
+          "end_sample": 585600
         },
         {
           "voice_name": "George",
           "language": "en",
-          "text": "I agree, and I can send the final version this afternoon."
+          "text": "I agree, and I can send the final version this afternoon.",
+          "start_sample": 590400,
+          "end_sample": 649280
         }
       ],
-      "sha256": "e679f4d613572aa3525cdf1a141d0cf88c319a820fcd3ac2860947bc4f33bb80"
+      "sha256": "271caf4a15bae8ed93f6cbbec3704c11dcbc2992201ac86b66ae43046b15c1ba"
     },
     {
       "id": "06_language_change",
       "event": "new language, same speaker",
       "start_sample": 697280,
-      "end_sample": 791360,
-      "left_padding_samples": 33920,
+      "end_sample": 780160,
+      "original_scene_end_sample": 791360,
+      "last_speech_end_sample": 775360,
+      "post_speech_samples": 4800,
+      "left_padding_samples": 45120,
       "trimmed_start_samples": 0,
       "segments": [
         {
           "voice_name": "George",
           "language": "es",
-          "text": "Ahora voy a seguir hablando en espa\u00f1ol durante unos segundos, sin cambiar de voz."
+          "text": "Ahora voy a seguir hablando en espa\u00f1ol durante unos segundos, sin cambiar de voz.",
+          "start_sample": 697280,
+          "end_sample": 775360
         }
       ],
-      "sha256": "c7af31bf68d2b13c6f69f8e8c4bc9b82e9cabb91ca13fad04c1516869e317c95"
+      "sha256": "94b0405deb58721db675bcd615e57538afb8f681bff3d022ac8cb762b87441d0"
     },
     {
       "id": "07_language_pt",
       "event": "new language, same speaker",
       "start_sample": 823360,
-      "end_sample": 908480,
-      "left_padding_samples": 42880,
+      "end_sample": 897280,
+      "original_scene_end_sample": 908480,
+      "last_speech_end_sample": 892480,
+      "post_speech_samples": 4800,
+      "left_padding_samples": 54080,
       "trimmed_start_samples": 0,
       "segments": [
         {
           "voice_name": "George",
           "language": "pt",
-          "text": "E agora eu continuo falando em portugu\u00eas, com a mesma voz de antes."
+          "text": "E agora eu continuo falando em portugu\u00eas, com a mesma voz de antes.",
+          "start_sample": 823360,
+          "end_sample": 892480
         }
       ],
-      "sha256": "1fc56d955d3965e2528ef60d83e1c49f14adcbbc4be4bc2bd4b53e1fcae374a0"
+      "sha256": "ea114950aea4f3005be886d3b0a8e08273ad0cfdadfc9e14b1cd4a31bb2e0e6f"
     },
     {
       "id": "08_three_speakers",
       "event": "three speakers",
       "start_sample": 940480,
-      "end_sample": 1039040,
-      "left_padding_samples": 29440,
+      "end_sample": 1027840,
+      "original_scene_end_sample": 1039040,
+      "last_speech_end_sample": 1023040,
+      "post_speech_samples": 4800,
+      "left_padding_samples": 40640,
       "trimmed_start_samples": 0,
       "segments": [
         {
           "voice_name": "Sarah",
           "language": "en",
-          "text": "Who is bringing the slides?"
+          "text": "Who is bringing the slides?",
+          "start_sample": 940480,
+          "end_sample": 968640
         },
         {
           "voice_name": "George",
           "language": "en",
-          "text": "I can bring them."
+          "text": "I can bring them.",
+          "start_sample": 973440,
+          "end_sample": 990080
         },
         {
           "voice_name": "Bella - Professional, Bright, Warm",
           "language": "en",
-          "text": "And I will print the handouts."
+          "text": "And I will print the handouts.",
+          "start_sample": 994880,
+          "end_sample": 1023040
         }
       ],
-      "sha256": "ecbe0cc94562d573e9339e981132236e8b755aa4c15c05a3f8fb49613be42b36"
+      "sha256": "03e93e166160e198a1a5bf5c1356e80816bc7aedc4fdaaa634297ae25fb78097"
     }
   ]
 }
