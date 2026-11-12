@@ -4,6 +4,8 @@ Marimba: typed, calibrated decisions about short and streaming audio windows (ch
 
 An open-source project by charcot.ai. [Source code](https://github.com/Charcot-AI/marimba-api).
 
+Try the [Vapi custom-transcriber example](examples/vapi/README.md).
+
 ## Documentation and release scaffold
 
 Start with the [documentation index](docs/index.md), [executed notebooks](notebooks/README.md),
