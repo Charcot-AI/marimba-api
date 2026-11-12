@@ -26,7 +26,7 @@ app.innerHTML = `<div class="shell"><header><a class="brand" href="https://charc
 <section class="source" aria-label="Audio input"><div class="source-label"><span id="live-dot"></span><span id="source-name">INPUT / IDLE</span></div><canvas id="wave" width="720" height="72" aria-label="Live audio amplitude"></canvas><span id="clock">00:00</span><label class="file-button">Open audio<input type="file" id="file" accept="audio/*"></label><button id="start" class="primary">Start microphone ↗</button><button id="stop" disabled>Stop ■</button></section>
 <p id="status" role="status">Loading local model capabilities…</p>
 <div id="cards" class="cards" aria-label="Audio decision cards"></div><section id="transcript" class="transcript" hidden><div class="eyebrow">LIVE TRANSCRIPT / OPTIONAL ADAPTER</div><p id="words" aria-live="polite"></p></section>
-<footer><span id="runtime">LOCAL INFERENCE</span><span>8 s maximum / 250 ms ingest</span><span id="dropped">0 coalesced decisions</span><span id="utterance-drops">0 dropped utterances</span><span>Audio is not saved locally.</span></footer></div>`;
+<footer><span id="runtime">LOCAL INFERENCE</span><span>8 s maximum / 250 ms ingest</span><span id="dropped">0 coalesced decisions</span><span id="utterance-queue">0 QUEUED UTTERANCES</span><span>Audio is not saved locally.</span></footer></div>`;
 const $ = <T extends HTMLElement = HTMLElement>(selector: string) =>
   document.querySelector<T>(selector)!;
 const status = (text: string) => {
@@ -165,7 +165,7 @@ async function start(file?: File) {
     $('#words').replaceChildren();
     $('#clock').textContent = '00:00';
     $('#dropped').textContent = '0 coalesced decisions';
-    $('#utterance-drops').textContent = '0 dropped utterances';
+    $('#utterance-queue').textContent = '0 QUEUED UTTERANCES';
     status('Connecting to local inference…');
     try {
       context = new AudioContext({ sampleRate: 16000 });
@@ -202,7 +202,7 @@ async function start(file?: File) {
         window_end_at_ms?: number;
         decision_interval_ms: number;
         coalesced_hops: number;
-        dropped_utterances?: number;
+        queued_utterances: number;
         decisions: Decision[];
         lane: 'encoder' | 'decoder';
         tasks: string[];
@@ -225,7 +225,7 @@ async function start(file?: File) {
         return;
       }
       if (data.type !== 'update') return;
-      $('#utterance-drops').textContent = `${data.dropped_utterances ?? 0} dropped utterances`;
+      $('#utterance-queue').textContent = `${data.queued_utterances} QUEUED UTTERANCES`;
       const live = isRollingUpdate(data.lane, data.decisions);
       if (active && !stopping && (live || !config.cards.some((card) => card.lane !== 'decoder')))
         armTimeout();

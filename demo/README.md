@@ -81,10 +81,10 @@ Decoder questions use audio at the **start** of the clip with zero padding at th
 **end**, matching their evaluation alignment. Real internal silences are retained.
 No wall-clock review pause or longer review context is used. Hard 8 s chunk
 boundaries can split words; overlap and word alignment are not claimed here.
-Workers process utterances FIFO. While one utterance is running, only the newest
-pending utterance is retained; older pending utterances are dropped and counted
-in the footer. Active utterance chunks finish in order. No input audio is dropped
-from the live timeline by this decoder backpressure policy.
+Workers process utterances FIFO. While one utterance is running, all waiting
+utterances are retained in order and counted in the footer. Active utterance
+chunks finish in order. No input audio is dropped from the live timeline by this
+decoder backpressure policy.
 
 Each card shows its actual audio span, model time, observed update interval,
 received age and audio age. Turn/decoder results remain displayed until the next
@@ -102,7 +102,7 @@ dimmed. The shimmer follows the selected theme and stops with reduced motion.
 One rolling encoder worker, one turn worker and one decoder worker run separately.
 The model serializes encoder passes but does not hold the encoder lock during
 lexical decoding. Slow inference coalesces rolling decisions, not input packets.
-The footer counts skipped rolling ticks separately from dropped decoder utterances.
+The footer counts skipped rolling ticks separately from queued decoder utterances.
 If transport backs up, the app stops instead of silently losing continuity.
 A missing/duplicate sequence closes the session. The server accepts only loopback
 hosts and same-origin WebSockets. Do not publish it through a public tunnel.

@@ -246,7 +246,7 @@ def test_decision_echoes_its_capture_timestamp(client):
             "window_end_at_ms": 350.0,
             "decision_interval_ms": 250.0,
             "coalesced_hops": 0,
-            "dropped_utterances": 0,
+            "queued_utterances": 0,
             "decisions": [],
         }
         socket.send_bytes(frame(1, 350))

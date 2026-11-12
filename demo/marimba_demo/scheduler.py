@@ -80,8 +80,7 @@ class Scheduler:
             lane: asyncio.Event() for lane in ("encoder", "turn", "decoder")
         }
         self.turn_queue: deque[Work] = deque()
-        self.pending_utterance: list[Work] | None = None
-        self.dropped_utterances = 0
+        self.utterance_queue: deque[list[Work]] = deque()
         self.audio: npt.NDArray[np.float32] = np.empty(0, dtype=np.float32)
         self.audio_start = self.total = 0
         self.latest_capture = (0, 0.0)
@@ -130,11 +129,9 @@ class Scheduler:
             )
             self.changed["turn"].set()
         if self.reviews:
-            if self.pending_utterance is not None:
-                self.dropped_utterances += 1
-            self.pending_utterance = [
-                work(s, e) for s, e in utterance_chunks(segment.start, segment.end)
-            ]
+            self.utterance_queue.append(
+                [work(s, e) for s, e in utterance_chunks(segment.start, segment.end)]
+            )
             self.changed["decoder"].set()
 
     def ingest(self, frame: Frame) -> None:
@@ -280,7 +277,7 @@ class Scheduler:
                 else timestamp + 250,
                 "decision_interval_ms": interval * 1000,
                 "coalesced_hops": self.coalesced[lane],
-                "dropped_utterances": self.dropped_utterances,
+                "queued_utterances": len(self.utterance_queue),
                 "decisions": payloads,
             }
         )
@@ -340,8 +337,8 @@ class Scheduler:
         while not self.aborted:
             await event.wait()
             event.clear()
-            while self.pending_utterance is not None and not self.aborted:
-                utterance, self.pending_utterance = self.pending_utterance, None
+            while self.utterance_queue and not self.aborted:
+                utterance = self.utterance_queue.popleft()
                 tasks = [q.task for q in self.reviews]
                 await self.send(
                     {"type": "review_status", "tasks": tasks, "running": True}

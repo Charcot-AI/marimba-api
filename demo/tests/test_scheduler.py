@@ -296,20 +296,22 @@ def test_review_emits_language_before_term_and_finishes_language_status_first():
         )
         term = Question.noul('Was "marimba" spoken?', task="term")
         scheduler = Scheduler(OrderedModel(), [language, term], send, speech=timeline())
-        scheduler.pending_utterance = [
-            Work(
-                WindowSnapshot(
-                    np.zeros(128000, np.float32), np.ones(128000, bool), 0, 8
+        scheduler.utterance_queue.append(
+            [
+                Work(
+                    WindowSnapshot(
+                        np.zeros(128000, np.float32), np.ones(128000, bool), 0, 8
+                    ),
+                    (0, 0),
                 ),
-                (0, 0),
-            ),
-            Work(
-                WindowSnapshot(
-                    np.zeros(128000, np.float32), np.ones(128000, bool), 8, 16
+                Work(
+                    WindowSnapshot(
+                        np.zeros(128000, np.float32), np.ones(128000, bool), 8, 16
+                    ),
+                    (1, 250),
                 ),
-                (1, 250),
-            ),
-        ]
+            ]
+        )
         scheduler.finish()
         await asyncio.wait_for(scheduler.review(), 3)
 
@@ -397,7 +399,7 @@ def test_lagging_encoder_retains_complete_turn_and_utterance_windows():
             expected_turn = np.repeat(np.arange(2, 34, dtype=np.float32), 4000) / 32768
             np.testing.assert_array_equal(turn_snapshot.audio, expected_turn)
 
-            (utterance_work,) = scheduler.pending_utterance
+            (utterance_work,) = scheduler.utterance_queue[0]
             utterance_snapshot = utterance_work.snapshot
             assert utterance_snapshot.window_start_s == 6.0
             assert utterance_snapshot.window_end_s == 8.25
@@ -497,15 +499,47 @@ def test_live_neutral_change_skips_model_but_does_not_override_people():
     asyncio.run(run())
 
 
-def test_slow_decoder_keeps_newest_pending_utterance_and_capture_provenance():
+def test_slow_decoder_queues_and_drains_all_utterances_in_order():
     async def run():
-        updates = asyncio.Queue()
-        model = Model()
+        events = []
+
+        class BlockingModel(Model):
+            def __init__(self):
+                super().__init__()
+                self.decoder_calls = []
+
+            def decide_snapshot(self, snapshot, questions):
+                self.decoder_calls.append(
+                    (snapshot.window_start_s, tuple(q.task for q in questions))
+                )
+                return super().decide_snapshot(snapshot, questions)
+
+        async def send(message):
+            if message["type"] == "review_status":
+                events.append(("status", tuple(message["tasks"]), message["running"]))
+            elif message["lane"] == "decoder":
+                decision = message["decisions"][0]
+                events.append(
+                    (
+                        "decision",
+                        decision["task"],
+                        decision["window_start_s"],
+                        message["queued_utterances"],
+                    )
+                )
+            else:
+                events.append(("queue", message["queued_utterances"]))
+
+        model = BlockingModel()
         model.release.clear()
+        language = Question.choice(
+            "Which language is spoken?", ["en", "pt", "es"], task="language"
+        )
+        term = Question.noul('Was "marimba" spoken?', task="term")
         scheduler = Scheduler(
             model,
-            [Question.noul('Was "marimba" spoken?')],
-            updates.put,
+            [language, term],
+            send,
             speech=timeline(),
         )
         for i in range(4):
@@ -517,22 +551,43 @@ def test_slow_decoder_keeps_newest_pending_utterance_and_capture_provenance():
             assert await asyncio.to_thread(model.started.wait, 2)
             scheduler.close_utterance(SpeechSegment(4000, 6000))
             scheduler.close_utterance(SpeechSegment(8000, 10000))
-            assert scheduler.dropped_utterances == 1
-            for i in range(4, 44):
-                scheduler.ingest(packet(i))
-                scheduler.speech.observe((i + 1) * 0.25, False)
-            assert scheduler.audio_start == 4000
-            model.release.set()
+            scheduler.close_utterance(SpeechSegment(12000, 14000))
+            assert len(scheduler.utterance_queue) == 3
+            snapshot = WindowSnapshot(
+                np.zeros(128000, np.float32), np.ones(128000, bool), 0, 8
+            )
+            await scheduler.emit(
+                Work(snapshot, scheduler.latest_capture), [], "encoder"
+            )
+            assert events[0] == ("status", ("language", "term"), True)
+            assert ("queue", 3) in events
             scheduler.finish()
+            model.release.set()
             await asyncio.wait_for(worker, 3)
-            assert [s.window_end_s for s, _ in model.calls] == [0.125, 0.625]
-            messages = []
-            while not updates.empty():
-                messages.append(updates.get_nowait())
-            decisions = [m for m in messages if m["type"] == "update"]
-            assert decisions[0]["captured_at_ms"] == 750
-            assert decisions[0]["window_end_at_ms"] == 125
-            assert decisions[-1]["dropped_utterances"] == 1
+            assert model.decoder_calls == [
+                (0.0, ("language",)),
+                (0.0, ("term",)),
+                (0.25, ("language",)),
+                (0.25, ("term",)),
+                (0.5, ("language",)),
+                (0.5, ("term",)),
+                (0.75, ("language",)),
+                (0.75, ("term",)),
+            ]
+            decoder_events = [event for event in events if event[0] != "queue"]
+            expected_events = []
+            for window_start, queued in ((0.0, 3), (0.25, 2), (0.5, 1), (0.75, 0)):
+                expected_events.extend(
+                    [
+                        ("status", ("language", "term"), True),
+                        ("decision", "language", window_start, queued),
+                        ("status", ("language",), False),
+                        ("decision", "term", window_start, queued),
+                        ("status", ("term",), False),
+                    ]
+                )
+            assert decoder_events == expected_events
+            assert not scheduler.utterance_queue
         finally:
             model.release.set()
             scheduler.finish(aborted=True)
@@ -549,7 +604,7 @@ def test_long_closed_utterance_preserves_all_chunks_until_worker_claims_it():
     for i in range(80):
         scheduler.ingest(packet(i))
     scheduler.close_utterance(SpeechSegment(1000, 300000))
-    chunks = scheduler.pending_utterance
+    (chunks,) = scheduler.utterance_queue
     assert [w.snapshot.mask.sum() for w in chunks] == [128000, 128000, 43000]
     joined = np.concatenate([w.snapshot.audio[w.snapshot.mask] for w in chunks])
     expected = np.repeat(np.arange(1, 81, dtype=np.float32), 4000)[1000:300000] / 32768
