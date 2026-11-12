@@ -6,9 +6,16 @@ Tested with Pipecat v1.16.0 on Linux CPU, Python 3.13, and PyTorch 2.8.0.
 
 ## Install
 
-Python 3.11 or newer is required for the Pipecat extra. Once published, install
-with `pip install "marimba-audio[pipecat]"`. The package is not on PyPI yet;
-for now, run these commands from a repository checkout:
+Python 3.11 or newer is required for the Pipecat extra. Install from PyPI:
+
+```sh
+pip install "marimba-audio[pipecat]"
+```
+
+Core installation does not include an inference engine; add the `torch` extra
+(`pip install "marimba-audio[pipecat,torch]"`) unless you already have one.
+
+### From source
 
 ```sh
 uv venv
