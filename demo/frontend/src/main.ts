@@ -3,7 +3,6 @@ import workletUrl from './audio-worklet.js?url';
 import { instrument } from './instruments';
 import {
   encodeFrame,
-  defaultThreshold,
   initialState,
   isRollingUpdate,
   PACKET_DURATION_MS,
@@ -14,7 +13,7 @@ import {
 } from './state';
 import type { SttAdapter, SttFactory, Transcript } from './stt';
 import { drainSocket } from './socket';
-import { reading, timing } from './presentation';
+import { bottomLine, reading, timing } from './presentation';
 
 interface Config {
   cards: Card[];
@@ -73,7 +72,9 @@ function renderCards(now: number) {
     const review = card.lane === 'decoder';
     const stale =
       !!d && !review && card.task !== 'turn_end' && now - state.receivedAt > 2500;
-    const pending = state.pending || (review && reviewsRunning.has(card.task)) || stale;
+    const pending =
+      !(card.task === 'turn_end' && d?.status === 'speaking') &&
+      (state.pending || (review && reviewsRunning.has(card.task)) || stale);
     element.classList.toggle('crossed', now - state.crossedAt < 650);
     const value = element.querySelector<HTMLElement>('.reading')!;
     value.textContent = reading(card, d);
@@ -87,17 +88,7 @@ function renderCards(now: number) {
     element.querySelectorAll('[data-option]').forEach((el, i) => {
       el.textContent = card.options[i];
     });
-    element.querySelector('.card-bottom')!.textContent = !d
-      ? card.kind === 'choice'
-        ? 'OPTION PROBABILITIES'
-        : `THRESHOLD / ${defaultThreshold(card.task)}`
-      : card.kind === 'score'
-        ? '5 SECOND TRAIL'
-        : card.kind === 'noul'
-          ? `${card.uncalibrated ? 'RAW N-BEST' : 'P(YES)'} / ${(d.probability ?? 0).toFixed(3)}`
-          : card.task === 'language'
-            ? 'EN/PT/ES CLOSED SET'
-            : 'OPTION PROBABILITIES';
+    element.querySelector('.card-bottom')!.textContent = bottomLine(card, d);
   }
 }
 function makeCards() {

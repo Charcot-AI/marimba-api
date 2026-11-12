@@ -86,6 +86,39 @@ describe('card state', () => {
     const first = reduceCard(initialState(), decision(0.1, 20), 100);
     expect(reduceCard(first, decision(0.8, 20), 200)).toBe(first);
   });
+  it('orders speaking updates after real turn decisions', () => {
+    const turn = { ...decision(0.8, 8), task: 'turn_end' };
+    const first = reduceCard(initialState(), turn, 100);
+    const speaking = {
+      ...turn,
+      value: false,
+      probability: null,
+      score: null,
+      threshold: null,
+      status: 'speaking',
+      window_end_s: 9,
+      window_start_s: 9,
+      latency_ms: 0,
+    };
+    const next = reduceCard(first, speaking, 200);
+    expect(next.decision?.status).toBe('speaking');
+    expect(reduceCard(next, { ...speaking, window_end_s: 9 }, 300)).toBe(next);
+    expect(reduceCard(next, { ...turn, window_end_s: 8 }, 300)).toBe(next);
+    expect(next.pending).toBe(false);
+  });
+  it('accepts a real turn decision tied with the speaking onset', () => {
+    const speaking = {
+      ...decision(0, 9),
+      task: 'turn_end',
+      value: false,
+      probability: null,
+      threshold: null,
+      status: 'speaking',
+    };
+    const state = reduceCard(initialState(), speaking, 100);
+    const real = { ...decision(0.8, 9), task: 'turn_end' };
+    expect(reduceCard(state, real, 200).decision).toBe(real);
+  });
   it('measures each card update interval without treating another lane as stale', () => {
     const live = reduceCard(initialState(), decision(0.1, 20), 100);
     const review = reduceCard(initialState(), { ...decision(0.8, 8), task: 'term' }, 250);

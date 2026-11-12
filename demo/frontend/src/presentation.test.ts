@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { instrument } from './instruments';
-import { reading, timing } from './presentation';
+import { bottomLine, reading, timing } from './presentation';
 import { initialState, reduceCard, type Card, type Decision } from './state';
 
 const card: Card = {
@@ -20,6 +20,28 @@ describe('card presentation', () => {
     expect(reading(turn, state.decision)).toBe('no');
     expect(reading(turn, { ...no, value: true, probability: 0.5 })).toBe('yes');
     expect(instrument(turn, state, 1000)).toContain('class="threshold" x1="150"');
+  });
+  it('renders speech in progress without a gauge needle or probability line', () => {
+    const turn: Card = {
+      ...card, task: 'turn_end', kind: 'noul', options: [], cadence: 'at end of speech',
+    };
+    const speaking: Decision = {
+      ...decision,
+      task: 'turn_end',
+      kind: 'noul',
+      value: false,
+      probability: null,
+      threshold: null,
+      status: 'speaking',
+      window_start_s: 2,
+      window_end_s: 2,
+      latency_ms: 0,
+    };
+    const state = reduceCard(initialState(), speaking, 1000);
+    expect(reading(turn, state.decision)).toBe('no');
+    expect(instrument(turn, state, 1000)).not.toContain('class="needle"');
+    expect(bottomLine(turn, state.decision)).toBe('');
+    expect(timing(turn, state, 1000).interval).toBe('SPEECH IN PROGRESS');
   });
   it('uses a neutral collecting state before any decision', () => {
     expect(reading(card)).toBe('—');

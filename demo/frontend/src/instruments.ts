@@ -35,5 +35,9 @@ export function instrument(card: Card, state: CardState, now: number): string {
           )
           .join('')
       : '';
-  return `<svg class="ruler" viewBox="0 0 300 78" aria-hidden="true">${marks}${trail}<line class="threshold" x1="${10 + threshold * 280}" y1="9" x2="${10 + threshold * 280}" y2="58"/>${decision ? `<path class="needle" d="M ${10 + value * 280} 8 v 50 m -4 -50 l 4 6 l 4 -6"/>` : ''}<text x="10" y="75">0</text><text x="143" y="75">.5</text><text x="284" y="75">1</text></svg>`;
+  const needle =
+    decision && !(card.task === 'turn_end' && decision.status === 'speaking')
+      ? `<path class="needle" d="M ${10 + value * 280} 8 v 50 m -4 -50 l 4 6 l 4 -6"/>`
+      : '';
+  return `<svg class="ruler" viewBox="0 0 300 78" aria-hidden="true">${marks}${trail}<line class="threshold" x1="${10 + threshold * 280}" y1="9" x2="${10 + threshold * 280}" y2="58"/>${needle}<text x="10" y="75">0</text><text x="143" y="75">.5</text><text x="284" y="75">1</text></svg>`;
 }

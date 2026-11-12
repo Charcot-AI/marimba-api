@@ -195,6 +195,140 @@ def test_no_flip_closes_turn_window_at_the_lag_adjusted_sample():
     asyncio.run(run())
 
 
+def test_turn_end_emits_speaking_state_only_when_speech_opens():
+    async def run():
+        updates = asyncio.Queue()
+        voice = Question.noul(
+            "Is someone speaking?", task="voice_activity", seconds=2.0
+        )
+        turn = Question.noul("Has the speaker finished?", task="turn_end")
+        scheduler = Scheduler(Model(), [voice, turn], updates.put, speech=timeline())
+        speaking = iter((True, True))
+
+        def compute(snapshot, questions, lane):
+            return (
+                [
+                    Decision(
+                        question,
+                        question.task or "",
+                        question.kind,
+                        next(speaking),
+                        probability=0.8,
+                        score=0.8,
+                        threshold=question.resolved_threshold,
+                        window_start_s=snapshot.window_start_s,
+                        window_end_s=snapshot.window_end_s,
+                        status="validated",
+                    )
+                    for question in questions
+                ],
+                0.0,
+            )
+
+        scheduler.compute = compute
+        for end_s in (2.0, 2.25):
+            snapshot = WindowSnapshot(
+                np.zeros(128000, np.float32), np.ones(128000, bool), 0, end_s
+            )
+            await scheduler.emit(Work(snapshot, (0, 0)), [voice], "encoder")
+
+        first, second = await updates.get(), await updates.get()
+        speaking_payloads = [
+            decision
+            for update in (first, second)
+            for decision in update["decisions"]
+            if decision["task"] == "turn_end"
+        ]
+        assert len(speaking_payloads) == 1
+        payload = speaking_payloads[0]
+        assert first["lane"] == "encoder"
+        assert payload["question"]["text"] == turn.text
+        assert payload["value"] is False
+        assert payload["probability"] is None
+        assert payload["probabilities"] is None
+        assert payload["score"] is None
+        assert payload["threshold"] is None
+        assert payload["status"] == "speaking"
+        assert payload["window_start_s"] == payload["window_end_s"] == 1.5
+        assert payload["latency_ms"] == 0
+
+    asyncio.run(run())
+
+
+def test_review_emits_language_before_term_and_finishes_language_status_first():
+    async def run():
+        events = []
+
+        class OrderedModel(FakeMarimba):
+            def decide_snapshot(self, snapshot, questions):
+                tasks = [question.task for question in questions]
+                events.append(("infer", tuple(tasks)))
+                decisions = []
+                for question in questions:
+                    language = question.task == "language"
+                    decisions.append(
+                        Decision(
+                            question,
+                            question.task or "",
+                            question.kind,
+                            "en" if language else True,
+                            probability=0.9,
+                            probabilities={"en": 0.9, "pt": 0.05, "es": 0.05}
+                            if language
+                            else None,
+                            score=0.9,
+                            threshold=question.resolved_threshold,
+                            window_start_s=snapshot.window_start_s,
+                            window_end_s=snapshot.window_end_s,
+                            status="validated",
+                        )
+                    )
+                return decisions
+
+        async def send(message):
+            if message["type"] == "review_status":
+                events.append(("status", tuple(message["tasks"]), message["running"]))
+            else:
+                events.append(("update", message["decisions"][0]["task"]))
+
+        language = Question.choice(
+            "Which language is spoken?", ["en", "pt", "es"], task="language"
+        )
+        term = Question.noul('Was "marimba" spoken?', task="term")
+        scheduler = Scheduler(OrderedModel(), [language, term], send, speech=timeline())
+        scheduler.pending_utterance = [
+            Work(
+                WindowSnapshot(
+                    np.zeros(128000, np.float32), np.ones(128000, bool), 0, 8
+                ),
+                (0, 0),
+            ),
+            Work(
+                WindowSnapshot(
+                    np.zeros(128000, np.float32), np.ones(128000, bool), 8, 16
+                ),
+                (1, 250),
+            ),
+        ]
+        scheduler.finish()
+        await asyncio.wait_for(scheduler.review(), 3)
+
+        inference = [event[1] for event in events if event[0] == "infer"]
+        emitted = [event[1] for event in events if event[0] == "update"]
+        assert inference == [
+            ("language",),
+            ("language",),
+            ("term",),
+            ("term",),
+        ]
+        assert emitted == ["language", "language", "term", "term"]
+        language_finished = events.index(("status", ("language",), False))
+        first_term = events.index(("infer", ("term",)))
+        assert language_finished < first_term
+
+    asyncio.run(run())
+
+
 def test_lagging_encoder_retains_complete_turn_and_utterance_windows():
     async def run():
         class LaggingModel(Model):

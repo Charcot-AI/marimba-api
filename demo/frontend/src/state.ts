@@ -56,10 +56,23 @@ export function reduceCard(
   now: number,
   windowEndAt = now,
 ): CardState {
-  if (state.decision && decision.window_end_s <= state.decision.window_end_s) return state;
+  if (state.decision) {
+    const speakingUpdate =
+      decision.task === 'turn_end' && decision.status === 'speaking';
+    const currentSpeaking =
+      state.decision.task === 'turn_end' && state.decision.status === 'speaking';
+    if (
+      speakingUpdate
+        ? decision.window_end_s <= state.decision.window_end_s
+        : currentSpeaking
+          ? decision.window_end_s < state.decision.window_end_s
+          : decision.window_end_s <= state.decision.window_end_s
+    ) return state;
+  }
   if (decision.status === 'not_enough_speech') return { ...state, pending: true };
   const previous = state.decision;
   const crossed =
+    !(decision.task === 'turn_end' && decision.status === 'speaking') &&
     previous && previous.value !== null && decision.value !== null &&
     decision.kind !== 'choice' &&
     scalar(previous) >= (previous.threshold ?? defaultThreshold(previous.task)) !==

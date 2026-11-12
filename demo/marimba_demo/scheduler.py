@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from time import perf_counter
 from typing import Any
 
@@ -193,6 +193,7 @@ class Scheduler:
         )
         if self.aborted:
             return
+        speaking_onset_s: float | None = None
         interval = snapshot.window_end_s - self.previous_end.get(lane, 0.0)
         if lane == "encoder":
             self.coalesced[lane] += max(0, round(interval / 0.25) - 1)
@@ -207,10 +208,17 @@ class Scheduler:
                 None,
             )
             if speech_decision is not None and isinstance(speech_decision.value, bool):
+                previous_onset = self.speech.onset
                 for segment in self.speech.observe(
                     snapshot.window_end_s, speech_decision.value
                 ):
                     self.close_utterance(segment)
+                if (
+                    previous_onset is None
+                    and self.speech.onset is not None
+                    and self.turns
+                ):
+                    speaking_onset_s = self.speech.onset / SAMPLE_RATE
         sequence, timestamp = work.capture
         visible_decisions = [
             d
@@ -224,6 +232,26 @@ class Scheduler:
                 "window_latency_ms": elapsed,
             }
             payloads.append(payload)
+        if speaking_onset_s is not None:
+            question = self.turns[0]
+            payloads.append(
+                {
+                    "task": "turn_end",
+                    "question": asdict(question),
+                    "kind": question.kind,
+                    "value": False,
+                    "probability": None,
+                    "probabilities": None,
+                    "score": None,
+                    "threshold": None,
+                    "status": "speaking",
+                    "window_start_s": speaking_onset_s,
+                    "window_end_s": speaking_onset_s,
+                    "latency_ms": 0,
+                    "window_latency_ms": 0,
+                    "calibrated": False,
+                }
+            )
         for question in neutral:
             payload = {
                 "task": question.task,
@@ -318,13 +346,25 @@ class Scheduler:
                 await self.send(
                     {"type": "review_status", "tasks": tasks, "running": True}
                 )
-                for work in utterance:
-                    if self.aborted:
-                        return
-                    await self.emit(work, self.reviews, "decoder")
-                if not self.aborted:
-                    await self.send(
-                        {"type": "review_status", "tasks": tasks, "running": False}
-                    )
+                groups = (
+                    [q for q in self.reviews if q.task == "language"],
+                    [q for q in self.reviews if q.task == "term"],
+                    [q for q in self.reviews if q.task not in {"language", "term"}],
+                )
+                for questions in groups:
+                    if not questions:
+                        continue
+                    for work in utterance:
+                        if self.aborted:
+                            return
+                        await self.emit(work, questions, "decoder")
+                    if not self.aborted:
+                        await self.send(
+                            {
+                                "type": "review_status",
+                                "tasks": list(dict.fromkeys(q.task for q in questions)),
+                                "running": False,
+                            }
+                        )
             if self.finished:
                 return
