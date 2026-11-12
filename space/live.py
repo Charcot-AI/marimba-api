@@ -97,7 +97,11 @@ class LiveController:
     async def stream(
         self, chunk: tuple[int, np.ndarray], state: LiveSession | None, term: str, session_id: str
     ) -> LiveSession:
-        state = self.start(state, term, session_id)
+        if self.owner is None or self.owner.closed:
+            raise ValueError("Start recording before sending audio.")
+        if self.owner.session_id != session_id:
+            raise ValueError("Busy: another live session is active. Try again after it stops.")
+        state = self.owner
         try:
             if state.term != term.strip():
                 raise ValueError("Stop recording before changing the term.")

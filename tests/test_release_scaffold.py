@@ -150,7 +150,8 @@ def test_space_live_buffers_resamples_and_does_not_pad_at_stop(app_module):
     async def run():
         controller = LiveController(FakeMarimba(), app_module.demo_questions)
         chunk = (48000, np.full((48480, 2), 16384, np.int16))
-        state = await controller.stream(chunk, None, "marimba", "first")
+        state = controller.start(None, "marimba", "first")
+        state = await controller.stream(chunk, state, "marimba", "first")
         with pytest.raises(ValueError, match="Busy"):
             await controller.stream(chunk, None, "marimba", "other")
         assert controller.owner is state
@@ -202,14 +203,22 @@ def test_space_live_coalesces_and_disconnect_releases_owner(app_module):
     async def run():
         controller = LiveController(FakeMarimba(), app_module.demo_questions)
         chunk = (16000, np.zeros(16000, np.float32))
-        state = await controller.stream(chunk, None, "marimba", "first")
+        state = controller.start(None, "marimba", "first")
+        state = await controller.stream(chunk, state, "marimba", "first")
         await state.run.wait_for_hop(3)
         assert state.run.scheduler.coalesced["encoder"] == 3
         await controller.disconnect("other")
         assert controller.owner is state
         await controller.disconnect("first")
         assert controller.owner is None and state.closed
-        replacement = await controller.stream(chunk, None, "marimba", "second")
+        for stale in (None, state):
+            with pytest.raises(ValueError, match="Start recording"):
+                await controller.stream(chunk, stale, "marimba", "first")
+            assert controller.owner is None
+        replacement = controller.start(None, "marimba", "second")
+        with pytest.raises(ValueError, match="Busy"):
+            await controller.stream(chunk, state, "marimba", "first")
+        assert controller.owner is replacement
         await controller.close(replacement, aborted=True)
 
     asyncio.run(run())
@@ -222,8 +231,9 @@ def test_space_live_invalid_first_chunk_releases_owner(app_module):
 
     async def run():
         controller = LiveController(FakeMarimba(), app_module.demo_questions)
+        state = controller.start(None, "marimba", "first")
         with pytest.raises(ValueError, match="sample rate"):
-            await controller.stream((0, np.zeros(4000, np.float32)), None, "marimba", "first")
+            await controller.stream((0, np.zeros(4000, np.float32)), state, "marimba", "first")
         assert controller.owner is None
 
     asyncio.run(run())
