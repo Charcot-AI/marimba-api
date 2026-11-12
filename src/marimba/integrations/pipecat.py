@@ -1,3 +1,5 @@
+"""Pipecat turn analyzer backed by Marimba's turn-end readout."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -21,6 +23,13 @@ _WINDOW_SAMPLES = 8 * SAMPLE_RATE
 
 
 class MarimbaTurnAnalyzer(BaseSmartTurn):
+    """End-of-turn analyzer that asks Marimba whether the speaker has finished.
+
+    Pipecat buffers the user's audio and calls the analyzer at each pause. The
+    analyzer resamples the audio to 16 kHz, keeps the last eight seconds, and
+    marks the turn complete when the turn-end probability meets ``threshold``.
+    """
+
     def __init__(
         self,
         *,
@@ -28,6 +37,17 @@ class MarimbaTurnAnalyzer(BaseSmartTurn):
         threshold: float = 0.5,
         **kwargs: Any,
     ) -> None:
+        """Initialize the analyzer.
+
+        Args:
+            model: Marimba model to use. ``None`` loads the default model on the
+                first prediction.
+            threshold: Turn-end probability at or above which the turn is complete.
+            **kwargs: ``sample_rate`` and ``params`` for ``BaseSmartTurn``.
+
+        Raises:
+            ValueError: If ``threshold`` is not between 0 and 1.
+        """
         if not 0.0 <= threshold <= 1.0:
             raise ValueError("threshold must be between 0 and 1")
         super().__init__(**kwargs)
@@ -35,6 +55,17 @@ class MarimbaTurnAnalyzer(BaseSmartTurn):
         self._threshold = threshold
 
     def _predict_endpoint(self, audio_array: np.ndarray[Any, Any]) -> dict[str, Any]:
+        """Score the buffered audio and return Pipecat's prediction dict.
+
+        Args:
+            audio_array: Float32 mono audio at the analyzer's sample rate.
+
+        Returns:
+            ``prediction`` (1 when complete, else 0) and ``probability``.
+
+        Raises:
+            ValueError: If the model returns no turn-end probability.
+        """
         audio_array = np.asarray(audio_array, dtype=np.float32)
         input_rate = self.sample_rate or SAMPLE_RATE
         if input_rate != SAMPLE_RATE:
