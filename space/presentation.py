@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from typing import Any
 
@@ -20,7 +21,8 @@ def card_values(cards: list[Any], latest: dict, utterances: Iterable[dict]) -> l
     result = []
     for card in cards:
         decision = latest.get(card.task)
-        text = f"### {card.title}\n\n"
+        title = re.sub(r"([\\`*_{}\[\]()#+\-.!|>~])", r"\\\1", card.title)
+        text = f"### {title}\n\n"
         if not decision:
             text += (
                 "Waiting for a closed speech run."

@@ -94,6 +94,9 @@ def test_space_demo_questions_reuse_cards_with_only_user_term_changed(app_module
     assert actual[-1].text == 'Was "piano" spoken?'
     assert actual[-1].task == "term"
     assert actual[-1].term == "piano"
+    cards = app_module.demo_cards(model, "piano")
+    assert cards[-1].title == '"piano" spoken'
+    assert app_module.present([], cards)[-2].startswith('### "piano" spoken')
     assert actual[0].kind == "noul"
     assert actual[1].seconds == 2.0
     assert actual[-2].options == ("en", "pt", "es")
@@ -226,6 +229,11 @@ def test_space_replay_presentation(app_module):
     assert values[-1].to_dict("records") == [
         {"window_end_s": 2.0, "probability": 0.9, "card": "Speech"}
     ]
+
+
+def test_space_user_term_card_title_is_literal_markdown(app_module):
+    cards = app_module.demo_cards(FakeMarimba(), "piano [example]")
+    assert app_module.card_values(cards, {}, [])[-1].startswith('### "piano \\[example\\]" spoken')
 
 
 def test_space_deployment_bundle():

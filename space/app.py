@@ -38,13 +38,18 @@ def validate_term(term: str) -> str:
     return term
 
 
-def demo_questions(model: Any, term: str) -> list[Question]:
+def demo_cards(model: Any, term: str) -> list[Any]:
     term = validate_term(term)
-    cards = [
-        replace(card, text=f'Was "{term}" spoken?') if card.task == "term" else card
+    return [
+        replace(card, title=f'"{term}" spoken', text=f'Was "{term}" spoken?')
+        if card.task == "term"
+        else card
         for card in available_cards(model)
     ]
-    return questions_for(cards, Question)
+
+
+def demo_questions(model: Any, term: str) -> list[Question]:
+    return questions_for(demo_cards(model, term), Question)
 
 
 def live_enabled() -> bool:
@@ -120,7 +125,7 @@ def run_replay(audio_path: str | None, term: str) -> list[dict]:
 
 def build_app() -> gr.Blocks:
     model = load_model()
-    cards = available_cards(model)
+    cards = demo_cards(model, "marimba")
     with gr.Blocks(delete_cache=(3600, 3600)) as app:
         gr.Markdown(
             "# Marimba\n"
@@ -147,7 +152,7 @@ def build_app() -> gr.Blocks:
         for start in range(0, len(cards), 3):
             with gr.Row():
                 for card in cards[start : start + 3]:
-                    outputs.append(gr.Markdown(f"### {card.title}\n\nWaiting for audio."))
+                    outputs.append(gr.Markdown(card_values([card], {}, [])[0]))
         plot = gr.LinePlot(
             x="window_end_s",
             y="probability",
@@ -160,8 +165,8 @@ def build_app() -> gr.Blocks:
         with gr.Accordion("All scheduler events", open=False):
             events = gr.JSON(label="Events")
         run.click(run_replay, [audio, term], events, api_name="replay").success(
-            lambda payloads: present(payloads, cards),
-            events,
+            lambda payloads, user_term: present(payloads, demo_cards(model, user_term)),
+            [events, term],
             [*outputs, plot],
             api_visibility="private",
         )
@@ -191,7 +196,12 @@ def build_app() -> gr.Blocks:
                     session = await controller.stream(
                         chunk, session, user_term, request.session_hash
                     )
-                    return (session, *card_values(cards, session.latest, session.utterances))
+                    return (
+                        session,
+                        *card_values(
+                            demo_cards(model, session.term), session.latest, session.utterances
+                        ),
+                    )
                 except Exception as error:
                     await controller.close(session, aborted=True)
                     message = (
@@ -206,7 +216,12 @@ def build_app() -> gr.Blocks:
                     return (None, *card_values(cards, {}, []))
                 try:
                     await controller.close(session)
-                    return (None, *card_values(cards, session.latest, session.utterances))
+                    return (
+                        None,
+                        *card_values(
+                            demo_cards(model, session.term), session.latest, session.utterances
+                        ),
+                    )
                 finally:
                     await controller.close(session, aborted=True)
 
