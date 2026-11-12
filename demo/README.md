@@ -91,6 +91,7 @@ received age and audio age. Turn/decoder results remain displayed until the next
 eligible event, rather than being replaced by rolling-window answers. Graceful
 Stop drains queued closed utterances and estimated offsets (up to a 90 s browser timeout).
 An open utterance is not treated as closed just because capture stops.
+A positive Term result is shown for 2 seconds, then the card returns to its empty state.
 Disconnect discards subsequent results; an in-flight model call must still finish
 before another session can own the model.
 

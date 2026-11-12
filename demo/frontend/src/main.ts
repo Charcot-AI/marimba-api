@@ -7,6 +7,7 @@ import {
   isRollingUpdate,
   PACKET_DURATION_MS,
   reduceCard,
+  shownDecision,
   type Card,
   type CardState,
   type Decision,
@@ -68,7 +69,8 @@ function renderCards(now: number) {
   for (const card of config.cards) {
     const state = states.get(card.task)!;
     const element = document.getElementById(`card-${card.task}`)!;
-    const d = state.decision;
+    const d = shownDecision(card, state, now);
+    const shownState = { ...state, decision: d };
     const review = card.lane === 'decoder';
     const stale =
       !!d && !review && card.task !== 'turn_end' && now - state.receivedAt > 2500;
@@ -80,11 +82,11 @@ function renderCards(now: number) {
     value.textContent = reading(card, d);
     value.classList.toggle('pending', pending);
     value.setAttribute('aria-busy', String(pending));
-    const footer = timing(card, state, now);
+    const footer = timing(card, shownState, now);
     element.querySelector('.card-latency')!.textContent = footer.latency;
     element.querySelector('.card-interval')!.textContent = footer.interval;
     element.querySelector('.card-window')!.textContent = footer.window;
-    element.querySelector('.instrument')!.innerHTML = instrument(card, state, now);
+    element.querySelector('.instrument')!.innerHTML = instrument(card, shownState, now);
     element.querySelectorAll('[data-option]').forEach((el, i) => {
       el.textContent = card.options[i];
     });
