@@ -11,6 +11,7 @@ No real-time service guarantee is provided.
 6. [Capabilities and evidence](capabilities.md)
 7. [Measured benchmarks](benchmarks.md)
 8. [Calibrate on your domain](calibration.md)
+9. [OpenAI-compatible server](openai-server.md) and [hosting it](hosting.md)
 
 The [executed notebooks](../notebooks/README.md) use pinned public validation audio
 and CPU inference. The [model card](../hf/README.md) records release limitations.
