@@ -82,6 +82,152 @@ def test_space_model_loads_once(app_module, monkeypatch):
     assert calls == [{"backend": "torch", "device": "cuda", "dtype": "float32"}]
 
 
+def test_space_demo_questions_reuse_cards_with_only_user_term_changed(app_module):
+    from marimba_demo.cards import available_cards, questions_for
+
+    from marimba import Question
+
+    model = FakeMarimba()
+    expected = questions_for(available_cards(model), Question)
+    actual = app_module.demo_questions(model, "  piano  ")
+    assert actual[:-1] == expected[:-1]
+    assert actual[-1].text == 'Was "piano" spoken?'
+    assert actual[-1].task == "term"
+    assert actual[-1].term == "piano"
+    assert actual[0].kind == "noul"
+    assert actual[1].seconds == 2.0
+    assert actual[-2].options == ("en", "pt", "es")
+
+
+@pytest.mark.parametrize("value", [None, "0", "true", "1"])
+def test_space_live_mode_switch(app_module, monkeypatch, value):
+    monkeypatch.setattr(app_module, "load_model", FakeMarimba)
+    if value is None:
+        monkeypatch.delenv("MARIMBA_LIVE", raising=False)
+    else:
+        monkeypatch.setenv("MARIMBA_LIVE", value)
+    app = app_module.build_app()
+    microphones = [
+        c for c in app.config["components"] if c["type"] == "audio" and c["props"].get("streaming")
+    ]
+    assert bool(microphones) == (value == "1")
+    assert app_module.live_enabled() == (value == "1")
+    assert {"decide", "replay"} <= {d["api_name"] for d in app.config["dependencies"]}
+    if microphones:
+        assert microphones[0]["props"]["sources"] == ["microphone"]
+        assert any(d["stream_every"] == 0.25 for d in app.config["dependencies"])
+
+
+def test_space_replay_api_and_duration_limit(app_module, monkeypatch, tmp_path):
+    monkeypatch.setattr(app_module, "load_model", FakeMarimba)
+    path = tmp_path / "synthetic.wav"
+    sf.write(path, np.zeros(16000, np.float32), 16000)
+    events = app_module.run_replay(str(path), "marimba")
+    assert len(events) == 12
+    assert all(e["coalesced_hops"] == 0 for e in events)
+    assert events[0]["replay"] == {
+        "input_seconds": 1.0,
+        "trailing_silence_s": 2.0,
+        "frame_padding_s": 0.0,
+    }
+    sf.write(path, np.zeros(480001, np.float32), 16000)
+    with pytest.raises(app_module.gr.Error, match="30 seconds"):
+        app_module.run_replay(str(path), "marimba")
+    with pytest.raises(app_module.gr.Error, match="Upload"):
+        app_module.run_replay(None, "marimba")
+    with pytest.raises(app_module.gr.Error, match="term"):
+        app_module.run_replay(str(path), 'bad"term')
+
+
+def test_space_live_buffers_resamples_and_does_not_pad_at_stop(app_module):
+    import asyncio
+
+    from space.live import LiveController
+
+    async def run():
+        controller = LiveController(FakeMarimba(), app_module.demo_questions)
+        chunk = (48000, np.full((48480, 2), 16384, np.int16))
+        state = await controller.stream(chunk, None, "marimba", "first")
+        with pytest.raises(ValueError, match="Busy"):
+            await controller.stream(chunk, None, "marimba", "other")
+        assert controller.owner is state
+        await controller.close(state)
+        assert state.run.scheduler.total == 16000
+        assert len(state.buffer) == 160
+        assert state.closed and controller.owner is None
+        assert all(worker.done() for worker in state.run.workers)
+        np.testing.assert_allclose(state.run.scheduler.audio[100:-100], 0.5, atol=0.001)
+
+    asyncio.run(run())
+
+
+def test_space_live_coalesces_and_disconnect_releases_owner(app_module):
+    import asyncio
+
+    from space.live import LiveController
+
+    async def run():
+        controller = LiveController(FakeMarimba(), app_module.demo_questions)
+        chunk = (16000, np.zeros(16000, np.float32))
+        state = await controller.stream(chunk, None, "marimba", "first")
+        await state.run.wait_for_hop(3)
+        assert state.run.scheduler.coalesced["encoder"] == 3
+        await controller.disconnect("other")
+        assert controller.owner is state
+        await controller.disconnect("first")
+        assert controller.owner is None and state.closed
+        replacement = await controller.stream(chunk, None, "marimba", "second")
+        await controller.close(replacement, aborted=True)
+
+    asyncio.run(run())
+
+
+def test_space_live_invalid_first_chunk_releases_owner(app_module):
+    import asyncio
+
+    from space.live import LiveController
+
+    async def run():
+        controller = LiveController(FakeMarimba(), app_module.demo_questions)
+        with pytest.raises(ValueError, match="sample rate"):
+            await controller.stream((0, np.zeros(4000, np.float32)), None, "marimba", "first")
+        assert controller.owner is None
+
+    asyncio.run(run())
+
+
+def test_space_replay_presentation(app_module):
+    from marimba_demo.cards import available_cards
+
+    events = [
+        {
+            "decisions": [
+                {
+                    "task": "voice_activity",
+                    "value": True,
+                    "probability": 0.9,
+                    "window_start_s": 0.0,
+                    "window_end_s": 2.0,
+                },
+                {
+                    "task": "term",
+                    "value": True,
+                    "probability": 0.6,
+                    "window_start_s": 0.5,
+                    "window_end_s": 2.0,
+                },
+            ]
+        }
+    ]
+    values = app_module.present(events, available_cards(FakeMarimba()))
+    assert "0.9000" in values[1]
+    assert "raw N-best fraction 0.6000" in values[-2]
+    assert "0.50–2.00 s" in values[-2]
+    assert values[-1].to_dict("records") == [
+        {"window_end_s": 2.0, "probability": 0.9, "card": "Speech"}
+    ]
+
+
 def test_space_deployment_bundle():
     spec = importlib.util.spec_from_file_location("space_deploy", ROOT / "space" / "deploy.py")
     module = importlib.util.module_from_spec(spec)
@@ -93,8 +239,87 @@ def test_space_deployment_bundle():
     assert "LICENSE" in files
     assert len([name for name in files if name.endswith(".wav")]) == 8
     assert "space/examples/manifest.json" in files
-    assert not any(name.startswith((".git", "demo/", "tests/")) for name in files)
+    assert {name for name in files if name.startswith("demo/")} == {
+        f"demo/marimba_demo/{name}.py"
+        for name in ("__init__", "cards", "protocol", "scheduler", "speech", "replay")
+    }
+    assert {"space/live.py", "space/presentation.py"} <= files.keys()
+    assert not any(name.startswith((".git", "tests/")) for name in files)
     assert not any("__pycache__" in name or ".env" in name for name in files)
+
+
+@pytest.mark.parametrize("hardware", ["zero-a10g", "l4x1"])
+def test_space_deployment_live_variable_follows_hardware(monkeypatch, hardware):
+    calls = []
+
+    class API:
+        def __init__(self, **kwargs):
+            pass
+
+        def create_repo(self, *args, **kwargs):
+            assert kwargs["private"] is True
+
+        def space_info(self, *args):
+            return types.SimpleNamespace(
+                private=True, runtime=types.SimpleNamespace(requested_hardware=hardware)
+            )
+
+        def request_space_hardware(self, *args, **kwargs):
+            assert kwargs["sleep_time"] == (300 if hardware == "l4x1" else None)
+
+        def add_space_secret(self, *args, **kwargs):
+            pass
+
+        def get_space_variables(self, *args):
+            return {"MARIMBA_LIVE": "1"}
+
+        def add_space_variable(self, *args, **kwargs):
+            calls.append(("set", kwargs))
+
+        def delete_space_variable(self, *args, **kwargs):
+            calls.append(("delete", kwargs))
+
+        def list_repo_files(self, *args, **kwargs):
+            return []
+
+        def create_commit(self, *args, **kwargs):
+            return types.SimpleNamespace(oid="synthetic-commit")
+
+    spec = importlib.util.spec_from_file_location("space_deploy", ROOT / "space" / "deploy.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    monkeypatch.setattr(module, "HfApi", API)
+    monkeypatch.setenv("HF_TOKEN", "synthetic-token")
+    monkeypatch.setattr(
+        sys, "argv", ["deploy.py", "--repo-id", "example/test", "--hardware", hardware]
+    )
+    module.main()
+    assert calls == [
+        ("set", {"key": "MARIMBA_LIVE", "value": "1"})
+        if hardware == "l4x1"
+        else ("delete", {"key": "MARIMBA_LIVE"})
+    ]
+
+
+def test_space_deployment_stops_before_updating_a_public_space(monkeypatch):
+    class API:
+        def __init__(self, **kwargs):
+            pass
+
+        def create_repo(self, *args, **kwargs):
+            pass
+
+        def space_info(self, *args):
+            return types.SimpleNamespace(private=False)
+
+    spec = importlib.util.spec_from_file_location("space_deploy", ROOT / "space" / "deploy.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    monkeypatch.setattr(module, "HfApi", API)
+    monkeypatch.setenv("HF_TOKEN", "synthetic-token")
+    monkeypatch.setattr(sys, "argv", ["deploy.py", "--repo-id", "example/test"])
+    with pytest.raises(RuntimeError, match="Refusing to update a public Space"):
+        module.main()
 
 
 def test_space_examples_are_eight_second_pcm():

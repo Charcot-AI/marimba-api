@@ -23,12 +23,17 @@ def deployment_files() -> dict[str, Path | bytes]:
             files[path.relative_to(ROOT).as_posix()] = path
     for name in (
         "app.py",
+        "live.py",
+        "presentation.py",
         "requirements.txt",
         "generate_examples.py",
         "smoke_test.py",
         "deploy.py",
     ):
         files[f"space/{name}"] = ROOT / "space" / name
+    for name in ("__init__", "cards", "protocol", "scheduler", "speech", "replay"):
+        path = f"demo/marimba_demo/{name}.py"
+        files[path] = ROOT / path
     examples = ROOT / "space" / "examples"
     clips = sorted(examples.glob("*.wav"))
     if len(clips) != 8:
@@ -62,6 +67,10 @@ def main() -> None:
         sleep_time=300 if args.hardware == "l4x1" else None,
     )
     api.add_space_secret(args.repo_id, key="HF_TOKEN", value=os.environ["HF_TOKEN"])
+    if args.hardware == "l4x1":
+        api.add_space_variable(args.repo_id, key="MARIMBA_LIVE", value="1")
+    elif "MARIMBA_LIVE" in api.get_space_variables(args.repo_id):
+        api.delete_space_variable(args.repo_id, key="MARIMBA_LIVE")
     obsolete_examples = [
         name
         for name in api.list_repo_files(args.repo_id, repo_type="space")
