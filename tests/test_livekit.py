@@ -61,6 +61,7 @@ def test_protocols_and_mapping(integration):
         assert await stream.unlikely_threshold("en") == 0.8
         assert await stream.supports_language(None)
         assert await stream.backchannel_threshold(None) is None
+        stream.on_start_of_turn(0.0)
         stream.push_audio(frame([8192, -16384], 16000))
         event = await stream.predict()
         assert event.type == "eot_prediction"
@@ -267,5 +268,101 @@ def test_stereo_and_rate_change(integration):
         await stream.predict()
         np.testing.assert_array_equal(model.calls[0][0], [0.5])
         await stream.aclose()
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("rate", [8000, 16000, 24000, 44100, 48000])
+@pytest.mark.parametrize("samples", [1, 9 * 48000])
+def test_sample_rates_and_short_windows(integration, rate, samples):
+    async def run():
+        model = FakeModel()
+        stream = integration.MarimbaTurnDetector(model=model).stream()
+        pcm = (np.sin(np.arange(samples) * 0.01) * 32000).astype(np.int16)
+        for start in range(0, len(pcm), 960):
+            stream.push_audio(frame(pcm[start : start + 960], rate))
+        await stream.predict()
+        expected = pcm[-8 * rate :].astype(np.float32) / 32768.0
+        if rate != 16000:
+            expected = soxr.resample(expected, rate, 16000, quality="HQ")
+        np.testing.assert_array_equal(model.calls[0][0], expected[-128000:])
+        await stream.aclose()
+
+    asyncio.run(run())
+
+
+def test_predictions_with_and_without_chat_context(integration):
+    from livekit.agents.llm import ChatContext
+
+    async def run():
+        model = FakeModel()
+        stream = integration.MarimbaTurnDetector(model=model).stream()
+        for context in [None, ChatContext()]:
+            stream.on_start_of_turn(0.0)
+            assert (await stream.predict(context)).end_of_turn_probability == 1.0
+            stream.push_audio(frame([8192], 16000))
+            assert (await stream.predict(context)).end_of_turn_probability == 0.75
+            stream.flush()
+        await stream.aclose()
+        np.testing.assert_array_equal(model.calls[0][0], model.calls[1][0])
+
+    asyncio.run(run())
+
+
+def test_superseded_predictions_do_not_queue_workers(integration):
+    entered, release = threading.Event(), threading.Event()
+    model = FakeModel()
+
+    def blocking(*args, **kwargs):
+        entered.set()
+        release.wait()
+        return model(*args, **kwargs)
+
+    async def run():
+        stream = integration.MarimbaTurnDetector(model=blocking).stream()
+        stream.push_audio(frame([1], 16000))
+        first = stream.predict()
+        try:
+            await asyncio.to_thread(entered.wait)
+            for value in range(2, 102):
+                previous = stream._future
+                stream.flush()
+                assert (await previous).end_of_turn_probability == 0.0
+                stream.push_audio(frame([value], 16000))
+                latest = stream.predict()
+                await asyncio.sleep(0)
+                assert len(stream._tasks) == 1
+                assert len(stream._audio) == 1
+            release.set()
+            assert (await latest).end_of_turn_probability == 0.75
+        finally:
+            release.set()
+            await stream.aclose()
+        assert first.result().end_of_turn_probability == 0.0
+        assert len(model.calls) == 2
+        np.testing.assert_array_equal(model.calls[-1][0], [101 / 32768])
+        assert not stream._tasks
+        assert stream._pending is None
+
+    asyncio.run(run())
+
+
+def test_concurrent_streams_and_many_turns(integration):
+    async def run():
+        model = FakeModel()
+        detector = integration.MarimbaTurnDetector(model=model)
+        streams = [detector.stream(), detector.stream()]
+        for turn in range(100):
+            for channel, stream in enumerate(streams):
+                stream.push_audio(frame([turn + channel + 1], 16000))
+            events = await asyncio.gather(*(stream.predict() for stream in streams))
+            assert all(event.end_of_turn_probability == 0.75 for event in events)
+            for stream in streams:
+                stream.flush()
+                assert not stream._audio.size
+                assert len(stream._tasks) <= 1
+        await asyncio.gather(*(stream.aclose() for stream in streams))
+        assert len(model.calls) == 200
+        assert all(not stream._tasks for stream in streams)
 
     asyncio.run(run())
