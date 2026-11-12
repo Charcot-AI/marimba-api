@@ -1,7 +1,7 @@
 # Vapi custom transcriber
 
 Marimba is not STT. This reference bridge uses a cheap customer-channel energy
-gate for timing, Marimba for turn completion/voice confirmation/language, and a
+gate for timing, Marimba for turn completion/language, and a
 pluggable callable (16 kHz float32 mono audio to text) for words. The default is
 the public `openai/whisper-tiny` Transformers pipeline on CPU. Downloads need
 network access; Marimba weights must be accessible to your account if gated.
@@ -65,7 +65,7 @@ resampling produces 16 kHz. Fragment boundaries need not align to samples.
 
 Every 20 ms customer frame updates an adaptive silence noise floor. Three voiced
 frames start a turn, with 200 ms pre-roll; offset is the last voiced frame's end.
-After 300 ms quiet, TURN and voice activity score the same eight-second window
+After 300 ms quiet, TURN scores an eight-second window
 ending at offset plus 0.3 seconds, matching the synthetic scene convention
 (last speech end plus 0.3 seconds). LANGUAGE uses that same window. Windows are
 left-padded with silence. This energy gate is heuristic, not a noise-robust VAD.
@@ -73,8 +73,7 @@ left-padded with silence. This energy gate is heuristic, not a noise-robust VAD.
 `TURN_THRESHOLD` defaults to 0.5. A lower score keeps listening; resumption
 continues the turn and invalidates a pending score. At `SILENCE_TIMEOUT` (default
 2.5 seconds) the bridge finalizes anyway, **even for a semantically unfinished
-sentence**. Voice confirmation must pass for either path; rejected noise does
-not produce a final. Decision JSON records `reason=turn_end` or
+sentence**. Decision JSON records `reason=turn_end` or
 `reason=silence_timeout`. No later audio is added to an already committed final.
 Its STT input contains all samples from turn start/pre-roll through the endpoint;
 audio beyond it is retained for the next turn. A stale score cannot cut resumed
@@ -86,7 +85,7 @@ and partial requests are coalesced while busy. Finals are sent as soon as STT
 finishes, before the language job. CPU inference can still delay partials/finals.
 
 `MAX_TURN_SECONDS` defaults to 30: force-score/split at that boundary with reason
-`max_turn` (still requiring voice confirmation). A current turn plus an eight-second
+`max_turn`. A current turn plus an eight-second
 ring bounds audio retention; overload closes with 1013 rather than silently
 dropping audio. Binary messages above 1 MiB also close with 1013. Decoder context
 above eight seconds is unvalidated; see [CPU benchmarks](../../docs/benchmarks.md).
@@ -103,10 +102,16 @@ background. Silence-only input retains only the ring and emits no transcripts.
 
 Logs contain only counts, typed scores/labels and timings, never audio or
 transcripts. `turn_decisions` JSON lines include language (en/pt/es), TURN,
-voice confirmation, final reason and endpoint latency from offset plus 0.3 s.
+final reason and endpoint latency from offset plus 0.3 s.
 These decisions **cannot** travel through Vapi's transcriber response protocol;
 consume logs separately. No server-side audio/transcript persistence or POST sink
 is implemented. Whisper-tiny recognition quality is not guaranteed.
+
+There is no Marimba voice-activity veto: native VOICE at the energy offset passed
+only 6 of 22 measured speech candidates at its unchanged 0.5 threshold, although
+it rejected three generated noise signals. Minimum speech duration in the energy
+gate and skipping empty STT output avoid a second unreliable veto. They are not
+a general noise classifier: STT can hallucinate words on non-speech audio.
 
 ## Local simulation
 

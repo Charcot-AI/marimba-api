@@ -20,20 +20,16 @@ START = dict(type="start", encoding="linear16", container="raw", sampleRate=1600
 
 
 class Model(FakeMarimba):
-    def __init__(self, score=0.9, voice=True):
+    def __init__(self, score=0.9):
         super().__init__()
-        self.score, self.voice = score, voice
+        self.score = score
         self.calls = []
 
     def __call__(self, audio, questions, sampling_rate=None):
         self.calls.append((questions[0].task, audio.copy()))
         result = super().__call__(audio, questions, sampling_rate)
         return [
-            replace(d, value=self.score, probability=self.score)
-            if d.task == "turn_end"
-            else replace(d, value=self.voice)
-            if d.task == "voice_activity"
-            else d
+            replace(d, value=self.score, probability=self.score) if d.task == "turn_end" else d
             for d in result
         ]
 
@@ -102,6 +98,7 @@ def test_exact_window_endpoint_and_final_audio():
     frames = drain(bridge)
     assert frames == [server.Bridge.response("Synthetic words", "final")]
     expected = audio[-128000:]
+    assert [task for task, _ in model.calls] == ["turn_end", "language"]
     for _, window in model.calls:
         np.testing.assert_array_equal(window, expected)
     np.testing.assert_array_equal(seen[0], audio[round(7.8 * 16000) :])
@@ -154,8 +151,9 @@ def test_stale_score_cannot_cut_resumed_speech():
     assert all(x["transcriptType"] == "partial" for x in drain(bridge))
 
 
-def test_noise_confirmation_and_silence_memory():
-    bridge = server.Bridge(Model(voice=False), lambda _: pytest.fail("STT called"))
+@pytest.mark.parametrize("score", [0.1, 0.9])
+def test_empty_stt_and_silence_memory(score):
+    bridge = server.Bridge(Model(score=score), lambda _: "")
     bridge.ingest(np.concatenate((speech(), silence(0.3))))
     assert drain(bridge) == []
     for _ in range(600):
@@ -163,17 +161,27 @@ def test_noise_confirmation_and_silence_memory():
         assert drain(bridge) == []
     assert len(bridge.audio) == 128000
     assert bridge.start is None
+    assert bridge.turn_count == 0
+    assert bridge.final_at == 0
     assert drain(bridge) == []
 
 
-def test_resumption_preserves_audio_after_negative_voice_confirmation():
-    model, seen = Model(voice=False), []
+def test_short_energy_spike_does_not_start_turn():
+    bridge = server.Bridge(Model(), lambda _: pytest.fail("STT called"))
+    bridge.ingest(np.concatenate((speech(0.04), silence(1))))
+    assert bridge.start is None
+    assert drain(bridge) == []
+
+
+def test_resumption_preserves_audio_after_low_turn_score():
+    model, seen = Model(score=0.1), []
     bridge = server.Bridge(model, lambda audio: seen.append(audio.copy()) or "Synthetic words")
     first = np.concatenate((speech(), silence(0.5)))
     bridge.ingest(first)
-    assert drain(bridge) == []
+    assert drain(bridge)[0]["transcriptType"] == "partial"
     assert bridge.start == 0
-    model.voice = True
+    seen.clear()
+    model.score = 0.9
     second = np.concatenate((speech(1, 0.4), silence(0.3)))
     bridge.ingest(second)
     assert drain(bridge)[0]["transcriptType"] == "final"

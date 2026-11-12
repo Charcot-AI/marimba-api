@@ -14,7 +14,6 @@ import soxr
 
 from marimba import Marimba, Question
 
-VOICE = Question.noul("Is someone speaking?", task="voice_activity")
 TURN = Question.score("Has the speaker finished their turn?", task="turn_end")
 LANGUAGE = Question.choice("What language is being spoken?", ("en", "pt", "es"), task="language")
 RATE, HOP, WINDOW = 16000, 320, 128000
@@ -135,11 +134,7 @@ class Bridge:
         if forced or quiet >= 4800:
             if self.scored is None or self.scored[0] != end:
                 return ("score", end, None if forced else self.offset, self.window(end))
-            _, turn, voice, window = self.scored
-            if voice.value is not True:
-                if forced or quiet >= self.timeout:
-                    self.reset()
-                return None
+            _, turn, window = self.scored
             reason = (
                 "max_turn"
                 if forced
@@ -160,7 +155,7 @@ class Bridge:
                     self.ingest(future, self.captured_at)
                     self.pending = np.concatenate((self.pending, pending))
                 self.finalizing = True
-                return ("final", end, reason, audio, window, turn, voice)
+                return ("final", end, reason, audio, window, turn)
         if (
             self.voiced >= RATE // 2
             and self.total > self.partial_at
@@ -176,10 +171,9 @@ class Bridge:
         if kind == "score":
             window = data[1]
             turn = self.model(window, [TURN], sampling_rate=RATE)[0]
-            voice = self.model(window, [VOICE], sampling_rate=RATE)[0]
             if turn.probability is None:
                 raise ValueError("Missing turn-end probability")
-            return turn, voice
+            return turn
         if kind == "partial":
             return self.stt(data[0])
         if kind == "language":
@@ -189,10 +183,10 @@ class Bridge:
     def complete(self, job, result):
         kind, end, *data = job
         if kind == "score":
-            turn, voice = (replace(d, window_end_s=end / RATE) for d in result)
-            self.emit(self.event("turn_end_score", [turn, voice]))
+            turn = replace(result, window_end_s=end / RATE)
+            self.emit(self.event("turn_end_score", [turn]))
             if self.start is not None and (data[0] is None or self.offset == data[0]):
-                self.scored = end, turn, voice, data[1]
+                self.scored = end, turn, data[1]
             return None
         if kind == "partial":
             return self.response(result, "partial") if result else None
@@ -201,13 +195,16 @@ class Bridge:
                 {
                     **self.event(
                         "turn_decisions",
-                        [data[1], data[2], replace(result, window_end_s=end / RATE)],
+                        [data[1], replace(result, window_end_s=end / RATE)],
                     ),
-                    **data[3],
+                    **data[2],
                 }
             )
             return None
         self.finalizing = False
+        if not result:
+            self.emit({"type": "empty_transcript", "stt_samples": len(data[1])})
+            return None
         self.final_at = perf_counter()
         self.turn_count += 1
         endpoint_at = self.captured_at - (self.total + len(self.pending) - end) / RATE
@@ -217,8 +214,8 @@ class Bridge:
             "stt_samples": len(data[1]),
             "endpoint_latency_ms": (perf_counter() - endpoint_at) * 1000,
         }
-        self.language_job = ("language", end, data[2], data[3], data[4], metadata)
-        return self.response(result, "final") if result else None
+        self.language_job = ("language", end, data[2], data[3], metadata)
+        return self.response(result, "final")
 
     @staticmethod
     def event(kind, decisions):
