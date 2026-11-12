@@ -75,10 +75,11 @@ class MarimbaTurnAnalyzer(BaseSmartTurn):
     async def analyze_end_of_turn(self) -> tuple[EndOfTurnState, MetricsData | None]:
         """Leave failed predictions incomplete so Pipecat's silence fallback can run."""
         try:
-            return await super().analyze_end_of_turn()
+            result: tuple[EndOfTurnState, MetricsData | None] = await super().analyze_end_of_turn()
         except Exception:
             _LOGGER.exception("Marimba turn analysis failed; waiting for silence fallback")
             return EndOfTurnState.INCOMPLETE, None
+        return result
 
     def _predict_endpoint(self, audio_array: np.ndarray[Any, Any]) -> dict[str, Any]:
         """Score the buffered audio and return Pipecat's prediction dict.
