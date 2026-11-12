@@ -49,7 +49,8 @@ synthetic tones are not speech, so a speech VAD may never start a turn. The
 example explicitly labels the tone chunks as speech and silence chunks as
 nonspeech. It exercises real model inference and Pipecat buffering/metrics,
 not speech recognition or conversational quality. Missing cached weights or
-inference errors raise an exception rather than producing fake predictions.
+inference errors are logged and return `INCOMPLETE` without probability metrics,
+allowing Pipecat's normal silence timeout to end the turn without a fake prediction.
 No real-time guarantee is claimed.
 
 ## Use in a Pipecat pipeline
@@ -97,6 +98,13 @@ audio-only pipeline without STT, set `wait_for_transcript=False` on the stop
 strategy. Pipecat configures the input sample rate; Marimba resamples to 16 kHz
 and retains up to eight seconds. Pass a preloaded CPU model as in the runnable
 example to choose the runtime explicitly.
+
+Incoming PCM16 is mono by default. For interleaved multichannel input, set
+`MarimbaTurnAnalyzer(num_channels=2)` to match the transport. The analyzer
+downmixes to mono PCM16 before buffering, with rounding to the nearest sample
+(at most half a PCM16 step). Pipecat's analyzer API does not pass channel metadata,
+so the count cannot be inferred automatically. A VAD must also receive the channel
+format it supports; Silero expects mono, so downmix upstream of Silero when using it.
 
 See the [main README](../../README.md), [streaming guide](../../docs/streaming.md),
 and [model card](../../hf/README.md) for capabilities and limitations.
