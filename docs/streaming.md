@@ -64,3 +64,32 @@ aggregators = LLMContextAggregatorPair(
 ```
 
 Use `aggregators.user()` and `aggregators.assistant()` in the pipeline.
+
+## LiveKit turn detector
+
+Install with `pip install 'marimba-audio[torch,livekit]'`. LiveKit Agents 1.6.3 or
+newer is required for its streaming turn-detector interface.
+
+```python
+from livekit.agents import AgentSession
+from livekit.plugins import silero
+from marimba.integrations.livekit import MarimbaTurnDetector
+
+session = AgentSession(
+    vad=silero.VAD.load(min_silence_duration=0.25),
+    turn_handling={"turn_detection": MarimbaTurnDetector(unlikely_threshold=0.5)},
+)
+```
+
+Install `livekit-plugins-silero` separately for this VAD. Add your STT, LLM, and
+TTS providers to the session. Marimba is audio-only and accepts all language
+codes without transcript input. The adapter resamples to 16 kHz with soxr HQ,
+keeps the latest eight seconds, and loads the default model on first prediction
+unless a model is supplied. Inference runs off the event loop. Failed or empty
+predictions return probability 1.0, matching LiveKit's local fail-open behavior;
+canceled predictions return 0.0 and stale results are ignored. `flush()` clears
+the audio buffer. The prediction timeout is 30 seconds; preload the model to
+avoid downloads during the first turn. No real-time guarantee is claimed.
+
+See [the examples](../examples/livekit/README.md) for a voice agent and an
+offline CPU smoke test with synthetic audio.
