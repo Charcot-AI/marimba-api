@@ -1,0 +1,11 @@
+**
+!pyproject.toml
+!README.md
+!LICENSE
+!THIRD_PARTY_NOTICES.md
+!src/
+!src/**
+!.runpod/
+!.runpod/handler.py
+**/__pycache__/
+**/*.pyc

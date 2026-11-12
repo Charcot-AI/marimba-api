@@ -7,10 +7,11 @@ from dataclasses import dataclass
 from typing import Literal
 
 Kind = Literal["noul", "score", "choice"]
+_VOICE_ACTIVITY_THRESHOLD = 0.225
 
 _TEMPLATES = {
     "same_speaker": r"(is (this|it) the same speaker|are (they|these) the same speaker)",
-    "speaker_count": r"how many speakers( are there| are speaking)?",
+    "speaker_count": r"how many (speakers|people)( are (there|speaking|talking))?",
     "speaker_change": (
         r"(did the speaker change|has the speaker changed|is this a different speaker)"
     ),
@@ -19,7 +20,7 @@ _TEMPLATES = {
         r"(has (the speaker|someone) finished( speaking)?|"
         r"is (the )?turn (over|finished)|is it (the )?end of (the )?turn)"
     ),
-    "term": r"""did (someone|anyone) say ["“'].+?["”']""",
+    "term": r"""(did (someone|anyone) say ["“'].+?["”']|was ["“'].+?["”'] (said|spoken))""",
     "language": r"(what|which) language( is (being )?spoken| is this)?",
     "pii": (
         r"(does (this|the) audio contain (any )?(personal|personally identifiable) "
@@ -46,10 +47,11 @@ class Question:
     kind: Kind
     options: tuple[str, ...] | None = None
     task: str | None = None
-    threshold: float = 0.5
+    threshold: float | None = None
+    seconds: float | None = None
 
     def __post_init__(self) -> None:
-        if not self.text.strip() or not 0 <= self.threshold <= 1:
+        if not self.text.strip() or (self.threshold is not None and not 0 <= self.threshold <= 1):
             raise ValueError("Question text and a threshold between zero and one are required")
         if self.kind not in ("noul", "score", "choice"):
             raise ValueError("Invalid question kind")
@@ -62,6 +64,8 @@ class Question:
                 raise UnsupportedQuestion(
                     f"No routing template for {self.text!r}; pass task explicitly"
                 )
+        if self.seconds is not None and (self.task != "voice_activity" or self.seconds != 2.0):
+            raise UnsupportedQuestion("Only voice activity supports a two-second tail window")
         if self.task in ("same_speaker", "speaker_change") and self.kind not in ("noul", "score"):
             raise UnsupportedQuestion(f"Task {self.task} supports noul or score")
         if self.task == "speaker_count" and (
@@ -76,6 +80,12 @@ class Question:
             object.__setattr__(self, "options", tuple(self.options))
 
     @property
+    def resolved_threshold(self) -> float:
+        if self.threshold is not None:
+            return self.threshold
+        return _VOICE_ACTIVITY_THRESHOLD if self.task == "voice_activity" else 0.5
+
+    @property
     def term(self) -> str | None:
         match = re.search(r"""(?:"([^"]+)"|“([^”]+)”|'([^']+)')""", self.text)
         return (
@@ -85,12 +95,26 @@ class Question:
         )
 
     @classmethod
-    def noul(cls, text: str, *, task: str | None = None, threshold: float = 0.5) -> Question:
-        return cls(text, "noul", task=task, threshold=threshold)
+    def noul(
+        cls,
+        text: str,
+        *,
+        task: str | None = None,
+        threshold: float | None = None,
+        seconds: float | None = None,
+    ) -> Question:
+        return cls(text, "noul", task=task, threshold=threshold, seconds=seconds)
 
     @classmethod
-    def score(cls, text: str, *, task: str | None = None, threshold: float = 0.5) -> Question:
-        return cls(text, "score", task=task, threshold=threshold)
+    def score(
+        cls,
+        text: str,
+        *,
+        task: str | None = None,
+        threshold: float | None = None,
+        seconds: float | None = None,
+    ) -> Question:
+        return cls(text, "score", task=task, threshold=threshold, seconds=seconds)
 
     @classmethod
     def choice(

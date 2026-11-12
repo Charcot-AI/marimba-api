@@ -6,10 +6,10 @@ import pytest
 def test_grapheme_positive_option():
     torch = pytest.importorskip("torch")
     pytest.importorskip("transformers")
-    from marimba._head import ALPHABET, GraphemeTokenizer
+    from marimba._head import GraphemeTokenizer
 
-    ids, mask = GraphemeTokenizer()("yes")
-    assert ids.tolist() == [[2, *(ALPHABET.index(char) + 4 for char in "yes"), 3]]
+    ids, mask = GraphemeTokenizer()("sim")
+    assert ids.tolist() == [[2, 22, 12, 16, 3]]
     assert mask.dtype == torch.bool and mask.all()
     long_ids, _ = GraphemeTokenizer()("a" * 100)
     assert long_ids.shape == (1, 64) and long_ids[0, -1] == 3

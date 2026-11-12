@@ -34,3 +34,7 @@ ignore_missing_imports = true
 module = ["marimba", "marimba.*"]
 follow_imports = "skip"
 check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["torch"]
+follow_imports = "skip"

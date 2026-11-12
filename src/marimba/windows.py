@@ -46,6 +46,17 @@ class WindowSnapshot:
         return len(self.audio) / 16000
 
 
+def decoder_snapshot(snapshot: WindowSnapshot) -> WindowSnapshot:
+    first = int(np.argmax(snapshot.mask))
+    if first == 0:
+        return snapshot
+    audio = np.zeros_like(snapshot.audio)
+    mask = np.zeros_like(snapshot.mask)
+    audio[:-first] = snapshot.audio[first:]
+    mask[:-first] = snapshot.mask[first:]
+    return WindowSnapshot(audio, mask, snapshot.window_start_s, snapshot.window_end_s)
+
+
 @dataclass(frozen=True)
 class EncodedWindow:
     snapshot: WindowSnapshot

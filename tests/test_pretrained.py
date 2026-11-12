@@ -80,7 +80,7 @@ def test_shared_lanes(model):
         Question.noul('Did someone say "absent"?'),
     ]
     decisions = model(np.zeros(16000, dtype=np.float32), questions, 16000)
-    assert model._engine.calls == ["encode", "turn_end", "language", "hypotheses"]
+    assert model._engine.calls == ["encode", "turn_end", "encode", "language", "hypotheses"]
     assert decisions[0].probability == 0.7
     assert decisions[0].score == 0.6
     assert decisions[1].value == "en"
@@ -89,6 +89,66 @@ def test_shared_lanes(model):
     assert all(json.loads(json.dumps(d.to_dict())) == d.to_dict() for d in decisions)
     assert model.capabilities["term"].status == "validated"
     assert "Uncalibrated" in model.capabilities["term"].evaluation
+
+
+@pytest.mark.parametrize(
+    "probability,threshold,expected",
+    [
+        (0.49, None, False),
+        (0.5, None, True),
+        (0.9, None, True),
+        (0.7, 0.8, False),
+    ],
+)
+def test_turn_end_noul_thresholds_platt_probability_not_raw_score(
+    model, probability, threshold, expected
+):
+    model._engine.turn_end = lambda features, mask: (40.0, probability)
+    question = Question.noul("Has the speaker finished?", threshold=threshold)
+    binary, score = model(np.ones(16000), [question, Question.score(question.text)], 16000)
+    assert "noul" in model.capabilities["turn_end"].kinds
+    assert binary.kind == "noul"
+    assert binary.value is expected
+    assert binary.probability == probability
+    assert binary.score == 40.0
+    assert binary.threshold == (0.5 if threshold is None else threshold)
+    assert score.value == probability
+
+
+@pytest.mark.parametrize("route", ["call", "snapshot", "encoded"])
+def test_partial_decoder_audio_is_left_aligned_on_every_entry_point(model, route):
+    windows = []
+    masks = []
+    original_encode = model._engine.encode
+    original_turn = model._engine.turn_end
+
+    def encode(window):
+        windows.append(window.copy())
+        return original_encode(window)
+
+    def turn(features, mask):
+        masks.append(mask.copy())
+        return original_turn(features, mask)
+
+    model._engine.encode, model._engine.turn_end = encode, turn
+    samples = np.ones(16000, np.float32)
+    samples[400:800] = 0
+    window, mask = right_aligned_window(samples)
+    snapshot = WindowSnapshot(window, mask, 10, 11)
+    decoder = Question.noul('Was "hello" spoken?')
+    questions = [Question.score("Has the speaker finished?"), decoder]
+    if route == "call":
+        decisions = model(samples, questions, 16000)
+    elif route == "snapshot":
+        decisions = model.decide_snapshot(snapshot, [decoder])
+    else:
+        decisions = model.decide_encoded(model.encode(snapshot), questions)
+    np.testing.assert_array_equal(windows[-1][:16000], samples)
+    assert not windows[-1][16000:].any()
+    if route != "snapshot":
+        np.testing.assert_array_equal(windows[0], window)
+        np.testing.assert_array_equal(masks[0], mask)
+    assert decisions[-1].window_end_s == (1 if route == "call" else 11)
 
 
 def test_language_names_other_dispatch_and_calibration(model):
@@ -257,8 +317,10 @@ def test_shared_speech_head(model):
         "unavailable",
     ]
     assert decisions[1].score == 2.0
-    assert decisions[1].probability == pytest.approx(1 / (1 + np.exp(-2)))
+    assert decisions[1].probability == pytest.approx(1 / (1 + np.exp(-2 / 0.6540604692061299)))
     assert decisions[1].value is True
+    assert decisions[1].threshold == 0.225
+    assert not decisions[1].calibrated
     for decision in decisions[2:]:
         assert (
             decision.value
@@ -289,7 +351,10 @@ def vad_model():
 def test_vad_recognized_prompt(vad_model, text, task):
     question = Question.noul(text, task=task)
     decision = vad_model(np.zeros(16000, dtype=np.float32), [question], 16000)[0]
-    assert vad_model._engine.head_texts == ["Há fala humana neste áudio?"]
+    assert vad_model._engine.head_texts == [
+        "<|im_start|>user\nHá fala humana neste áudio?\nA. sim\nB. não\n"
+        "Responda só com a letra da opção.<|im_end|>\n<|im_start|>assistant\n"
+    ]
     assert decision.question is question
     assert decision.question.text == text
     assert decision.status == "validated"
@@ -298,6 +363,153 @@ def test_vad_recognized_prompt(vad_model, text, task):
     assert "validated with Portuguese prompts and held-out Arabic, Hindi, Korean and Russian" in (
         evaluation
     )
+    assert "temperature-scaled on validation" in evaluation
+    assert "default threshold 0.225 from validation" in evaluation
+
+
+def test_validated_vad_prompt_and_tokenization():
+    import unicodedata
+
+    torch = pytest.importorskip("torch")
+    transformers = pytest.importorskip("transformers")
+
+    from marimba._head import TEXT_REPO, TEXT_REVISION, CachedQuestionTokenizer
+    from marimba.pretrained import _CANONICAL_VAD_STEM, _render_vad_prompt
+
+    prompt = _render_vad_prompt(_CANONICAL_VAD_STEM)
+    assert prompt == (
+        "<|im_start|>user\nHá fala humana neste áudio?\nA. sim\nB. não\n"
+        "Responda só com a letra da opção.<|im_end|>\n<|im_start|>assistant\n"
+    )
+    assert len(prompt.encode("utf-8")) == 131
+    assert unicodedata.is_normalized("NFC", prompt)
+
+    try:
+        tokenizer = transformers.WhisperTokenizer.from_pretrained(
+            TEXT_REPO, revision=TEXT_REVISION, local_files_only=True
+        )
+    except OSError:
+        pytest.skip("Pinned Whisper tokenizer is not cached locally")
+    encoded = CachedQuestionTokenizer(tokenizer)([prompt])
+    assert isinstance(encoded["input_ids"], torch.Tensor)
+    assert encoded["input_ids"][0].tolist() == [
+        50258,
+        50363,
+        27,
+        91,
+        332,
+        62,
+        24419,
+        91,
+        29,
+        18088,
+        198,
+        39,
+        842,
+        21580,
+        1952,
+        64,
+        34739,
+        7352,
+        532,
+        1004,
+        30,
+        198,
+        32,
+        13,
+        1034,
+        198,
+        33,
+        13,
+        2431,
+        198,
+        49,
+        13361,
+        12233,
+        6238,
+        395,
+        257,
+        718,
+        424,
+        1120,
+        999,
+        2917,
+        13,
+        27,
+        91,
+        332,
+        62,
+        521,
+        91,
+        29,
+        198,
+        27,
+        91,
+        332,
+        62,
+        24419,
+        91,
+        29,
+        640,
+        10329,
+        198,
+        50257,
+    ]
+
+
+def test_vad_temperature_and_default_threshold(vad_model, monkeypatch):
+    seen = {}
+
+    def head_score(features, mask, text):
+        seen["mask"] = mask.copy()
+        return -0.6
+
+    monkeypatch.setattr(vad_model._engine, "head_score", head_score)
+    question = Question.noul("Is someone speaking?")
+    decision = vad_model(np.zeros(8 * 16000, dtype=np.float32), [question], 16000)[0]
+    expected = 1 / (1 + np.exp(0.6 / 0.6540604692061299))
+    assert decision.score == -0.6
+    assert decision.probability == pytest.approx(expected)
+    assert decision.probability == pytest.approx(0.2855, abs=0.0001)
+    assert decision.threshold == 0.225
+    assert decision.value is True
+    assert not decision.calibrated
+    assert decision.window_start_s == 0
+    assert seen["mask"].all()
+    assert vad_model._engine.calls == ["encode"]
+
+
+def test_vad_two_second_tail_uses_sample_mask_temperature_and_window_start(vad_model, monkeypatch):
+    seen = {}
+
+    def head_score(features, mask, text):
+        seen["mask"] = mask
+        seen["text"] = text
+        return -0.6
+
+    monkeypatch.setattr(vad_model._engine, "head_score", head_score)
+    question = Question.noul("Is someone speaking?", seconds=2.0)
+    source_mask = np.ones(8 * 16000, dtype=np.bool_)
+    snapshot = WindowSnapshot(np.zeros(8 * 16000, dtype=np.float32), source_mask, 0, 8)
+    decision = vad_model.decide_encoded(vad_model.encode(snapshot), [question])[0]
+
+    expected_mask = np.zeros(8 * 16000, dtype=np.bool_)
+    expected_mask[-32000:] = True
+    np.testing.assert_array_equal(seen["mask"], expected_mask)
+    assert seen["mask"] is not source_mask
+    assert source_mask.all()
+    assert seen["text"] == (
+        "<|im_start|>user\nHá fala humana neste áudio?\nA. sim\nB. não\n"
+        "Responda só com a letra da opção.<|im_end|>\n<|im_start|>assistant\n"
+    )
+    assert decision.score == -0.6
+    assert decision.probability == pytest.approx(1 / (1 + np.exp(0.6 / 0.7869027171235091)))
+    assert decision.threshold == 0.225
+    assert decision.value is True
+    assert decision.window_start_s == 6
+    assert decision.window_end_s == 8
+    assert not decision.calibrated
+    assert vad_model._engine.calls == ["encode"]
 
 
 @pytest.mark.parametrize(
@@ -306,7 +518,10 @@ def test_vad_recognized_prompt(vad_model, text, task):
 def test_vad_explicit_prompt(vad_model, text):
     question = Question.noul(text, task="voice_activity")
     decision = vad_model(np.zeros(16000, dtype=np.float32), [question], 16000)[0]
-    assert vad_model._engine.head_texts == [text]
+    assert vad_model._engine.head_texts == [
+        f"<|im_start|>user\n{text}\nA. sim\nB. não\n"
+        "Responda só com a letra da opção.<|im_end|>\n<|im_start|>assistant\n"
+    ]
     assert decision.question is question
 
 

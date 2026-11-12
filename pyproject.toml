@@ -45,12 +45,12 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.mypy]
 python_version = "3.10"
 strict = true
-files = ["src"]
+files = ["src", ".runpod/handler.py"]
 [[tool.mypy.overrides]]
 module = ["marimba._vendor.*"]
 ignore_errors = true
 [[tool.mypy.overrides]]
-module = ["soundfile", "soxr", "torch", "torch.*", "transformers", "onnxruntime", "qwen_asr", "qwen_asr.*"]
+module = ["soundfile", "soxr", "torch", "torch.*", "transformers", "onnxruntime", "qwen_asr", "qwen_asr.*", "runpod"]
 ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = ["pipecat.*"]

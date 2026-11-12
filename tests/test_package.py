@@ -12,6 +12,30 @@ from marimba.cli import main
 from marimba.questions import matches_template
 from marimba.runtime import select_backend
 from marimba.testing import FakeMarimba
+from marimba.windows import WindowSnapshot
+
+
+@pytest.mark.parametrize("duration", [0.5, 3, 8])
+def test_decoder_snapshot_left_aligns_audio_but_preserves_timestamps_and_internal_silence(duration):
+    from marimba.windows import EncodedWindow
+
+    class CaptureModel(FakeMarimba):
+        def _encode_snapshot(self, snapshot):
+            self.input = snapshot
+            return EncodedWindow(snapshot)
+
+    model = CaptureModel()
+    samples = np.ones(round(duration * 16000), np.float32)
+    samples[100:200] = 0
+    audio, mask = right_aligned_window(samples)
+    snapshot = WindowSnapshot(audio, mask, 12, 12 + duration)
+    model.decide_snapshot(snapshot, [Question.noul('Was "hello" spoken?')])
+    np.testing.assert_array_equal(model.input.audio[: len(samples)], samples)
+    assert not model.input.audio[len(samples) :].any()
+    assert model.input.mask[: len(samples)].all()
+    assert not model.input.mask[len(samples) :].any()
+    assert (model.input.window_start_s, model.input.window_end_s) == (12, 12 + duration)
+    np.testing.assert_array_equal(snapshot.audio, audio)
 
 
 @pytest.mark.parametrize(
@@ -22,9 +46,14 @@ from marimba.testing import FakeMarimba
         ("voice_activity", "", False),
         ("same_speaker", "Are these the same speaker?", True),
         ("speaker_count", "How many speakers are there?", True),
+        ("speaker_count", "How many people?", True),
+        ("speaker_count", "How many people are talking?", True),
         ("turn_end", "Has someone finished speaking?", True),
         ("language", "Which language is spoken?", True),
         ("term", 'Did anyone say "hello"?', True),
+        ("term", 'Was "marimba" spoken?', True),
+        ("term", "Was 'hello' said?", True),
+        ("term", "Was marimba spoken?", False),
         ("pii", " DOES THIS AUDIO CONTAIN ANY PERSONALLY IDENTIFIABLE DATA?! ", True),
         ("pii", "Is there any PII?", True),
         ("pii", "Does this audio contain secrets?", False),
@@ -135,6 +164,46 @@ def test_question_errors():
     with pytest.raises(ValueError):
         Question.noul("", task="voice_activity")
     assert Question.score("Custom", task="turn_end").task == "turn_end"
+
+
+def test_question_resolved_threshold_defaults_and_override():
+    assert Question.noul("Is someone speaking?").threshold is None
+    assert Question.noul("Is someone speaking?").resolved_threshold == 0.225
+    assert Question.score("Is someone speaking?", task="voice_activity").resolved_threshold == 0.225
+    assert Question.noul("Has the speaker finished?").resolved_threshold == 0.5
+    assert Question.noul('Did someone say "hello"?').resolved_threshold == 0.5
+    assert Question.noul("Is someone speaking?", threshold=0.8).resolved_threshold == 0.8
+    assert Question.noul("Is someone speaking?", threshold=None).resolved_threshold == 0.225
+
+
+def test_question_two_second_tail_is_voice_activity_only_and_hashable():
+    inferred = Question.noul("Is someone speaking?", seconds=2.0)
+    explicit = Question.score("Is someone speaking?", task="voice_activity", seconds=2.0)
+    assert inferred.task == explicit.task == "voice_activity"
+    assert inferred.seconds == explicit.seconds == 2.0
+    assert len({inferred, Question.noul("Is someone speaking?", seconds=2.0)}) == 1
+
+
+@pytest.mark.parametrize(
+    ("task", "seconds"),
+    [
+        ("voice_activity", 0.5),
+        ("voice_activity", 1.0),
+        ("voice_activity", 3.0),
+        ("voice_activity", float("nan")),
+        ("turn_end", 2.0),
+        ("term", 2.0),
+    ],
+)
+def test_question_rejects_unvalidated_tail_seconds(task, seconds):
+    with pytest.raises(UnsupportedQuestion, match="two-second tail"):
+        Question.noul("Is someone speaking?", task=task, seconds=seconds)
+
+
+@pytest.mark.parametrize("threshold", [-0.1, 1.1, float("nan")])
+def test_question_threshold_validation(threshold):
+    with pytest.raises(ValueError, match="threshold"):
+        Question.noul("Is someone speaking?", threshold=threshold)
 
 
 @pytest.mark.parametrize(

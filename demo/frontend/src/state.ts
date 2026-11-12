@@ -1,5 +1,7 @@
 export type Kind = 'noul' | 'score' | 'choice';
 export const PACKET_DURATION_MS = 250;
+export const defaultThreshold = (task: string): number =>
+  task === 'voice_activity' ? 0.225 : 0.5;
 export interface Card {
   task: string;
   title: string;
@@ -12,16 +14,18 @@ export interface Card {
   lane?: 'encoder' | 'decoder';
   context_seconds?: number;
   cadence_seconds?: number;
+  cadence?: 'every 250 ms' | 'at end of speech' | 'per utterance';
 }
 export interface Decision {
   task: string;
   question: string;
   kind: Kind;
-  value: boolean | number | string;
+  value: boolean | number | string | null;
   probability: number | null;
   probabilities: Record<string, number> | null;
   score: number | null;
   threshold: number | null;
+  status?: string;
   window_end_s: number;
   window_start_s?: number;
   latency_ms: number;
@@ -29,13 +33,17 @@ export interface Decision {
 }
 export interface CardState {
   decision?: Decision;
+  pending: boolean;
   trail: { time: number; value: number }[];
   crossedAt: number;
   receivedAt: number;
   intervalMs?: number;
   windowEndAt?: number;
 }
+export const isRollingUpdate = (lane: 'encoder' | 'decoder', decisions: Decision[]): boolean =>
+  lane === 'encoder' && decisions.some((decision) => decision.task !== 'turn_end');
 export const initialState = (): CardState => ({
+  pending: false,
   trail: [],
   crossedAt: -Infinity,
   receivedAt: -Infinity,
@@ -48,21 +56,36 @@ export function reduceCard(
   now: number,
   windowEndAt = now,
 ): CardState {
-  if (state.decision && decision.window_end_s <= state.decision.window_end_s) return state;
+  if (state.decision) {
+    const speakingUpdate =
+      decision.task === 'turn_end' && decision.status === 'speaking';
+    const currentSpeaking =
+      state.decision.task === 'turn_end' && state.decision.status === 'speaking';
+    if (
+      speakingUpdate
+        ? decision.window_end_s <= state.decision.window_end_s
+        : currentSpeaking
+          ? decision.window_end_s < state.decision.window_end_s
+          : decision.window_end_s <= state.decision.window_end_s
+    ) return state;
+  }
+  if (decision.status === 'not_enough_speech') return { ...state, pending: true };
   const previous = state.decision;
   const crossed =
-    previous &&
+    !(decision.task === 'turn_end' && decision.status === 'speaking') &&
+    previous && previous.value !== null && decision.value !== null &&
     decision.kind !== 'choice' &&
-    scalar(previous) >= (previous.threshold ?? 0.5) !==
-      scalar(decision) >= (decision.threshold ?? 0.5);
+    scalar(previous) >= (previous.threshold ?? defaultThreshold(previous.task)) !==
+      scalar(decision) >= (decision.threshold ?? defaultThreshold(decision.task));
   return {
     decision,
+    pending: false,
     receivedAt: now,
     intervalMs: state.decision ? now - state.receivedAt : undefined,
     windowEndAt,
     trail: [
       ...state.trail.filter((p) => p.time >= now - 5000),
-      { time: now, value: scalar(decision) },
+      ...(decision.value === null ? [] : [{ time: now, value: scalar(decision) }]),
     ].slice(-100),
     crossedAt: crossed ? now : state.crossedAt,
   };
