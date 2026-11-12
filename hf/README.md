@@ -16,9 +16,11 @@ model-index:
 
 **Author: Solano Amadori (charcot.ai)**
 
-Pre-release question-driven audio decisions using a frozen Qwen3-ASR-0.6B backbone,
+Question-driven audio decisions using a frozen Qwen3-ASR-0.6B backbone,
 a turn-end readout and a question-conditioned head. This is not a general-purpose
 audio understanding or speaker-verification system.
+
+[Source code](https://github.com/Charcot-AI/marimba-api).
 
 ## License and release status
 

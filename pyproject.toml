@@ -23,7 +23,7 @@ pipecat = ["pipecat-ai>=1.15,<2; python_version >= '3.11'"]
 marimba = "marimba.cli:main"
 
 [project.urls]
-Repository = "https://github.com/Voa-Health/marimba-api"
+Repository = "https://github.com/Charcot-AI/marimba-api"
 
 [dependency-groups]
 dev = ["pytest>=8.3", "ruff>=0.8", "mypy>=1.13"]
