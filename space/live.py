@@ -82,16 +82,22 @@ class LiveController:
         self.model, self.make_questions = model, make_questions
         self.owner: LiveSession | None = None
 
-    async def stream(
-        self, chunk: tuple[int, np.ndarray], state: LiveSession | None, term: str, session_id: str
-    ) -> LiveSession:
-        if self.owner is not None and self.owner is not state:
-            raise ValueError("Busy: another live session is active. Try again after it stops.")
+    def start(self, state: LiveSession | None, term: str, session_id: str) -> LiveSession:
+        if self.owner is not None:
+            if self.owner.closed or self.owner.session_id != session_id:
+                raise ValueError("Busy: another live session is active. Try again after it stops.")
+            state = self.owner
         if state is None or state.closed:
             state = LiveSession(
                 self.model, self.make_questions(self.model, term), term.strip(), session_id
             )
             self.owner = state
+        return state
+
+    async def stream(
+        self, chunk: tuple[int, np.ndarray], state: LiveSession | None, term: str, session_id: str
+    ) -> LiveSession:
+        state = self.start(state, term, session_id)
         try:
             if state.term != term.strip():
                 raise ValueError("Stop recording before changing the term.")

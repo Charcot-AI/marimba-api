@@ -164,6 +164,36 @@ def test_space_live_buffers_resamples_and_does_not_pad_at_stop(app_module):
     asyncio.run(run())
 
 
+def test_space_live_admits_before_audio_and_rejects_another_session(app_module):
+    import asyncio
+
+    from space.live import LiveController
+
+    async def run():
+        controller = LiveController(FakeMarimba(), app_module.demo_questions)
+        first = controller.start(None, "marimba", "first")
+        assert controller.start(None, "marimba", "first") is first
+        assert first.run.scheduler.total == 0
+        with pytest.raises(ValueError, match="Busy"):
+            controller.start(None, "marimba", "second")
+        await controller.close(first)
+        replacement = controller.start(None, "marimba", "second")
+        assert controller.owner is replacement
+        await controller.close(replacement, aborted=True)
+
+    asyncio.run(run())
+
+
+def test_space_live_admission_and_stop_do_not_queue_behind_stream(app_module, monkeypatch):
+    monkeypatch.setattr(app_module, "load_model", FakeMarimba)
+    monkeypatch.setenv("MARIMBA_LIVE", "1")
+    app = app_module.build_app()
+    callbacks = {block.fn.__name__: block for block in app.fns.values() if block.fn is not None}
+    assert callbacks["stream"].concurrency_limit is None
+    assert callbacks["start"].queue is False
+    assert callbacks["stop"].queue is False
+
+
 def test_space_live_coalesces_and_disconnect_releases_owner(app_module):
     import asyncio
 

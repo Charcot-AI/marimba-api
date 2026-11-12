@@ -191,6 +191,12 @@ def build_app() -> gr.Blocks:
                 sources=["microphone"], streaming=True, type="numpy", label="Live microphone"
             )
 
+            async def start(session, user_term, request: gr.Request):
+                try:
+                    return controller.start(session, user_term, request.session_hash)
+                except ValueError as error:
+                    raise gr.Error(str(error)) from None
+
             async def stream(chunk, session, user_term, request: gr.Request):
                 try:
                     session = await controller.stream(
@@ -228,19 +234,20 @@ def build_app() -> gr.Blocks:
             async def disconnect(request: gr.Request):
                 await controller.disconnect(request.session_hash)
 
+            # Streaming connections hold queue slots until recording stops.
+            microphone.start_recording(
+                start, [state, term], state, queue=False, api_visibility="private"
+            )
             microphone.stream(
                 stream,
                 [microphone, state, term],
                 [state, *outputs],
                 stream_every=0.25,
-                concurrency_limit=1,
-                concurrency_id="live",
+                concurrency_limit=None,
                 api_visibility="private",
             )
             for event in (microphone.stop_recording, microphone.clear):
-                event(
-                    stop, state, [state, *outputs], concurrency_id="live", api_visibility="private"
-                )
+                event(stop, state, [state, *outputs], queue=False, api_visibility="private")
             app.unload(disconnect)
     return app
 
