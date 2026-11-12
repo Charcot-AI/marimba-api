@@ -104,7 +104,7 @@ MARKER = "synthetic-marker-xyz"
     [
         f'{{"kind": "noul", "text": "{MARKER}?", "task": "{MARKER}"}}',
         f'{{"kind": "choice", "text": "Is someone speaking?", "options": ["{MARKER}", "b"]}}',
-        f'{{"kind": "noul", "text": "{MARKER}?", "task": "turn_end"}}',
+        f'{{"kind": "choice", "text": "{MARKER}?", "task": "turn_end", "options": ["a", "b"]}}',
         f'{{"kind": "noul", "text": "Did someone say it?", "task": "term", "x": "{MARKER}"}}',
         '{"kind": "noul", "text": "Did someone say it?", "task": "term"}',
         """{"kind": "noul", "text": "Did someone say '...'?", "task": "term"}""",
