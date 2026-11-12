@@ -301,3 +301,79 @@ def test_models_document(client: TestClient) -> None:
 
 def test_health(client: TestClient) -> None:
     assert client.get("/ping").json() == {"status": "healthy"}
+
+
+@pytest.mark.parametrize("chunked", [False, True])
+def test_oversized_body_is_rejected(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, chunked: bool
+) -> None:
+    import marimba.server
+
+    monkeypatch.setattr(marimba.server, "MAX_REQUEST_BYTES", 4096)
+    payload = json.dumps({**body("speech?"), "padding": "x" * 8192}).encode()
+    content: Any = iter([payload[i : i + 1024] for i in range(0, len(payload), 1024)])
+    response = client.post(
+        "/v1/chat/completions",
+        content=content if chunked else payload,
+        headers={"content-type": "application/json"},
+    )
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "request_too_large"
+
+
+def test_stream_disconnect_keeps_slot_until_inference_ends() -> None:
+    import asyncio
+
+    app = create_app(FakeMarimba(slow_decoder_seconds=1.0), ServerConfig(max_concurrency=1))
+    payload = json.dumps(body("term: x", stream=True)).encode()
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/v1/chat/completions",
+        "raw_path": b"/v1/chat/completions",
+        "root_path": "",
+        "query_string": b"",
+        "headers": [(b"content-type", b"application/json")],
+        "client": ("testclient", 1),
+        "server": ("testserver", 80),
+    }
+
+    async def scenario() -> list[int]:
+        processing = asyncio.Event()
+        requested = False
+
+        async def receive() -> dict[str, Any]:
+            nonlocal requested
+            if not requested:
+                requested = True
+                return {"type": "http.request", "body": payload, "more_body": False}
+            await processing.wait()
+            return {"type": "http.disconnect"}
+
+        async def send(message: dict[str, Any]) -> None:
+            if message["type"] == "http.response.body" and message["body"].startswith(b":"):
+                processing.set()
+
+        # Starlette cancels the stream on disconnect; inference keeps running in its thread.
+        await app(scope, receive, send)
+        post = TestClient(app).post
+        busy = await asyncio.to_thread(post, "/v1/chat/completions", json=body("speech?"))
+        await asyncio.sleep(1.5)
+        free = await asyncio.to_thread(post, "/v1/chat/completions", json=body("speech?"))
+        return [busy.status_code, free.status_code]
+
+    assert asyncio.run(scenario()) == [429, 200]
+
+
+def test_serve_exits_cleanly_when_the_model_fails_to_load(monkeypatch: pytest.MonkeyPatch) -> None:
+    from marimba import cli
+
+    def fail(**_: Any) -> None:
+        raise OSError("synthetic load failure")
+
+    monkeypatch.setattr(cli.Marimba, "from_pretrained", fail)
+    with pytest.raises(SystemExit, match="Could not load the model: OSError"):
+        cli.main(["serve", "--port", "0"])

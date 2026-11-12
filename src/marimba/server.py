@@ -5,6 +5,7 @@ Requires the ``server`` extra: ``pip install "marimba-audio[server]"``.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
 import hmac
@@ -23,7 +24,6 @@ import numpy as np
 from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
-from starlette.background import BackgroundTask
 
 from .audio import SAMPLE_RATE, AudioArray, decode_audio
 from .capabilities import DEFAULT_CAPABILITIES, Capability
@@ -37,6 +37,8 @@ AUDIO_TOKENS_PER_SECOND = 12.5
 SCORED_WINDOW_SECONDS = 8.0
 MAX_AUDIO_SECONDS = 30.0
 MAX_AUDIO_BYTES = 16 * 1024 * 1024
+# Base64 audio at the audio limit plus room for the JSON envelope and question text.
+MAX_REQUEST_BYTES = math.ceil(MAX_AUDIO_BYTES / 3) * 4 + 1024 * 1024
 MAX_QUESTIONS = 8
 CONTEXT_LENGTH = 1024
 MAX_OUTPUT_TOKENS = 1024
@@ -407,6 +409,21 @@ _INTERNAL_ERROR = {
 }
 
 
+async def read_body(request: Request) -> bytes:
+    """Read the request body, refusing anything over ``MAX_REQUEST_BYTES`` before buffering it."""
+    too_large = RequestError("Request body is too large", status=413, code="request_too_large")
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > MAX_REQUEST_BYTES:
+        raise too_large
+    chunks, size = [], 0
+    async for chunk in request.stream():
+        size += len(chunk)
+        if size > MAX_REQUEST_BYTES:
+            raise too_large
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+
 def _log_failure(stage: str, error: Exception) -> None:
     # Exception messages and tracebacks can carry request content, so log the type only.
     logger.error("Request %s failed: %s", stage, type(error).__name__)
@@ -457,7 +474,9 @@ def create_app(model: Marimba, config: ServerConfig | None = None) -> FastAPI:
         if not authorized(request):
             return _error("Invalid API key", 401, "invalid_api_key")
         try:
-            body = await request.json()
+            body = json.loads(await read_body(request))
+        except RequestError as error:
+            return _error(str(error), error.status, error.code)
         except ValueError:
             return _error("Request body must be valid JSON", 400, "invalid_json")
         try:
@@ -493,41 +512,40 @@ def create_app(model: Marimba, config: ServerConfig | None = None) -> FastAPI:
                 }
             )
 
-        released = threading.Event()
-
-        def release() -> None:
-            if not released.is_set():
-                released.set()
+        def answer_then_release(parsed: ParsedRequest) -> tuple[str, dict[str, Any]]:
+            try:
+                return answer(parsed)
+            finally:
                 slots.release()
+
+        # Inference runs outside the response stream so a disconnect, which can cancel or
+        # abandon the stream, never frees the slot before inference ends.
+        pending = asyncio.get_running_loop().run_in_executor(None, answer_then_release, parsed)
+        pending.add_done_callback(lambda done: done.cancelled() or done.exception())
 
         async def events() -> AsyncIterator[str]:
             chunk = {**base, "object": "chat.completion.chunk"}
+            # An SSE comment reaches the client before inference finishes.
+            yield ": processing\n\n"
             try:
-                # An SSE comment reaches the client before inference finishes.
-                yield ": processing\n\n"
-                try:
-                    content, counts = await run_in_threadpool(answer, parsed)
-                except Exception as error:
-                    _log_failure("inference", error)
-                    yield f"data: {json.dumps(_INTERNAL_ERROR)}\n\n"
-                    return
-                delta = {"role": "assistant", "content": content}
-                first = {**chunk, "choices": [{"index": 0, "delta": delta, "finish_reason": None}]}
-                yield f"data: {json.dumps(first)}\n\n"
-                last = {
-                    **chunk,
-                    "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
-                    "usage": counts,
-                }
-                yield f"data: {json.dumps(last)}\n\n"
-                yield "data: [DONE]\n\n"
-            finally:
-                release()
+                content, counts = await pending
+            except Exception as error:
+                _log_failure("inference", error)
+                yield f"data: {json.dumps(_INTERNAL_ERROR)}\n\n"
+                return
+            delta = {"role": "assistant", "content": content}
+            first = {**chunk, "choices": [{"index": 0, "delta": delta, "finish_reason": None}]}
+            yield f"data: {json.dumps(first)}\n\n"
+            last = {
+                **chunk,
+                "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
+                "usage": counts,
+            }
+            yield f"data: {json.dumps(last)}\n\n"
+            yield "data: [DONE]\n\n"
 
-        # The background task covers clients that disconnect before the stream starts.
         return StreamingResponse(
             events(),
-            background=BackgroundTask(release),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )

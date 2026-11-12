@@ -134,13 +134,16 @@ def run_server(args: argparse.Namespace) -> int:
 
     if args.max_concurrency <= 0:
         raise SystemExit("--max-concurrency must be positive")
-    model = (
-        FakeMarimba()
-        if args.fake
-        else Marimba.from_pretrained(
-            backend=args.backend, device=args.device, dtype=args.dtype, revision=args.revision
+    try:
+        model = (
+            FakeMarimba()
+            if args.fake
+            else Marimba.from_pretrained(
+                backend=args.backend, device=args.device, dtype=args.dtype, revision=args.revision
+            )
         )
-    )
+    except Exception as error:
+        raise SystemExit(f"Could not load the model: {type(error).__name__}: {error}") from None
     config = ServerConfig(
         model_id=args.model_id,
         prompt_price_usd=args.prompt_price,
@@ -221,13 +224,16 @@ def main(argv: list[str] | None = None) -> int:
         if args.fake:
             parser.error("--threads requires a real torch benchmark")
         importlib.import_module("torch").set_num_threads(args.threads)
-    model = (
-        FakeMarimba()
-        if args.fake
-        else Marimba.from_pretrained(
-            backend=args.backend, device=args.device, dtype=args.dtype, revision=args.revision
+    try:
+        model = (
+            FakeMarimba()
+            if args.fake
+            else Marimba.from_pretrained(
+                backend=args.backend, device=args.device, dtype=args.dtype, revision=args.revision
+            )
         )
-    )
+    except Exception as error:
+        raise SystemExit(f"Could not load the model: {type(error).__name__}: {error}") from None
     templates = demo_questions()
     questions = [templates[index % len(templates)] for index in range(args.questions)]
     unavailable = [

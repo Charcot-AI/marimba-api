@@ -48,6 +48,8 @@ The last `user` message must contain exactly one `input_audio` part and one or m
   at 16 kHz). Other containers return `400`. `data` is standard base64; a `data:` URL
   prefix is accepted. Audio is downmixed and resampled to 16 kHz.
 - Limits: 30 seconds and 16 MiB of audio (`413` above either), one to eight questions.
+  Request bodies larger than the base64 audio limit plus 1 MiB are refused with `413`
+  before they are buffered.
 - Decisions describe the **last eight seconds** of the clip, the validated window.
   Clips shorter than eight seconds are left-padded and masked; readout tasks
   (speaker questions) return `null` values until a full window is available.
@@ -101,7 +103,9 @@ model runs, one chunk carrying the whole content, a final chunk with
 `{"error": {"message", "type", "code"}}` with `400`, `401`, `404` (unknown model),
 `413`, or `429` (all `--max-concurrency` slots busy; retry). An unexpected failure
 returns `500` with a generic message, or a final `data: {"error": ...}` event when
-streaming.
+streaming. A client that disconnects mid-stream keeps its concurrency slot until its
+inference finishes. If the model cannot load, `marimba serve` exits with a one-line
+error and never starts listening.
 
 The server does not log request content. Uvicorn access logs record the method,
 path, status, and client address; an unexpected failure logs only the exception type,
