@@ -105,8 +105,9 @@ def test_lazy_load(integration, monkeypatch):
     monkeypatch.setattr(integration.Marimba, "from_pretrained", load)
 
     async def run():
-        stream = integration.MarimbaTurnDetector().stream()
+        detector = integration.MarimbaTurnDetector()
         assert not loads
+        stream = detector.stream()
         stream.push_audio(frame([0], 16000))
         await stream.predict()
         await stream.predict()
@@ -114,6 +115,79 @@ def test_lazy_load(integration, monkeypatch):
         await stream.aclose()
 
     asyncio.run(run())
+
+
+@pytest.mark.parametrize("timeout", [0, -1, float("nan")])
+def test_prediction_timeout_validation(integration, timeout):
+    with pytest.raises(ValueError, match="prediction_timeout"):
+        integration.MarimbaTurnDetector(prediction_timeout=timeout)
+
+
+def test_prediction_timeout_option(integration):
+    assert integration.MarimbaTurnDetector(model=FakeModel()).stream().prediction_timeout == 2.0
+    detector = integration.MarimbaTurnDetector(model=FakeModel(), prediction_timeout=0.75)
+    assert detector.stream().prediction_timeout == 0.75
+
+
+def test_stream_warms_model_once_without_event_loop(integration, monkeypatch):
+    model = FakeModel()
+    entered, release, loaded = threading.Event(), threading.Event(), threading.Event()
+    loads = []
+
+    def load():
+        loads.append(threading.current_thread())
+        entered.set()
+        assert release.wait(timeout=5)
+        loaded.set()
+        return model
+
+    monkeypatch.setattr(integration.Marimba, "from_pretrained", load)
+    detector = integration.MarimbaTurnDetector()
+    assert not loads
+    stream = detector.stream()
+    try:
+        assert entered.wait(timeout=5)
+        second = detector.stream()
+        assert len(loads) == 1
+        assert loads[0].daemon
+        assert loads[0] is not threading.current_thread()
+    finally:
+        release.set()
+    assert loaded.wait(timeout=5)
+
+    async def run():
+        stream.push_audio(frame([0], 16000))
+        await stream.predict()
+        await stream.aclose()
+        await second.aclose()
+        assert len(loads) == 1
+
+    asyncio.run(run())
+
+
+def test_warmup_failure_can_retry_at_prediction(integration, monkeypatch, caplog):
+    failed = threading.Event()
+    loads = []
+
+    def load():
+        loads.append(True)
+        if len(loads) == 1:
+            failed.set()
+            raise RuntimeError("synthetic warmup failure")
+        return FakeModel()
+
+    monkeypatch.setattr(integration.Marimba, "from_pretrained", load)
+    stream = integration.MarimbaTurnDetector().stream()
+    assert failed.wait(timeout=5)
+
+    async def run():
+        stream.push_audio(frame([0], 16000))
+        assert (await stream.predict()).end_of_turn_probability == 0.75
+        await stream.aclose()
+
+    asyncio.run(run())
+    assert loads == [True, True]
+    assert "Marimba model warmup failed" in caplog.text
 
 
 @pytest.mark.parametrize("failure", ["raise", "empty", "missing"])

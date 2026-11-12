@@ -84,12 +84,15 @@ session = AgentSession(
 Install `livekit-plugins-silero` separately for this VAD. Add your STT, LLM, and
 TTS providers to the session. Marimba is audio-only and accepts all language
 codes without transcript input. The adapter resamples to 16 kHz with soxr HQ,
-keeps the latest eight seconds, and loads the default model on first prediction
-unless a model is supplied. Inference runs off the event loop. Failed or empty
+keeps the latest eight seconds, and starts loading the default model in a
+background thread when a stream is opened unless a model is supplied.
+Inference runs off the event loop. Failed or empty
 predictions return probability 1.0, matching LiveKit's local fail-open behavior;
 canceled predictions return 0.0 and stale results are ignored. `flush()` clears
-the audio buffer. The prediction timeout is 30 seconds; preload the model to
-avoid downloads during the first turn. No real-time guarantee is claimed.
+the audio buffer. Set `prediction_timeout` on the detector to configure the
+prediction timeout (default: 2 seconds, must be greater than zero). Background
+loading may not finish before the first turn; preload and pass a model to
+exclude initialization from that turn. No real-time guarantee is claimed.
 
 See [the examples](../examples/livekit/README.md) for a voice agent and an
 offline CPU smoke test with synthetic audio.

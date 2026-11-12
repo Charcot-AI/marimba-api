@@ -151,4 +151,4 @@ Skipped hops never clear the context. The default `coalesce=False` still emits e
 `ingest()` does not queue historical inference; switching back to `push()` resumes hop
 accounting from the retained partial hop. These APIs also work with `FakeMarimba`.
 For Pipecat, set `UserTurnStrategies(stop=[TurnAnalyzerUserTurnStopStrategy(turn_analyzer=MarimbaTurnAnalyzer())])`; see [Pipecat turn analyzer](docs/streaming.md#pipecat-turn-analyzer).
-For LiveKit Agents, set `AgentSession(turn_handling={"turn_detection": MarimbaTurnDetector()})`; see [LiveKit turn detector](docs/streaming.md#livekit-turn-detector).
+For LiveKit Agents, set `AgentSession(turn_handling={"turn_detection": MarimbaTurnDetector()})`; the detector warms the model in the background and defaults to a 2-second `prediction_timeout`. See [LiveKit turn detector](docs/streaming.md#livekit-turn-detector).

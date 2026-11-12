@@ -29,12 +29,23 @@ _LOGGER = logging.getLogger(__name__)
 class MarimbaTurnDetector:
     """Audio-only streaming turn detector for LiveKit Agents."""
 
-    def __init__(self, *, model: Marimba | None = None, unlikely_threshold: float = 0.5) -> None:
+    def __init__(
+        self,
+        *,
+        model: Marimba | None = None,
+        unlikely_threshold: float = 0.5,
+        prediction_timeout: float = 2.0,
+    ) -> None:
         if not 0.0 <= unlikely_threshold <= 1.0:
             raise ValueError("unlikely_threshold must be between 0 and 1")
+        if not prediction_timeout > 0:
+            raise ValueError("prediction_timeout must be greater than 0")
         self._model = model
         self._threshold = unlikely_threshold
+        self._prediction_timeout = prediction_timeout
         self._lock = threading.Lock()
+        self._warmup_start_lock = threading.Lock()
+        self._warmup_started = False
 
     @property
     def model(self) -> str:
@@ -47,7 +58,19 @@ class MarimbaTurnDetector:
     def stream(
         self, *, conn_options: APIConnectOptions = DEFAULT_API_CONNECT_OPTIONS
     ) -> MarimbaTurnDetectorStream:
+        with self._warmup_start_lock:
+            if self._model is None and not self._warmup_started:
+                self._warmup_started = True
+                threading.Thread(target=self._warmup, daemon=True).start()
         return MarimbaTurnDetectorStream(self)
+
+    def _warmup(self) -> None:
+        try:
+            with self._lock:
+                if self._model is None:
+                    self._model = Marimba.from_pretrained()
+        except Exception:
+            _LOGGER.exception("Marimba model warmup failed")
 
     async def unlikely_threshold(self, language: str | None) -> float:
         return self._threshold
@@ -91,7 +114,7 @@ class MarimbaTurnDetectorStream:
 
     @property
     def prediction_timeout(self) -> float:
-        return 30.0
+        return self._detector._prediction_timeout
 
     async def unlikely_threshold(self, language: str | None) -> float:
         return await self._detector.unlikely_threshold(language)
