@@ -82,7 +82,9 @@ speech. Short inter-speaker pauses normally remain part of the same turn.
 Partials start after roughly 0.5 seconds of energy-gated speech, at most once per
 second. One inference/STT job runs off the event loop per call; receiving continues
 and partial requests are coalesced while busy. Finals are sent as soon as STT
-finishes, before the language job. CPU inference can still delay partials/finals.
+and language finish. The complete decision JSON is logged before sending its
+final, so an immediate disconnect cannot lose the final's metadata. CPU inference
+can still delay partials/finals.
 
 `MAX_TURN_SECONDS` defaults to 30: force-score/split at that boundary with reason
 `max_turn`. A current turn plus an eight-second
@@ -107,11 +109,12 @@ These decisions **cannot** travel through Vapi's transcriber response protocol;
 consume logs separately. No server-side audio/transcript persistence or POST sink
 is implemented. Whisper-tiny recognition quality is not guaranteed.
 
-There is no Marimba voice-activity veto: native VOICE at the energy offset passed
-only 6 of 22 measured speech candidates at its unchanged 0.5 threshold, although
-it rejected three generated noise signals. Minimum speech duration in the energy
-gate and skipping empty STT output avoid a second unreliable veto. They are not
-a general noise classifier: STT can hallucinate words on non-speech audio.
+There is no Marimba voice-activity veto: even checking up to six within-turn
+windows at the unchanged 0.5 threshold passed only 8 of 22 measured speech
+candidates, although it rejected three generated noise signals. Minimum speech
+duration and skipping empty STT output avoid a second unreliable veto.
+Non-speech noise can trigger STT hallucinations; put your STT's no-speech
+filtering in front of the bridge.
 
 ## Local simulation
 

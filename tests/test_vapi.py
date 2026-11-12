@@ -151,6 +151,71 @@ def test_stale_score_cannot_cut_resumed_speech():
     assert all(x["transcriptType"] == "partial" for x in drain(bridge))
 
 
+def test_delayed_endpoint_retains_exact_history():
+    bridge = server.Bridge(Model(), lambda _: "Synthetic words")
+    background = np.full(10 * 16000, 0.001, dtype=np.float32)
+    bridge.ingest(np.concatenate((background, speech())))
+    partial = bridge.next_job()
+    assert partial[0] == "partial"
+    bridge.ingest(silence(0.8))
+    bridge.complete(partial, bridge.compute(partial))
+    expected = np.concatenate((background, speech(), silence(0.3)))[-128000:]
+    score = bridge.next_job()
+    np.testing.assert_array_equal(score[3], expected)
+    bridge.ingest(silence(1))
+    np.testing.assert_array_equal(bridge.window(score[1]), expected)
+    bridge.complete(score, bridge.compute(score))
+    final = bridge.next_job()
+    bridge.ingest(silence(1))
+    np.testing.assert_array_equal(bridge.window(final[1]), expected)
+    assert len(bridge.audio) <= bridge.max_turn + server.WINDOW
+    bridge.complete(final, bridge.compute(final))
+    assert bridge.pinned is None
+
+
+def test_final_metadata_survives_immediate_disconnect(caplog):
+    caplog.set_level(logging.INFO, logger="vapi_bridge")
+
+    async def run():
+        class DisconnectAfterFinal(Socket):
+            async def send_json(self, frame):
+                if frame["transcriptType"] == "final":
+                    events = [json.loads(record.message) for record in caplog.records]
+                    decision = events[-1]
+                    assert decision["type"] == "turn_decisions"
+                    assert decision["reason"] == "turn_end"
+                    assert [d["task"] for d in decision["decisions"]] == [
+                        "turn_end",
+                        "language",
+                    ]
+                    self.messages.put_nowait({"type": "websocket.disconnect"})
+                await super().send_json(frame)
+
+        socket = DisconnectAfterFinal()
+        socket.send(np.concatenate((speech(), silence(0.3))))
+        await asyncio.wait_for(server.session(socket, Model(), lambda _: "Synthetic words"), 3)
+        assert socket.frames[-1]["transcriptType"] == "final"
+        assert sum('"type": "turn_decisions"' in record.message for record in caplog.records) == 1
+
+    asyncio.run(run())
+
+
+def test_language_failure_cannot_emit_incomplete_final():
+    class FailedLanguage(Model):
+        def __call__(self, audio, questions, sampling_rate=None):
+            if questions[0].task == "language":
+                raise RuntimeError("Synthetic language failure")
+            return super().__call__(audio, questions, sampling_rate)
+
+    events = []
+    bridge = server.Bridge(FailedLanguage(), lambda _: "Synthetic words", emit=events.append)
+    bridge.ingest(np.concatenate((speech(), silence(0.3))))
+    with pytest.raises(RuntimeError, match="Synthetic language failure"):
+        drain(bridge)
+    assert bridge.turn_count == 0
+    assert all(event["type"] != "turn_decisions" for event in events)
+
+
 @pytest.mark.parametrize("score", [0.1, 0.9])
 def test_empty_stt_and_silence_memory(score):
     bridge = server.Bridge(Model(score=score), lambda _: "")

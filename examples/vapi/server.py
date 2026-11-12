@@ -66,11 +66,11 @@ class Bridge:
         self.run = 0
         self.floor = 0.001
         self.scored = None
+        self.pinned = None
         self.last_partial = 0.0
         self.partial_at = 0
         self.final_at = 0.0
         self.finalizing = False
-        self.language_job = None
         self.turn_count = 0
         self.captured_at = perf_counter()
 
@@ -97,11 +97,12 @@ class Bridge:
             else:
                 self.run = 0
                 self.floor = 0.98 * self.floor + 0.02 * min(energy, 0.01)
-            keep = (
-                min(self.total - WINDOW, self.start)
-                if self.start is not None
-                else self.total - WINDOW
-            )
+            keep = self.total - WINDOW
+            if self.start is not None:
+                endpoint = min(self.offset + 4800, self.start + self.max_turn)
+                keep = min(keep, self.start, endpoint - WINDOW)
+            if self.pinned is not None:
+                keep = min(keep, self.pinned - WINDOW)
             discard = max(0, keep - self.base)
             self.audio = self.audio[discard:]
             self.base += discard
@@ -122,9 +123,6 @@ class Bridge:
         self.partial_at = 0
 
     def next_job(self):
-        if self.language_job is not None:
-            job, self.language_job = self.language_job, None
-            return job
         if self.start is None:
             return None
         forced = self.total - self.start >= self.max_turn
@@ -133,6 +131,7 @@ class Bridge:
         end = self.start + self.max_turn if forced else self.offset + 4800
         if forced or quiet >= 4800:
             if self.scored is None or self.scored[0] != end:
+                self.pinned = end
                 return ("score", end, None if forced else self.offset, self.window(end))
             _, turn, window = self.scored
             reason = (
@@ -145,6 +144,7 @@ class Bridge:
                 else None
             )
             if reason:
+                self.pinned = end
                 audio = self.slice(self.start, end)
                 future = self.slice(end, self.total)
                 self.reset()
@@ -176,13 +176,14 @@ class Bridge:
             return turn
         if kind == "partial":
             return self.stt(data[0])
-        if kind == "language":
-            return self.model(data[0], [LANGUAGE], sampling_rate=RATE)[0]
-        return self.stt(data[1])
+        text = self.stt(data[1])
+        language = self.model(data[2], [LANGUAGE], sampling_rate=RATE)[0] if text else None
+        return text, language
 
     def complete(self, job, result):
         kind, end, *data = job
         if kind == "score":
+            self.pinned = None
             turn = replace(result, window_end_s=end / RATE)
             self.emit(self.event("turn_end_score", [turn]))
             if self.start is not None and (data[0] is None or self.offset == data[0]):
@@ -190,19 +191,10 @@ class Bridge:
             return None
         if kind == "partial":
             return self.response(result, "partial") if result else None
-        if kind == "language":
-            self.emit(
-                {
-                    **self.event(
-                        "turn_decisions",
-                        [data[1], replace(result, window_end_s=end / RATE)],
-                    ),
-                    **data[2],
-                }
-            )
-            return None
+        self.pinned = None
         self.finalizing = False
-        if not result:
+        text, language = result
+        if not text:
             self.emit({"type": "empty_transcript", "stt_samples": len(data[1])})
             return None
         self.final_at = perf_counter()
@@ -214,8 +206,15 @@ class Bridge:
             "stt_samples": len(data[1]),
             "endpoint_latency_ms": (perf_counter() - endpoint_at) * 1000,
         }
-        self.language_job = ("language", end, data[2], data[3], metadata)
-        return self.response(result, "final")
+        self.emit(
+            {
+                **self.event(
+                    "turn_decisions", [data[3], replace(language, window_end_s=end / RATE)]
+                ),
+                **metadata,
+            }
+        )
+        return self.response(text, "final")
 
     @staticmethod
     def event(kind, decisions):
