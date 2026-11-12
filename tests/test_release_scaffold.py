@@ -89,7 +89,12 @@ def test_executed_notebooks_are_small_and_text_only():
     colab_code = [cell for cell in colab["cells"] if cell["cell_type"] == "code"]
     assert all(cell["execution_count"] > 0 for cell in colab_code)
     assert colab_path.stat().st_size < 30000
-    assert "/home/" not in json.dumps(colab)
+    colab_text = json.dumps(colab)
+    assert "/home/" not in colab_text
+    assert "hf-internal-testing/librispeech_asr_dummy" in colab_text
+    assert "sanchit-gandhi/librispeech_asr_dummy" in colab_text
+    assert "Synthetic audio:" not in colab_text
+    assert "[PENDING]" in colab_text
 
 
 def test_documentation_relative_links_resolve():

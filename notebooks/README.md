@@ -5,8 +5,9 @@
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Charcot-AI/marimba-api/blob/main/notebooks/colab_quickstart.ipynb)
 
 The [Colab quickstart](colab_quickstart.ipynb) installs the published PyPI package and
-demonstrates its supported question types with generated tone-and-silence audio.
-It is an API example, not an accuracy measurement.
+demonstrates supported question types with public LibriSpeech speech, including a
+transcript-checked term example and a two-speaker clip. It is an API example, not
+an accuracy measurement.
 
 ## Executed CPU notebooks
 
