@@ -59,7 +59,8 @@ selecting paid hardware. The script never silently upgrades hardware.
 
 ## Questions and limitations
 
-- Speech: `Question.noul("Is someone speaking?")`.
+- Speech: `Question.noul("Is someone speaking?", seconds=2.0)`, using the package's
+  validated two-second tail and default 0.225 threshold; the Space does not tune it.
 - Turn ended: `Question.score("Has the speaker finished?")`.
 - Language: English, Portuguese, Spanish, or Other (all remaining supported languages).
 - Term: a user-supplied word or phrase, matched by the package's exact-token scorer.
@@ -73,20 +74,33 @@ context above eight seconds is unvalidated; no real-time guarantee is claimed.
 
 ## Synthetic examples
 
-Three eight-second, mono 16 kHz PCM clips are generated with eSpeak NG 1.50:
-English containing “marimba,” Portuguese containing the near-word “marina” but
-not “marimba,” and a Spanish exchange using two different synthetic voices. These
-are functionality examples, not an accuracy or calibration benchmark. There are
-no human recordings. The text and synthesis settings are in `generate_examples.py`.
+Eight examples are **synthetic speech generated with ElevenLabs**, using the
+`eleven_v4` model and premade Sarah, George, and Bella voices. The source owner
+confirmed generation on a paid plan permitting commercial use. There are no real
+recordings, and no ElevenLabs API token or voice-model weights are distributed.
+The resulting audio is not being relicensed as CC0 or Apache-2.0.
 
-Regenerate with eSpeak NG and FFmpeg installed:
+The examples cover a completed turn, a cut-off turn, “marimba,” the near-words
+“marina/mariscos/maraca,” two speakers, Spanish, Portuguese, and three voices.
+Transcripts, source sample intervals, source SHA256, and clip hashes are recorded
+in `examples/manifest.json`. All eight scenes are included without selecting by
+model output. These are functionality examples, not an accuracy benchmark.
+
+Each clip retains the scene's final eight seconds, including its original trailing
+silence. Short scenes are left-padded with digital silence so speaker tasks receive
+a full eight-second window; the 8.26-second two-speaker scene loses its first 0.26 s.
+No timing is selected from model predictions. Speech reads only the final two
+seconds, so false is expected when those two seconds contain only trailing silence.
+
+Reproduce the cuts from the original assembly and its timing manifest:
 
 ```sh
-python space/generate_examples.py
+python space/generate_examples.py /path/to/scenes.wav /path/to/manifest.json
 ```
 
-The clips are dedicated to the public domain under CC0-1.0 to the extent permitted
-by law. eSpeak NG is used as a synthesis tool; no voice-model files are distributed.
+The script verifies the source SHA256 before cutting. It does not call a TTS API,
+alter levels, or require the original paid synthesis credentials. The original
+assembly is not needed to run the Space; the eight derived clips are bundled.
 
 ## API
 
@@ -96,14 +110,14 @@ from gradio_client import Client, handle_file
 
 client = Client("charcot-ai/marimba", token=os.environ["HF_TOKEN"])
 decisions = client.predict(
-    handle_file("space/examples/english_marimba.wav"),
+    handle_file("space/examples/03_term.wav"),
     ["Speech", "Turn ended", "Language", "Term", "Speaker change", "People"],
     "marimba",
     api_name="/decide",
 )
 ```
 
-Run `python space/smoke_test.py` for all six question types and the three synthetic
+Run `python space/smoke_test.py` for all six question types and the eight synthetic
 examples. It reports client wall time (including queue and transfer) separately
 from the package's decision-lane latency, and writes JSON only when `--output` is
 provided. Tokens are never part of its output.

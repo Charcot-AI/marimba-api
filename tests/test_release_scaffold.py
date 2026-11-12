@@ -62,6 +62,8 @@ def test_space_typed_questions(app_module):
         "speaker_count",
     ]
     assert questions[3].term == "marimba"
+    assert questions[0].seconds == 2.0
+    assert questions[0].resolved_threshold == 0.225
     assert questions[-1].options == ("0", "1", "2", "3+")
 
 
@@ -88,18 +90,42 @@ def test_space_deployment_bundle():
     assert files["README.md"] == ROOT / "space" / "README.md"
     assert "src/marimba/lexical.py" in files
     assert "LICENSE" in files
-    assert len([name for name in files if name.endswith(".wav")]) == 3
+    assert len([name for name in files if name.endswith(".wav")]) == 8
+    assert "space/examples/manifest.json" in files
     assert not any(name.startswith((".git", "demo/", "tests/")) for name in files)
     assert not any("__pycache__" in name or ".env" in name for name in files)
 
 
 def test_space_examples_are_eight_second_pcm():
-    for path in (ROOT / "space" / "examples").glob("*.wav"):
+    import hashlib
+
+    examples = ROOT / "space" / "examples"
+    manifest = json.loads((examples / "manifest.json").read_text())
+    assert len(manifest["scenes"]) == 8
+    for scene in manifest["scenes"]:
+        path = examples / f"{scene['id']}.wav"
         info = sf.info(path)
         assert info.samplerate == 16000
         assert info.channels == 1
         assert info.frames == 128000
         assert info.subtype == "PCM_16"
+        assert hashlib.sha256(path.read_bytes()).hexdigest() == scene["sha256"]
+
+
+def test_scene_cuts_preserve_samples_and_pad_only_at_start():
+    spec = importlib.util.spec_from_file_location(
+        "space_examples", ROOT / "space/generate_examples.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    audio = np.arange(140000, dtype=np.int16)
+    short = module.cut_scene(audio, 10, 20)
+    assert len(short) == 128000
+    assert np.array_equal(short[-10:], audio[10:20])
+    assert not short[:-10].any()
+    assert np.array_equal(module.cut_scene(audio, 0, 140000), audio[-128000:])
+    with pytest.raises(ValueError):
+        module.cut_scene(audio, 20, 10)
 
 
 def test_space_diarization_partial_window(app_module, monkeypatch, tmp_path):

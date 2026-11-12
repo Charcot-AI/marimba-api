@@ -31,7 +31,7 @@ def make_questions(selected: list[str], term: str) -> list[Question]:
         if not any(char.isalnum() for char in term):
             raise ValueError("The term must contain a letter or number.")
     questions = {
-        "Speech": Question.noul("Is someone speaking?"),
+        "Speech": Question.noul("Is someone speaking?", seconds=2.0),
         "Turn ended": Question.score("Has the speaker finished?"),
         "Language": Question.choice(
             "What language is being spoken?", ["English", "Portuguese", "Spanish", "Other"]
@@ -75,13 +75,15 @@ def build_app() -> gr.Blocks:
             "# Marimba\n"
             "Multilingual typed audio decisions. Upload or record audio, select questions, "
             "and inspect each decision and its probabilities.\n\n"
-            "Only the **last eight seconds** are scored. Speaker change and people count "
+            "Only the **last eight seconds** are scored; Speech reads the last two seconds "
+            "using the package's validated default threshold. Speaker change and people count "
             "require eight valid seconds; shorter clips return no prediction for those tasks. "
             "People counts speakers, not everyone physically present. Language probabilities "
             "are relative to the listed choices; Other groups the remaining supported languages. "
             "Term probabilities are **uncalibrated fractions of five hypotheses** "
             "(greedy + four beams). No real-time guarantee.\n\n"
-            "Examples are synthetic TTS. Do not submit sensitive audio; "
+            "Examples are synthetic speech generated with ElevenLabs. "
+            "Do not submit sensitive audio; "
             "uploads are temporarily cached, with no retention or deletion guarantee."
         )
         audio = gr.Audio(
@@ -97,9 +99,7 @@ def build_app() -> gr.Blocks:
         )
         gr.Examples(
             examples=[
-                [str(EXAMPLES / "english_marimba.wav"), QUESTION_TYPES, "marimba"],
-                [str(EXAMPLES / "portuguese_near_word.wav"), QUESTION_TYPES, "marimba"],
-                [str(EXAMPLES / "spanish_two_speakers.wav"), QUESTION_TYPES, "marimba"],
+                [str(path), QUESTION_TYPES, "marimba"] for path in sorted(EXAMPLES.glob("*.wav"))
             ],
             inputs=[audio, questions, term],
             cache_examples=False,

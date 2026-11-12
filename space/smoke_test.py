@@ -42,11 +42,8 @@ def main() -> None:
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     client = Client(args.repo_id, token=os.environ["HF_TOKEN"], verbose=False)
-    cases = [("english_marimba", [name]) for name in QUESTIONS]
-    cases.extend(
-        (name, list(QUESTIONS))
-        for name in ("english_marimba", "portuguese_near_word", "spanish_two_speakers")
-    )
+    cases = [("03_term", [name]) for name in QUESTIONS]
+    cases.extend((path.stem, list(QUESTIONS)) for path in sorted(EXAMPLES.glob("*.wav")))
     results = []
     for name, selected in cases:
         started = perf_counter()

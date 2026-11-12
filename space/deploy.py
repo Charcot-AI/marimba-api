@@ -6,7 +6,7 @@ import argparse
 import os
 from pathlib import Path
 
-from huggingface_hub import CommitOperationAdd, HfApi
+from huggingface_hub import CommitOperationAdd, CommitOperationDelete, HfApi
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -29,10 +29,11 @@ def deployment_files() -> dict[str, Path | bytes]:
         "deploy.py",
     ):
         files[f"space/{name}"] = ROOT / "space" / name
-    for name in ("english_marimba", "portuguese_near_word", "spanish_two_speakers"):
-        path = ROOT / "space" / "examples" / f"{name}.wav"
-        if not path.is_file():
-            raise FileNotFoundError("Generate synthetic examples before deployment.")
+    examples = ROOT / "space" / "examples"
+    clips = sorted(examples.glob("*.wav"))
+    if len(clips) != 8:
+        raise ValueError("Prepare all eight synthetic scene clips before deployment.")
+    for path in [*clips, examples / "manifest.json"]:
         files[path.relative_to(ROOT).as_posix()] = path
     return files
 
@@ -61,13 +62,19 @@ def main() -> None:
         sleep_time=300 if args.hardware == "l4x1" else None,
     )
     api.add_space_secret(args.repo_id, key="HF_TOKEN", value=os.environ["HF_TOKEN"])
+    obsolete_examples = [
+        name
+        for name in api.list_repo_files(args.repo_id, repo_type="space")
+        if name.startswith("space/examples/") and name.endswith(".wav") and name not in files
+    ]
     commit = api.create_commit(
         args.repo_id,
         repo_type="space",
         operations=[
             CommitOperationAdd(path_in_repo=name, path_or_fileobj=source)
             for name, source in sorted(files.items())
-        ],
+        ]
+        + [CommitOperationDelete(path_in_repo=name) for name in obsolete_examples],
         commit_message="feat: deploy typed multilingual audio decisions",
     )
     info = api.space_info(args.repo_id)
