@@ -1,3 +1,4 @@
+import asyncio
 import importlib
 
 import numpy as np
@@ -111,3 +112,55 @@ def test_default_model_is_loaded_lazily(analyzer_class, monkeypatch):
 def test_threshold_must_be_a_probability(analyzer_class, threshold):
     with pytest.raises(ValueError, match="threshold"):
         analyzer_class(model=FakeModel(), threshold=threshold)
+
+
+@pytest.mark.parametrize("probability", [0.25, 0.75])
+def test_public_api_returns_turn_metrics(analyzer_class, probability):
+    analyzer = analyzer_class(model=FakeModel(probability))
+    analyzer.set_sample_rate(16000)
+
+    async def run():
+        try:
+            analyzer.append_audio(np.ones(320, dtype=np.int16).tobytes(), is_speech=True)
+            state, metrics = await analyzer.analyze_end_of_turn()
+            assert state.name == ("COMPLETE" if probability >= 0.5 else "INCOMPLETE")
+            assert metrics.probability == probability
+            assert metrics.e2e_processing_time_ms >= 0
+        finally:
+            await analyzer.cleanup()
+
+    asyncio.run(run())
+
+
+def test_public_api_empty_audio_has_no_metrics(analyzer_class):
+    analyzer = analyzer_class(model=FakeModel())
+    analyzer.set_sample_rate(16000)
+
+    async def run():
+        try:
+            state, metrics = await analyzer.analyze_end_of_turn()
+            assert state.name == "INCOMPLETE"
+            assert metrics is None
+        finally:
+            await analyzer.cleanup()
+
+    asyncio.run(run())
+
+
+def test_public_api_propagates_inference_errors(analyzer_class):
+    class BrokenModel:
+        def __call__(self, *args, **kwargs):
+            raise RuntimeError("Synthetic inference failure")
+
+    analyzer = analyzer_class(model=BrokenModel())
+    analyzer.set_sample_rate(16000)
+
+    async def run():
+        try:
+            analyzer.append_audio(np.ones(320, dtype=np.int16).tobytes(), is_speech=True)
+            with pytest.raises(RuntimeError, match="Synthetic inference failure"):
+                await analyzer.analyze_end_of_turn()
+        finally:
+            await analyzer.cleanup()
+
+    asyncio.run(run())
