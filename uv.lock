@@ -2304,6 +2304,10 @@ onnx = [
 pipecat = [
     { name = "pipecat-ai", marker = "python_full_version >= '3.11'" },
 ]
+server = [
+    { name = "fastapi" },
+    { name = "uvicorn" },
+]
 torch = [
     { name = "accelerate" },
     { name = "torch" },
@@ -2313,6 +2317,7 @@ torch = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "httpx" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "ruff" },
@@ -2322,6 +2327,7 @@ dev = [
 requires-dist = [
     { name = "accelerate", marker = "extra == 'torch'", specifier = "==1.12.0" },
     { name = "datasets", marker = "extra == 'datasets'", specifier = ">=3" },
+    { name = "fastapi", marker = "extra == 'server'", specifier = ">=0.115" },
     { name = "gradio", marker = "extra == 'demo'", specifier = ">=5" },
     { name = "huggingface-hub", specifier = ">=0.26" },
     { name = "livekit-agents", marker = "extra == 'livekit'", specifier = ">=1.6.3,<2" },
@@ -2334,11 +2340,13 @@ requires-dist = [
     { name = "torch", marker = "extra == 'torch'", specifier = "==2.8.0" },
     { name = "torchaudio", marker = "extra == 'torch'", specifier = "==2.8.0" },
     { name = "transformers", marker = "extra == 'torch'", specifier = "==4.57.6" },
+    { name = "uvicorn", marker = "extra == 'server'", specifier = ">=0.30" },
 ]
-provides-extras = ["torch", "onnx", "datasets", "demo", "pipecat", "livekit"]
+provides-extras = ["torch", "onnx", "datasets", "demo", "server", "pipecat", "livekit"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "httpx", specifier = ">=0.27" },
     { name = "mypy", specifier = ">=1.13" },
     { name = "pytest", specifier = ">=8.3" },
     { name = "ruff", specifier = ">=0.8" },

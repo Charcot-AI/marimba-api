@@ -129,6 +129,34 @@ def package_version(name: str) -> str | None:
         return None
 
 
+def run_server(args: argparse.Namespace) -> int:
+    from .server import ServerConfig, serve
+
+    if args.max_concurrency <= 0:
+        raise SystemExit("--max-concurrency must be positive")
+    try:
+        model = (
+            FakeMarimba()
+            if args.fake
+            else Marimba.from_pretrained(
+                backend=args.backend, device=args.device, dtype=args.dtype, revision=args.revision
+            )
+        )
+    except Exception as error:
+        raise SystemExit(f"Could not load the model: {type(error).__name__}: {error}") from None
+    config = ServerConfig(
+        model_id=args.model_id,
+        prompt_price_usd=args.prompt_price,
+        completion_price_usd=args.completion_price,
+        datacenters=tuple(code.strip() for code in args.datacenters.split(",") if code.strip()),
+        is_ready=args.ready,
+        api_key=os.environ.get("MARIMBA_API_KEY") or None,
+        max_concurrency=args.max_concurrency,
+    )
+    serve(model, config, host=args.host, port=args.port)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="marimba")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -150,7 +178,23 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Also measure each card alone and the shared encoder",
     )
+    server = commands.add_parser("serve", help="Run the OpenAI-compatible HTTP server")
+    server.add_argument("--host", default="127.0.0.1")
+    server.add_argument("--port", type=int, default=8000)
+    server.add_argument("--backend", default="auto")
+    server.add_argument("--device", default="auto")
+    server.add_argument("--dtype", default="auto")
+    server.add_argument("--revision", default=None)
+    server.add_argument("--fake", action="store_true", help="Serve synthetic decisions")
+    server.add_argument("--model-id", default="charcot-ai/marimba")
+    server.add_argument("--prompt-price", default="0.00001", help="USD per prompt token")
+    server.add_argument("--completion-price", default="0.000001", help="USD per output token")
+    server.add_argument("--datacenters", default="", help="Comma-separated ISO country codes")
+    server.add_argument("--max-concurrency", type=int, default=4)
+    server.add_argument("--ready", action="store_true", help="Advertise is_ready: true")
     args = parser.parse_args(argv)
+    if args.command == "serve":
+        return run_server(args)
     if args.command == "doctor":
         report = detect_runtime()
         try:
@@ -180,13 +224,16 @@ def main(argv: list[str] | None = None) -> int:
         if args.fake:
             parser.error("--threads requires a real torch benchmark")
         importlib.import_module("torch").set_num_threads(args.threads)
-    model = (
-        FakeMarimba()
-        if args.fake
-        else Marimba.from_pretrained(
-            backend=args.backend, device=args.device, dtype=args.dtype, revision=args.revision
+    try:
+        model = (
+            FakeMarimba()
+            if args.fake
+            else Marimba.from_pretrained(
+                backend=args.backend, device=args.device, dtype=args.dtype, revision=args.revision
+            )
         )
-    )
+    except Exception as error:
+        raise SystemExit(f"Could not load the model: {type(error).__name__}: {error}") from None
     templates = demo_questions()
     questions = [templates[index % len(templates)] for index in range(args.questions)]
     unavailable = [
