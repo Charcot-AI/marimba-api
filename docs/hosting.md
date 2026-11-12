@@ -64,7 +64,10 @@ Scenarios, excluding HTTP and decode overhead:
 | Scenario | Monthly cost |
 |---|---:|
 | Idle, minimum workers 0 | $0 compute, plus container disk (about $0.10 per GB-month) |
-| 10,000 requests per day, one question each, 25% term: about 4,600 GPU-seconds per day, doubled for idle tails and cold starts | about $60 |
+| 1,000 requests per day, one question each, 25% term, random arrivals, 60 s idle timeout: each request bills its compute (0.36 s on average) plus about 43 s of idle tail | about $280 |
+| 10,000 requests per day, same mix: a request arrives every 8.6 s on average, so the worker almost never scales down | about $550, the same as one warm worker |
 | One warm worker 24/7 (Serverless active or pod) | about $550 at flex price, before discounts |
+
+Runpod bills the idle timeout, so at these rates idle tails, not compute, set the cost. A shorter idle timeout lowers it at the price of more cold starts.
 
 Do not provision always-on workers or pods until traffic warrants it.
