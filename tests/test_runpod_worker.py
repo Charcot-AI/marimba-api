@@ -95,7 +95,7 @@ def test_questions_restore_options_and_accept_term(worker, payload):
 
 @pytest.mark.parametrize(
     "question",
-    [Question.score("Is someone speaking?"), Question.noul("Does this audio contain PII?")],
+    [Question.score("Is someone speaking?"), Question.noul("Is there any PII?")],
 )
 def test_other_tasks_are_rejected_before_model_loading(worker, payload, monkeypatch, question):
     load = Mock(side_effect=AssertionError("Model must not load"))
