@@ -1,6 +1,7 @@
 import asyncio
 import importlib.util
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -41,6 +42,7 @@ class Socket:
         return json.dumps(self.start)
 
     async def receive(self):
+        await asyncio.sleep(0.001)
         return self.messages.pop(0)
 
     async def send_json(self, frame):
@@ -71,8 +73,11 @@ def test_session(rate):
             channel="customer",
             transcriptType=frame["transcriptType"],
         )
-    assert len(events) == 1
+    assert len(events) == 2
     assert events[0]["decisions"][0]["task"] == "turn_end"
+    assert events[0]["type"] == "turn_end_score"
+    assert 1.5 <= events[0]["decisions"][0]["window_end_s"] <= 2.25
+    assert events[1]["endpoint_latency_ms"] >= 1750
     assert np.max(np.abs(seen[-1][-16000:])) < 0.01
     assert max(seen[-1]) > 0.8
 
@@ -102,3 +107,57 @@ def test_stt_failure():
     bridge = server.Bridge(FakeMarimba(), fail)
     with pytest.raises(RuntimeError, match="Synthetic STT failure"):
         bridge.feed(np.ones(4000, dtype=np.float32))
+
+
+def test_coalesced_offset_window_and_latency(monkeypatch):
+    calls, events = [], []
+    clock = [100.0]
+    monkeypatch.setattr(server, "perf_counter", lambda: clock[0])
+
+    class RecordingModel(FakeMarimba):
+        def __call__(self, audio, questions, sampling_rate=None):
+            calls.append((questions[0].task, audio.copy()))
+            return super().__call__(audio, questions, sampling_rate)
+
+    model = RecordingModel()
+    bridge = server.Bridge(model, lambda _: "Synthetic hello", emit=events.append)
+    speech = np.full(9 * 16000, 0.9, dtype=np.float32)
+    assert bridge.feed(speech)[0]["transcriptType"] == "partial"
+    assert [task for task, _ in calls] == ["voice_activity"]
+    clock[0] = 102.0
+    assert bridge.feed(np.zeros(32000, dtype=np.float32))[0]["transcriptType"] == "final"
+    assert [task for task, _ in calls] == [
+        "voice_activity",
+        "voice_activity",
+        "turn_end",
+        "language",
+    ]
+    expected = np.concatenate((speech, np.zeros(32000, dtype=np.float32)))[20000:148000]
+    np.testing.assert_array_equal(calls[2][1], expected)
+    np.testing.assert_array_equal(calls[3][1], expected)
+    assert events[0]["decisions"][0]["window_end_s"] == 9.25
+    assert events[1]["endpoint_latency_ms"] == 1750
+    assert len(bridge.ring) == 160000
+    assert bridge.feed(np.zeros(3999, dtype=np.float32)) == []
+    assert len(calls) == 4
+
+
+def test_low_score_waits_for_another_transition():
+    events = []
+
+    class LowTurnModel(FakeMarimba):
+        def __call__(self, audio, questions, sampling_rate=None):
+            decisions = super().__call__(audio, questions, sampling_rate)
+            return [
+                replace(d, probability=0.25, value=0.25) if d.task == "turn_end" else d
+                for d in decisions
+            ]
+
+    bridge = server.Bridge(LowTurnModel(), lambda _: "Synthetic hello", emit=events.append)
+    bridge.feed(np.ones(32000, dtype=np.float32))
+    assert bridge.feed(np.zeros(32000, dtype=np.float32)) == []
+    assert bridge.active
+    assert len(events) == 1
+    assert events[0]["decisions"][0]["probability"] == 0.25
+    bridge.feed(np.zeros(32000, dtype=np.float32))
+    assert len(events) == 1

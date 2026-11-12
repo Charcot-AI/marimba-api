@@ -29,17 +29,26 @@ are little-endian interleaved samples: only channel 0 (customer) is retained.
 Streaming resampling handles 8–48 kHz input; channel 1 is discarded so the agent
 does not hear itself. Arbitrary binary frame boundaries are supported.
 
-Speech activity uses a two-second tail every 250 ms. Only a speech-to-silence
-transition triggers turn-end scoring on the last eight seconds, not rolling
-turn-end scores every hop. A low score keeps the turn open until a later
+Speech activity uses the latest two-second tail after ingesting all complete
+250 ms hops available. Queued frames are coalesced before inference, so CPU
+inference does not score every stale hop. Very short activity between checks
+can be missed. Only a speech-to-silence transition triggers turn-end scoring.
+The eight-second scoring window ends at the estimated speech offset: transition
+time minus 1.75 seconds. That voice-activity offset lag was measured on synthetic
+scenes in the demo; it is an estimate, not a precise word boundary. Language uses
+the same offset-aligned window. A ten-second customer-audio ring retains it.
+A low score keeps the turn open until a later
 speech-to-silence transition. Speech resumption continues the same transcript.
 Partials support barge-in, but STT runs at most once per second and synchronously
 with inference; slow CPU inference delays both partials and finals. Replace
 `whisper_stt()` with a callable for another STT, or increase `partial_seconds`
 when constructing `Bridge`. STT receives at most the last 30 seconds of a turn.
 
-Each final also prints a JSON line with typed turn-end and language decisions
-and elapsed turn latency. These decisions **cannot** be sent through Vapi's
+Every transition prints its turn-end score and window end time. Each final also
+prints typed turn-end and language decisions and server endpoint latency from
+the estimated speech offset to emission (including the offset lag and inference).
+The offset wall time is estimated from the latest received audio timestamp.
+These decisions **cannot** be sent through Vapi's
 transcriber protocol; consume stdout separately. This minimal example does not
 POST decisions. No audio or transcripts are persisted by the server.
 
@@ -62,7 +71,12 @@ To simulate a call with a public or synthetic WAV (never a private recording):
 uv run --with websockets python examples/vapi/simulate_call.py /path/to/public-speech.wav
 ```
 
-The client sends customer speech plus three seconds of silence, with a separate
-assistant-channel tone, and prints every response and total client latency.
-The server prints decision JSON lines to its own stdout. The client requires
-Python 3.11 or newer for its timeout context manager.
+Pass multiple files to join different clips with three seconds of silence.
+The client sends all audio, including trailing silence, with a separate
+assistant-channel tone. It prints every response until 30 seconds after sending
+finishes (`--drain-seconds`), not just until the first final. Client endpoint
+latency starts when the last customer speech sample was sent; near-zero trailing
+samples are trimmed at amplitude 0.0001. In a multi-clip call it uses the latest
+completed clip. A final before the first clip ends is explicitly labeled.
+The server prints decision JSON lines to its own stdout. Clip boundaries and
+the server's estimated offsets may differ; neither metric starts at call start.
