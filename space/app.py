@@ -87,7 +87,7 @@ def build_app() -> gr.Blocks:
             "uploads are temporarily cached, with no retention or deletion guarantee."
         )
         audio = gr.Audio(
-            type="filepath", sources=["upload", "microphone"], label="Upload or record audio"
+            type="filepath", sources=["microphone", "upload"], label="Record or upload audio"
         )
         questions = gr.CheckboxGroup(
             choices=QUESTION_TYPES, value=["Speech", "Turn ended"], label="Typed questions"

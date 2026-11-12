@@ -36,7 +36,8 @@ def test_space_decisions(app_module, monkeypatch, tmp_path):
     app = app_module.build_app()
     assert any(item["api_name"] == "decide" for item in app.config["dependencies"])
     audio_component = next(item for item in app.config["components"] if item["type"] == "audio")
-    assert audio_component["props"]["sources"] == ["upload", "microphone"]
+    assert audio_component["props"]["sources"] == ["microphone", "upload"]
+    assert audio_component["props"]["label"] == "Record or upload audio"
 
 
 @pytest.mark.parametrize("selected", [[], ["Unknown"], ["Speech", "Speech"], [None]])
