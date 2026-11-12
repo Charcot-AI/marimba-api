@@ -35,6 +35,8 @@ CPU latency.
 
 ## Pipecat turn analyzer
 
+See the [runnable offline CPU example](../examples/pipecat/README.md) for setup and pipeline wiring.
+
 Install the optional dependency with `pip install 'marimba-audio[pipecat]'` on Python
 3.11 or newer. The analyzer loads the default Marimba model on its first
 prediction unless you pass a model.
