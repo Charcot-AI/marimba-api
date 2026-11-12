@@ -15,4 +15,5 @@ No real-time service guarantee is provided.
 
 The [executed notebooks](../notebooks/README.md) use pinned public validation audio
 and CPU inference. The [model card](../hf/README.md) records release limitations.
-The [Space scaffold](../space/README.md) is local-only; no hosted Space is provided.
+The [Gradio Space](../space/README.md) supports private deployment on ZeroGPU,
+with typed questions and synthetic audio examples.
