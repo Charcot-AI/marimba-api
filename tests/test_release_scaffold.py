@@ -157,7 +157,7 @@ def test_space_empty_audio_and_sanitized_failure(app_module, monkeypatch):
 
 
 def test_executed_notebooks_are_small_and_text_only():
-    paths = sorted((ROOT / "notebooks").glob("*.ipynb"))
+    paths = sorted((ROOT / "notebooks").glob("[0-9][0-9]_*.ipynb"))
     assert len(paths) == 3
     for path in paths:
         notebook = json.loads(path.read_text())
@@ -173,6 +173,19 @@ def test_executed_notebooks_are_small_and_text_only():
         assert "70bb2e84b976b7e960aa89f1c648e09c59f894dd" in text
         assert "FakeMarimba" not in text
         assert "/home/" not in text
+
+    colab_path = ROOT / "notebooks" / "colab_quickstart.ipynb"
+    assert colab_path.is_file()
+    colab = json.loads(colab_path.read_text())
+    colab_code = [cell for cell in colab["cells"] if cell["cell_type"] == "code"]
+    assert all(cell["execution_count"] > 0 for cell in colab_code)
+    assert colab_path.stat().st_size < 30000
+    colab_text = json.dumps(colab)
+    assert "/home/" not in colab_text
+    assert "hf-internal-testing/librispeech_asr_dummy" in colab_text
+    assert "sanchit-gandhi/librispeech_asr_dummy" in colab_text
+    assert "Synthetic audio:" not in colab_text
+    assert "[PENDING]" in colab_text
 
 
 def test_documentation_relative_links_resolve():
