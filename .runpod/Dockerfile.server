@@ -1,0 +1,35 @@
+FROM runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404
+
+ENV HF_HUB_ENABLE_HF_TRANSFER=0 \
+    HF_HOME=/opt/marimba/huggingface \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# The base image's Debian cryptography installation has no pip RECORD.
+RUN python -m pip install --no-cache-dir --ignore-installed cryptography
+
+COPY pyproject.toml README.md LICENSE THIRD_PARTY_NOTICES.md ./
+COPY src/ ./src/
+RUN python -m pip install --no-cache-dir '.[torch,server]'
+
+RUN python - <<'PY'
+from huggingface_hub import snapshot_download
+from transformers import WhisperTokenizer
+
+from marimba._head import TEXT_REPO, TEXT_REVISION
+from marimba.weights import DEFAULT_MODEL_REPO, ENCODER_REPO, ENCODER_REVISION, load_manifest
+
+load_manifest(DEFAULT_MODEL_REPO, None)
+snapshot_download(ENCODER_REPO, revision=ENCODER_REVISION)
+WhisperTokenizer.from_pretrained(TEXT_REPO, revision=TEXT_REVISION)
+PY
+
+ENV HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1
+
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ping', timeout=4)"
+
+CMD ["marimba", "serve", "--host", "0.0.0.0", "--port", "8000", "--backend", "torch", "--device", "cuda", "--model-id", "charcot-ai/marimba", "--prompt-price", "0.000002", "--completion-price", "0.000001", "--datacenters", "US", "--ready"]
