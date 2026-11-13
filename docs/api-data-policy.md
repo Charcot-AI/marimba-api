@@ -2,7 +2,7 @@
 
 Effective date: 2026-11-13
 
-This policy explains how CHARCOT AI LLC ("Charcot AI", "we") handles data sent to the hosted Marimba API, including requests routed to us through OpenRouter. It covers the API only. Our website is covered by https://charcot.ai/privacy.
+This policy explains how Charcot AI ("we") handles data sent to the hosted Marimba API, including requests routed to us through OpenRouter. It covers the API only. Our website is covered by https://charcot.ai/privacy.
 
 ## Summary
 
@@ -44,9 +44,9 @@ We do not claim zero data retention at this time. Our own server does not store 
 | Runpod, Inc. | GPU hosting (Runpod Serverless). Requests pass through Runpod's gateway to our workers. | Request and response content in transit and in worker memory; our operational logs (no request content), kept up to 90 days. |
 | OpenRouter, Inc. | API router. It forwards developers' requests to us and returns our responses. | Requests and responses it routes to us, under OpenRouter's own privacy policy and settings: https://openrouter.ai/privacy |
 
-Runpod has stated that it does not log request inputs or response outputs. We have not yet signed Runpod's Data Processing Agreement.
+We have not yet received written confirmation from Runpod that its gateway does not log or retain request or response bodies, and we have not yet signed Runpod's Data Processing Agreement.
 
-Serving region: United States. Requests are processed only in Runpod data centers in the United States.
+Serving region: United States. Our endpoint is configured to run only in Runpod data centers in the United States.
 
 ## Security
 
@@ -65,5 +65,5 @@ We will post changes here and update the effective date. If a change weakens the
 
 ## Contact
 
-CHARCOT AI LLC, 16192 Coastal Hwy, Lewes, DE 19958, United States
+Charcot AI
 solano@charcot.ai
