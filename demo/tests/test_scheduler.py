@@ -521,6 +521,207 @@ def test_lagging_encoder_retains_complete_turn_and_utterance_windows():
     asyncio.run(run())
 
 
+class EarlyTermModel(FakeMarimba):
+    early_term_interval_s = 1.5
+
+    def __init__(self, value=True, *, block_first=False):
+        super().__init__()
+        self.value = value
+        self.block_first = block_first
+        self.release = threading.Event()
+        if not block_first:
+            self.release.set()
+        self.started = threading.Event()
+        self.first_done = threading.Event()
+        self.second_started = threading.Event()
+        self.second_done = threading.Event()
+        self.calls = []
+        self.active = 0
+        self.max_active = 0
+        self.lock = threading.Lock()
+
+    def decide_snapshot(self, snapshot, questions):
+        with self.lock:
+            self.calls.append((snapshot.window_start_s, snapshot.window_end_s))
+            call_number = len(self.calls)
+            self.active += 1
+            self.max_active = max(self.max_active, self.active)
+            if call_number == 2:
+                self.second_started.set()
+        self.started.set()
+        try:
+            if self.block_first and call_number == 1:
+                assert self.release.wait(5)
+            decisions = [
+                Decision(
+                    question,
+                    question.task or "",
+                    question.kind,
+                    self.value,
+                    probability=0.9 if self.value else 0.1,
+                    score=0.9 if self.value else 0.1,
+                    threshold=question.resolved_threshold,
+                    window_start_s=snapshot.window_start_s,
+                    window_end_s=snapshot.window_end_s,
+                    status="validated",
+                )
+                for question in questions
+            ]
+            return decisions
+        finally:
+            with self.lock:
+                self.active -= 1
+            if call_number == 1:
+                self.first_done.set()
+            elif call_number == 2:
+                self.second_done.set()
+
+
+def make_early_term_scheduler(model):
+    updates = asyncio.Queue()
+    question = Question.noul('Was "marimba" spoken?', task="term")
+    scheduler = Scheduler(model, [question], updates.put, speech=timeline())
+    scheduler.speech.onset = 0
+    return scheduler, updates
+
+
+async def ingest_frames(scheduler, start, count):
+    for sequence in range(start, start + count):
+        scheduler.ingest(packet(sequence))
+        await asyncio.sleep(0)
+
+
+def test_early_term_probe_emits_yes_before_utterance_closes():
+    async def run():
+        model = EarlyTermModel()
+        scheduler, updates = make_early_term_scheduler(model)
+        worker = asyncio.create_task(scheduler.early_term())
+        await ingest_frames(scheduler, 0, 6)
+
+        assert await asyncio.to_thread(model.first_done.wait, 2)
+        update = await asyncio.wait_for(updates.get(), 2)
+        assert update["type"] == "update"
+        assert update["decisions"][0]["task"] == "term"
+        assert update["decisions"][0]["value"] is True
+        assert model.calls == [(0, 1.5)]
+        assert scheduler.speech.onset == 0
+
+        scheduler.finish(aborted=True)
+        await asyncio.wait_for(worker, 2)
+
+    asyncio.run(run())
+
+
+def test_negative_early_term_probe_emits_nothing():
+    async def run():
+        model = EarlyTermModel(value=False)
+        scheduler, updates = make_early_term_scheduler(model)
+        worker = asyncio.create_task(scheduler.early_term())
+        await ingest_frames(scheduler, 0, 6)
+
+        assert await asyncio.to_thread(model.first_done.wait, 2)
+        assert updates.empty()
+        assert model.calls == [(0, 1.5)]
+
+        scheduler.finish(aborted=True)
+        await asyncio.wait_for(worker, 2)
+
+    asyncio.run(run())
+
+
+def test_early_term_yes_skips_final_term_but_completes_review_status():
+    async def run():
+        model = EarlyTermModel()
+        scheduler, updates = make_early_term_scheduler(model)
+        worker = asyncio.create_task(scheduler.early_term())
+        await ingest_frames(scheduler, 0, 6)
+        assert await asyncio.to_thread(model.first_done.wait, 2)
+        probe_update = await asyncio.wait_for(updates.get(), 2)
+        assert probe_update["decisions"][0]["value"] is True
+
+        scheduler.speech.onset = None
+        scheduler.close_utterance(SpeechSegment(0, scheduler.total))
+        scheduler.finish()
+        await asyncio.wait_for(scheduler.review(), 2)
+        await asyncio.wait_for(worker, 2)
+
+        messages = []
+        while not updates.empty():
+            messages.append(updates.get_nowait())
+        finished_term_statuses = [
+            message
+            for message in messages
+            if message.get("type") == "review_status"
+            and message.get("tasks") == ["term"]
+            and message.get("running") is False
+        ]
+        assert len(finished_term_statuses) == 1
+        assert model.calls == [(0, 1.5)]
+
+    asyncio.run(run())
+
+
+def test_early_term_is_disabled_without_model_interval():
+    async def run():
+        class LocalModel(FakeMarimba):
+            def __init__(self):
+                super().__init__()
+                self.calls = []
+
+            def decide_snapshot(self, snapshot, questions):
+                self.calls.extend(question.task for question in questions)
+                return super().decide_snapshot(snapshot, questions)
+
+        model = LocalModel()
+        updates = asyncio.Queue()
+        question = Question.noul('Was "marimba" spoken?', task="term")
+        scheduler = Scheduler(model, [question], updates.put, speech=timeline())
+        scheduler.speech.onset = 0
+        worker = asyncio.create_task(scheduler.early_term())
+        await worker
+        assert model.calls == []
+
+        await ingest_frames(scheduler, 0, 1)
+        scheduler.speech.onset = None
+        scheduler.close_utterance(SpeechSegment(0, scheduler.total))
+        scheduler.finish()
+        await asyncio.wait_for(scheduler.review(), 2)
+
+        assert model.calls == ["term"]
+        messages = []
+        while not updates.empty():
+            messages.append(updates.get_nowait())
+        assert any(
+            message.get("type") == "update"
+            and any(decision["task"] == "term" for decision in message["decisions"])
+            for message in messages
+        )
+
+    asyncio.run(run())
+
+
+def test_early_term_probe_never_overlaps_another_probe():
+    async def run():
+        model = EarlyTermModel(value=False, block_first=True)
+        scheduler, _ = make_early_term_scheduler(model)
+        worker = asyncio.create_task(scheduler.early_term())
+        await ingest_frames(scheduler, 0, 6)
+        assert await asyncio.to_thread(model.started.wait, 2)
+        await ingest_frames(scheduler, 6, 6)
+        assert len(model.calls) == 1
+        assert model.max_active == 1
+
+        model.release.set()
+        assert await asyncio.to_thread(model.second_done.wait, 2)
+        assert model.max_active == 1
+        assert model.calls == [(0, 1.5), (0, 3.0)]
+
+        scheduler.finish(aborted=True)
+        await asyncio.wait_for(worker, 2)
+
+    asyncio.run(run())
+
+
 @pytest.mark.parametrize(("start", "end"), [(0, 8000), (4000, 12001)])
 def test_snapshot_rejects_ranges_outside_retained_audio(start, end):
     scheduler = Scheduler(Model(), [], None, speech=timeline())
