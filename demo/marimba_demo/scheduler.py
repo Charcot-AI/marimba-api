@@ -15,7 +15,12 @@ from marimba.audio import right_aligned_window
 from marimba.windows import WindowSnapshot
 
 from .protocol import SAMPLE_RATE, Frame
-from .speech import SpeechSegment, SpeechTimeline, speaker_change_eligible
+from .speech import (
+    TURN_OFFSET_LAG_S,
+    SpeechSegment,
+    SpeechTimeline,
+    speaker_change_eligible,
+)
 
 _SPEECH_QUESTION_TEXT = "Is someone speaking?"
 
@@ -41,6 +46,7 @@ class Scheduler:
         send: Any,
         *,
         speech: SpeechTimeline | None = None,
+        use_1s_turn_tail: bool = False,
     ) -> None:
         self.model, self.send = model, send
         self.speech = speech if speech is not None else SpeechTimeline()
@@ -56,6 +62,8 @@ class Scheduler:
         self.early_term_fired_onsets: set[int] = set()
         self.early_term_busy = False
         self.internal_speech_question: Question | None = None
+        self.internal_turn_speech_question: Question | None = None
+        self.turn_speech: SpeechTimeline | None = None
         self.speech_question: Any | None = next(
             (q for q in self.heads if self._is_speech_question(q)), None
         )
@@ -69,11 +77,24 @@ class Scheduler:
                 _SPEECH_QUESTION_TEXT, task="voice_activity", seconds=2.0
             )
             self.speech_question = self.internal_speech_question
+        if self.internal_speech_question is not None or (
+            use_1s_turn_tail
+            and self.speech_question is not None
+            and self._is_speech_question(self.speech_question)
+        ):
+            self.internal_turn_speech_question = Question.noul(
+                _SPEECH_QUESTION_TEXT, task="voice_activity", seconds=1.0
+            )
+            self.turn_speech = SpeechTimeline(offset_lag_s=TURN_OFFSET_LAG_S)
         if len(self.heads) + len(self.turns) + len(self.reviews) != len(questions):
             raise ValueError("Unknown inference lane.")
         stream_questions = list(questions)
-        if self.internal_speech_question is not None:
-            stream_questions.append(self.internal_speech_question)
+        for question in (
+            self.internal_speech_question,
+            self.internal_turn_speech_question,
+        ):
+            if question is not None and question not in stream_questions:
+                stream_questions.append(question)
         self.stream = model.stream(
             stream_questions,
             window_seconds=8.0,
@@ -121,25 +142,32 @@ class Scheduler:
         if segment.end <= segment.start:
             return
 
-        def work(start: int, end: int) -> Work:
-            _, timestamp = self.latest_capture
-            return Work(
-                self.snapshot(start, end),
-                self.latest_capture,
-                timestamp
-                + (end - self.latest_capture_start_sample) * 1000 / SAMPLE_RATE,
-            )
-
-        if self.turns:
-            self.turn_queue.append(
-                work(max(0, segment.end - 8 * SAMPLE_RATE), segment.end)
-            )
-            self.changed["turn"].set()
+        if self.internal_turn_speech_question is None:
+            self.enqueue_turn(segment)
         if self.reviews:
             self.utterance_queue.append(
-                [work(s, e) for s, e in utterance_chunks(segment.start, segment.end)]
+                [
+                    self.make_work(s, e)
+                    for s, e in utterance_chunks(segment.start, segment.end)
+                ]
             )
             self.changed["decoder"].set()
+
+    def make_work(self, start: int, end: int) -> Work:
+        _, timestamp = self.latest_capture
+        return Work(
+            self.snapshot(start, end),
+            self.latest_capture,
+            timestamp + (end - self.latest_capture_start_sample) * 1000 / SAMPLE_RATE,
+        )
+
+    def enqueue_turn(self, segment: SpeechSegment) -> None:
+        if not self.turns or segment.end <= segment.start:
+            return
+        self.turn_queue.append(
+            self.make_work(max(0, segment.end - 8 * SAMPLE_RATE), segment.end)
+        )
+        self.changed["turn"].set()
 
     def ingest(self, frame: Frame) -> None:
         self.latest_capture_start_sample = self.total
@@ -301,11 +329,31 @@ class Scheduler:
                     and self.turns
                 ):
                     speaking_onset_s = self.speech.onset / SAMPLE_RATE
+        if lane == "encoder" and self.internal_turn_speech_question is not None:
+            turn_speech_decision = next(
+                (
+                    decision
+                    for decision in decisions
+                    if decision.question == self.internal_turn_speech_question
+                ),
+                None,
+            )
+            if (
+                turn_speech_decision is not None
+                and isinstance(turn_speech_decision.value, bool)
+                and self.turn_speech is not None
+            ):
+                for segment in self.turn_speech.observe(
+                    snapshot.window_end_s, turn_speech_decision.value
+                ):
+                    self.enqueue_turn(segment)
         sequence, timestamp = work.capture
         visible_decisions = [
             d
             for d in decisions
-            if d.question != self.internal_speech_question and d.question not in neutral
+            if d.question != self.internal_speech_question
+            and d.question != self.internal_turn_speech_question
+            and d.question not in neutral
         ]
         payloads = []
         for decision in visible_decisions:
@@ -392,11 +440,12 @@ class Scheduler:
                     and not speaker_change_eligible(snapshot, self.speech)
                 ]
                 questions = [q for q in questions if q not in neutral]
-                if (
-                    self.internal_speech_question is not None
-                    and self.internal_speech_question not in questions
+                for question in (
+                    self.internal_speech_question,
+                    self.internal_turn_speech_question,
                 ):
-                    questions.append(self.internal_speech_question)
+                    if question is not None and question not in questions:
+                        questions.append(question)
                 await self.emit(
                     Work(snapshot, self.latest_capture), questions, "encoder", neutral
                 )
