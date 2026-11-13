@@ -348,9 +348,12 @@ class Scheduler:
                     [q for q in self.reviews if q.task == "term"],
                     [q for q in self.reviews if q.task not in {"language", "term"}],
                 )
-                for questions in groups:
+
+                async def review_group(
+                    utterance: list[Work], questions: list[Any]
+                ) -> None:
                     if not questions:
-                        continue
+                        return
                     for work in utterance:
                         if self.aborted:
                             return
@@ -363,5 +366,19 @@ class Scheduler:
                                 "running": False,
                             }
                         )
+
+                if getattr(self.model, "concurrent_decoder", False):
+                    await asyncio.gather(
+                        review_group(utterance, groups[0]),
+                        review_group(utterance, groups[1]),
+                    )
+                    if self.aborted:
+                        return
+                    await review_group(utterance, groups[2])
+                else:
+                    for questions in groups:
+                        await review_group(utterance, questions)
+                        if self.aborted:
+                            return
             if self.finished:
                 return
