@@ -1,6 +1,7 @@
 export type Kind = 'noul' | 'score' | 'choice';
 export const PACKET_DURATION_MS = 250;
 export const TERM_HOLD_MS = 2000;
+export const TURN_HOLD_MS = 2000;
 export const defaultThreshold = (task: string): number =>
   task === 'voice_activity' ? 0.225 : 0.5;
 export interface Card {
@@ -34,6 +35,8 @@ export interface Decision {
 }
 export interface CardState {
   decision?: Decision;
+  heldYes?: Decision;
+  heldYesAt: number;
   pending: boolean;
   trail: { time: number; value: number }[];
   crossedAt: number;
@@ -44,6 +47,12 @@ export interface CardState {
 export function shownDecision(card: Card, state: CardState, now: number): Decision | undefined {
   const d = state.decision;
   if (card.task === 'term' && d?.value === true && now - state.receivedAt > TERM_HOLD_MS) return undefined;
+  if (
+    card.task === 'turn_end' &&
+    state.heldYes &&
+    state.decision?.value !== true &&
+    now - state.heldYesAt <= TURN_HOLD_MS
+  ) return state.heldYes;
   return d;
 }
 export const isRollingUpdate = (lane: 'encoder' | 'decoder', decisions: Decision[]): boolean =>
@@ -53,6 +62,7 @@ export const initialState = (): CardState => ({
   trail: [],
   crossedAt: -Infinity,
   receivedAt: -Infinity,
+  heldYesAt: -Infinity,
 });
 export const scalar = (d: Decision): number =>
   d.kind === 'score' ? (d.score ?? 0) : (d.probability ?? 0);
@@ -76,6 +86,7 @@ export function reduceCard(
     ) return state;
   }
   if (decision.status === 'not_enough_speech') return { ...state, pending: true };
+  const heldTurnYes = decision.task === 'turn_end' && decision.value === true;
   const previous = state.decision;
   const crossed =
     !(decision.task === 'turn_end' && decision.status === 'speaking') &&
@@ -85,6 +96,8 @@ export function reduceCard(
       scalar(decision) >= (decision.threshold ?? defaultThreshold(decision.task));
   return {
     decision,
+    heldYes: heldTurnYes ? decision : state.heldYes,
+    heldYesAt: heldTurnYes ? now : state.heldYesAt,
     pending: false,
     receivedAt: now,
     intervalMs: state.decision ? now - state.receivedAt : undefined,
