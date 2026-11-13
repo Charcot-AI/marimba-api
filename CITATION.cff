@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: If you use Marimba, please cite it as below.
+title: "Marimba: typed, calibrated decisions about short and streaming audio"
+type: software
+authors:
+  - family-names: Amadori
+    given-names: Solano
+version: 0.1.2
+license: Apache-2.0
+repository-code: https://github.com/Charcot-AI/marimba-api
+url: https://huggingface.co/charcot-ai/marimba
+preferred-citation:
+  type: article
+  title: "Marimba: A System One Model for Speech"
+  authors:
+    - family-names: Amadori
+      given-names: Solano
+  identifiers:
+    - type: other
+      value: "arXiv:[PENDING]"
+      description: arXiv eprint; the ID is pending.
+  url: https://huggingface.co/charcot-ai/marimba

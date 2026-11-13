@@ -107,7 +107,7 @@ so the count cannot be inferred automatically. A VAD must also receive the chann
 format it supports; Silero expects mono, so downmix upstream of Silero when using it.
 
 See the [main README](../../README.md), [streaming guide](../../docs/streaming.md),
-and [model card](../../hf/README.md) for capabilities and limitations.
+and [model card](https://huggingface.co/charcot-ai/marimba) for capabilities and limitations.
 
 ## License
 
