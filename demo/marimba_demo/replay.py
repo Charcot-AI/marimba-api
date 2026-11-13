@@ -41,14 +41,13 @@ class SchedulerSession:
         self.scheduler = Scheduler(model, questions, collect)
         if not self.scheduler.heads and self.scheduler.internal_speech_question is None:
             raise ValueError("An encoder question or speech capability is required.")
-        self.workers = [
-            asyncio.create_task(worker())
-            for worker in (
-                self.scheduler.live,
-                self.scheduler.turn,
-                self.scheduler.review,
-            )
-        ]
+        workers = [self.scheduler.live, self.scheduler.turn, self.scheduler.review]
+        if (
+            self.scheduler.early_term_interval_s is not None
+            and self.scheduler.term_reviews
+        ):
+            workers.append(self.scheduler.early_term)
+        self.workers = [asyncio.create_task(worker()) for worker in workers]
 
     def ingest(self, frame: Frame) -> None:
         self.scheduler.ingest(frame)

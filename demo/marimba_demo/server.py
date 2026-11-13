@@ -152,6 +152,11 @@ def create_app(
                     asyncio.create_task(scheduler.turn()),
                     asyncio.create_task(scheduler.review()),
                 ]
+                if (
+                    scheduler.early_term_interval_s is not None
+                    and scheduler.term_reviews
+                ):
+                    readers.append(asyncio.create_task(scheduler.early_term()))
                 done, _ = await asyncio.wait(
                     readers, return_when=asyncio.FIRST_COMPLETED
                 )
