@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { instrument } from './instruments';
 import { bottomLine, reading, timing } from './presentation';
-import { initialState, reduceCard, type Card, type Decision } from './state';
+import { initialState, reduceCard, shownDecision, type Card, type Decision } from './state';
 
 const card: Card = {
   task: 'speaker_count', title: 'People', text: '', kind: 'choice',
@@ -45,16 +45,30 @@ describe('card presentation', () => {
   });
   it('uses a neutral collecting state before any decision', () => {
     expect(reading(card)).toBe('—');
+    expect(reading({ ...card, kind: 'noul' })).toBe('no');
+    expect(reading({ ...card, kind: 'score' })).toBe('—');
     expect(timing(card, initialState(), 0).window).toBe('COLLECTING 8 s OF AUDIO');
     expect(timing({ ...card, context_seconds: 16 }, initialState(), 0).window)
       .toBe('COLLECTING 16 s OF AUDIO');
   });
-  it('does not render missing runtime values as null, undefined, or no', () => {
+  it('renders null noul values as no while other kinds stay neutral', () => {
     for (const value of [null, undefined]) {
-      for (const kind of ['choice', 'score', 'noul'] as const) {
+      expect(reading({ ...card, kind: 'noul' }, { ...decision, value } as unknown as Decision))
+        .toBe('no');
+      for (const kind of ['choice', 'score'] as const) {
         expect(reading({ ...card, kind }, { ...decision, value } as unknown as Decision)).toBe('—');
       }
     }
+  });
+  it('returns to no after a held Term yes expires', () => {
+    const term: Card = {
+      ...card, task: 'term', title: 'Marimba spoken', kind: 'noul', options: [], lane: 'decoder',
+    };
+    const yes: Decision = { ...decision, task: 'term', kind: 'noul', value: true };
+    const state = reduceCard(initialState(), yes, 0);
+    const visible = shownDecision(term, state, 2001);
+    expect(visible).toBeUndefined();
+    expect(reading(term, visible)).toBe('no');
   });
   it('renders readings and the same timing fields for either lane', () => {
     expect(reading(card, decision)).toBe('2');
