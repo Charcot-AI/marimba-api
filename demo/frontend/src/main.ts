@@ -104,7 +104,7 @@ function makeCards() {
         ? 'EXPERIMENTAL'
         : '';
     const tags = [badge, card.uncalibrated ? 'UNCALIBRATED' : ''].filter(Boolean).join(' / ');
-    el.innerHTML = `<div class="card-top"><span class="number">${String(index + 1).padStart(2, '0')} / ${card.kind.toUpperCase()}</span><span class="badge">${tags}</span></div><h2></h2><div class="reading-row"><span class="reading">—</span></div><div class="instrument"></div><div class="card-bottom"></div><div class="card-window"></div><div class="card-interval"></div><div class="card-latency"></div>`;
+    el.innerHTML = `<div class="card-top"><span class="number">${String(index + 1).padStart(2, '0')} / ${card.kind.toUpperCase()}</span><span class="badge">${tags}</span></div><h2></h2><div class="reading-row"><span class="reading">${reading(card)}</span></div><div class="instrument"></div><div class="card-bottom"></div><div class="card-window"></div><div class="card-interval"></div><div class="card-latency"></div>`;
     el.title = card.evaluation ?? '';
     el.querySelector('h2')!.textContent = card.title;
     $('#cards').append(el);

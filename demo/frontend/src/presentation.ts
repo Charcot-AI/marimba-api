@@ -7,8 +7,8 @@ import {
 } from './state';
 
 export function reading(card: Card, decision?: Decision): string {
+  if (card.kind === 'noul') return decision?.value === true ? 'yes' : 'no';
   if (decision?.value == null) return '—';
-  if (card.kind === 'noul') return decision.value ? 'yes' : 'no';
   if (card.kind === 'score') return scalar(decision).toFixed(2);
   return String(decision.value);
 }
