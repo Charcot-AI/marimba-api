@@ -639,9 +639,10 @@ def test_lagging_encoder_retains_complete_turn_and_utterance_windows():
 class EarlyTermModel(FakeMarimba):
     early_term_interval_s = 1.5
 
-    def __init__(self, value=True, *, block_first=False):
+    def __init__(self, value=True, *, block_first=False, positive_terms=None):
         super().__init__()
         self.value = value
+        self.positive_terms = positive_terms
         self.block_first = block_first
         self.release = threading.Event()
         if not block_first:
@@ -651,6 +652,7 @@ class EarlyTermModel(FakeMarimba):
         self.second_started = threading.Event()
         self.second_done = threading.Event()
         self.calls = []
+        self.question_calls = []
         self.active = 0
         self.max_active = 0
         self.lock = threading.Lock()
@@ -658,6 +660,7 @@ class EarlyTermModel(FakeMarimba):
     def decide_snapshot(self, snapshot, questions):
         with self.lock:
             self.calls.append((snapshot.window_start_s, snapshot.window_end_s))
+            self.question_calls.append(tuple(question.text for question in questions))
             call_number = len(self.calls)
             self.active += 1
             self.max_active = max(self.max_active, self.active)
@@ -667,21 +670,27 @@ class EarlyTermModel(FakeMarimba):
         try:
             if self.block_first and call_number == 1:
                 assert self.release.wait(5)
-            decisions = [
-                Decision(
-                    question,
-                    question.task or "",
-                    question.kind,
-                    self.value,
-                    probability=0.9 if self.value else 0.1,
-                    score=0.9 if self.value else 0.1,
-                    threshold=question.resolved_threshold,
-                    window_start_s=snapshot.window_start_s,
-                    window_end_s=snapshot.window_end_s,
-                    status="validated",
+            decisions = []
+            for question in questions:
+                value = (
+                    self.value
+                    if self.positive_terms is None
+                    else question.text in self.positive_terms
                 )
-                for question in questions
-            ]
+                decisions.append(
+                    Decision(
+                        question,
+                        question.task or "",
+                        question.kind,
+                        value,
+                        probability=0.9 if value else 0.1,
+                        score=0.9 if value else 0.1,
+                        threshold=question.resolved_threshold,
+                        window_start_s=snapshot.window_start_s,
+                        window_end_s=snapshot.window_end_s,
+                        status="validated",
+                    )
+                )
             return decisions
         finally:
             with self.lock:
@@ -772,6 +781,60 @@ def test_early_term_yes_skips_final_term_but_completes_review_status():
         ]
         assert len(finished_term_statuses) == 1
         assert model.calls == [(0, 1.5)]
+
+    asyncio.run(run())
+
+
+def test_early_term_tracks_success_per_question():
+    async def run():
+        first = Question.noul('Was "marimba" spoken?', task="term")
+        second = Question.noul('Was "hello" spoken?', task="term")
+        model = EarlyTermModel(positive_terms={first.text})
+        updates = asyncio.Queue()
+        scheduler = Scheduler(model, [first, second], updates.put, speech=timeline())
+        scheduler.speech.onset = 0
+        worker = asyncio.create_task(scheduler.early_term())
+
+        await ingest_frames(scheduler, 0, 6)
+        assert await asyncio.to_thread(model.first_done.wait, 2)
+        first_probe = await asyncio.wait_for(updates.get(), 2)
+        assert [
+            decision["question"]["text"] for decision in first_probe["decisions"]
+        ] == [first.text]
+
+        await ingest_frames(scheduler, 6, 6)
+        assert await asyncio.to_thread(model.second_done.wait, 2)
+        assert model.question_calls == [
+            (first.text, second.text),
+            (second.text,),
+        ]
+        assert updates.empty()
+
+        scheduler.speech.onset = None
+        scheduler.close_utterance(SpeechSegment(0, scheduler.total))
+        scheduler.finish()
+        await asyncio.wait_for(scheduler.review(), 2)
+        await asyncio.wait_for(worker, 2)
+
+        assert model.question_calls == [
+            (first.text, second.text),
+            (second.text,),
+            (second.text,),
+        ]
+        messages = []
+        while not updates.empty():
+            messages.append(updates.get_nowait())
+        final_terms = [
+            decision
+            for message in messages
+            if message.get("type") == "update"
+            for decision in message["decisions"]
+            if decision.get("task") == "term"
+        ]
+        assert [decision["question"]["text"] for decision in final_terms] == [
+            second.text
+        ]
+        assert final_terms[0]["value"] is False
 
     asyncio.run(run())
 

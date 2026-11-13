@@ -59,7 +59,7 @@ class Scheduler:
         self.early_term_interval_s = getattr(model, "early_term_interval_s", None)
         if self.early_term_interval_s is not None and self.early_term_interval_s <= 0:
             raise ValueError("The early Term probe interval must be positive.")
-        self.early_term_fired_onsets: set[int] = set()
+        self.early_term_fired_questions: set[tuple[int, Any]] = set()
         self.early_term_busy = False
         self.internal_speech_question: Question | None = None
         self.internal_turn_speech_question: Question | None = None
@@ -209,8 +209,13 @@ class Scheduler:
             if active_onset != onset:
                 active_onset = onset
                 last_probe_end = onset
+            probe_questions = [
+                question
+                for question in self.term_reviews
+                if (onset, question) not in self.early_term_fired_questions
+            ]
             if (
-                onset in self.early_term_fired_onsets
+                not probe_questions
                 or last_probe_end is None
                 or self.total - last_probe_end < interval_samples
             ):
@@ -229,7 +234,7 @@ class Scheduler:
             self.early_term_busy = True
             try:
                 decisions, elapsed = await asyncio.to_thread(
-                    self.compute, work.snapshot, self.term_reviews, "decoder"
+                    self.compute, work.snapshot, probe_questions, "decoder"
                 )
             finally:
                 self.early_term_busy = False
@@ -242,7 +247,9 @@ class Scheduler:
             ]
             if not yes_decisions:
                 continue
-            self.early_term_fired_onsets.add(onset)
+            self.early_term_fired_questions.update(
+                (onset, decision.question) for decision in yes_decisions
+            )
             await self.send(
                 {
                     "type": "update",
@@ -516,19 +523,37 @@ class Scheduler:
                 utterance_start = round(
                     utterance[0].snapshot.window_start_s * SAMPLE_RATE
                 )
-                term_already_probed = utterance_start in self.early_term_fired_onsets
-                self.early_term_fired_onsets.discard(utterance_start)
                 term_group = groups[1]
+                term_questions = [
+                    question
+                    for question in term_group
+                    if (utterance_start, question)
+                    not in self.early_term_fired_questions
+                ]
+                term_already_probed = bool(term_group) and not term_questions
+                self.early_term_fired_questions.difference_update(
+                    (utterance_start, question) for question in term_group
+                )
+                term_review_questions = term_questions if term_questions else term_group
                 if getattr(self.model, "concurrent_decoder", False):
                     await asyncio.gather(
                         review_group(utterance, groups[0]),
-                        review_group(utterance, term_group, skip=term_already_probed),
+                        review_group(
+                            utterance,
+                            term_review_questions,
+                            skip=term_already_probed,
+                        ),
                     )
                     if self.aborted:
                         return
                     await review_group(utterance, groups[2])
                 else:
-                    for index, questions in enumerate(groups):
+                    review_groups = (
+                        groups[0],
+                        term_review_questions,
+                        groups[2],
+                    )
+                    for index, questions in enumerate(review_groups):
                         await review_group(
                             utterance,
                             questions,
