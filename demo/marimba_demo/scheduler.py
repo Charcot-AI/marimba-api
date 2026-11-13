@@ -348,6 +348,7 @@ class Scheduler:
                     previous_onset is None
                     and self.speech.onset is not None
                     and self.turns
+                    and self.turn_speech is None
                 ):
                     speaking_onset_s = self.speech.onset / SAMPLE_RATE
         if lane == "encoder" and self.turn_speech_question is not None:
@@ -364,10 +365,17 @@ class Scheduler:
                 and isinstance(turn_speech_decision.value, bool)
                 and self.turn_speech is not None
             ):
+                previous_turn_onset = self.turn_speech.onset
                 for segment in self.turn_speech.observe(
                     snapshot.window_end_s, turn_speech_decision.value
                 ):
                     self.enqueue_turn(segment)
+                if (
+                    previous_turn_onset is None
+                    and self.turn_speech.onset is not None
+                    and self.turns
+                ):
+                    speaking_onset_s = self.turn_speech.onset / SAMPLE_RATE
         sequence, timestamp = work.capture
         visible_decisions = [
             d
