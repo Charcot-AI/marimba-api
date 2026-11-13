@@ -5,11 +5,9 @@
 Install Python 3.10 or newer and [uv](https://docs.astral.sh/uv/). Enable the repository hooks:
 
 ```sh
-uv venv
+uv sync --locked --extra datasets --extra pipecat --extra server --group dev
 uvx pre-commit install
 ```
-
-The Python package and project configuration will be added in a later pull request.
 
 ## Standards
 
@@ -23,12 +21,17 @@ The Python package and project configuration will be added in a later pull reque
 
 ## How to contribute
 
-When the Python package is added, prepare the project environment and run:
+Run the same checks as CI:
 
 ```sh
-uv run --with ruff ruff check .
-uv run --with ruff ruff format --check .
-uv run --with pytest pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy
+uv run pytest -q
+uv build
 ```
+
+Real-model tests download weights and are excluded by default; run them with
+`uv run pytest -m real_model`.
 
 Before opening a pull request, also run `uvx pre-commit run --all-files` and confirm that examples use only public or synthetic data.

@@ -1,23 +1,79 @@
-# Marimba
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/marimba-horizontal-white.svg">
+    <img src="docs/assets/marimba-horizontal-black.svg" width="320" alt="marimba">
+  </picture>
+</p>
 
-Marimba: typed, calibrated decisions about short and streaming audio windows (choice / yes-no / score), built on a frozen Qwen3-ASR-0.6B encoder.
+<p align="center">
+  Typed, calibrated decisions about short and streaming audio.<br>
+  <a href="https://huggingface.co/charcot-ai/marimba">Model</a> ·
+  <a href="https://huggingface.co/spaces/charcot-ai/marimba">Space</a> ·
+  <a href="docs/index.md">Docs</a> ·
+  <a href="https://pypi.org/project/marimba-audio/">PyPI</a> ·
+  <a href="https://charcot.ai">charcot.ai</a>
+</p>
 
-An open-source project by charcot.ai. [Source code](https://github.com/Charcot-AI/marimba-api).
+## What it is
 
-Try the [Vapi custom-transcriber example](examples/vapi/README.md).
+Marimba answers typed questions about the last eight seconds of an audio window.
+One pass of a frozen [Qwen3-ASR-0.6B](https://huggingface.co/Qwen/Qwen3-ASR-0.6B)
+encoder serves every question; small readouts, a question-conditioned head and the
+frozen decoder turn it into answers. It is not speech-to-text and does not produce
+speaker identities or timelines.
 
-## Documentation and release scaffold
+| Kind | Constructor | `value` |
+|---|---|---|
+| `noul` (yes/no) | `Question.noul("Is someone speaking?")` | `bool` |
+| `score` | `Question.score("Has the speaker finished?")` | probability as `float` |
+| `choice` | `Question.choice("What language?", ["en", "pt"])` | chosen option, plus `probabilities` |
 
-Start with the [documentation index](docs/index.md), [executed notebooks](notebooks/README.md),
-[model card](hf/README.md), or [Gradio Space](space/README.md).
-Decoder context above eight seconds is **unvalidated**. No real-time guarantee is
-claimed; see [benchmarks](docs/benchmarks.md) for measured Mac CPU latency. Converted
-head/readout weights are Apache-2.0; see the model card.
+This repository holds the `marimba-audio` Python package, the OpenAI-compatible
+server, voice-framework integrations, the local demo, the Space and the benchmarks.
 
-## Development interface
+## Install
 
-Install with `uv sync --extra datasets`. Core installation does not install an inference engine.
-Use the deterministic synthetic model to build integrations without downloads:
+```sh
+pip install "marimba-audio[torch]"
+```
+
+Python 3.10 or newer. The distribution is `marimba-audio`; the import is `marimba`.
+The core install has no inference engine, so add the `torch` extra to run the model.
+
+| Extra | Adds |
+|---|---|
+| `torch` | Torch backend for the pretrained lanes |
+| `datasets` | Hugging Face `datasets` for `map_fn` |
+| `server` | FastAPI and Uvicorn for `marimba serve` |
+| `pipecat` | Pipecat turn analyzer (Python 3.11+) |
+| `livekit` | LiveKit Agents turn detector |
+| `demo` | Gradio |
+| `onnx` | ONNX Runtime discovery only; the pretrained lanes are torch-only |
+
+## Quickstart
+
+```python
+from huggingface_hub import hf_hub_download
+from marimba import Marimba, Question
+
+audio = hf_hub_download("charcot-ai/marimba", "space/examples/01_turn_end.wav", repo_type="space")
+model = Marimba.from_pretrained(backend="torch", device="cpu", dtype="float32")
+questions = [
+    Question.score("Has the speaker finished?"),
+    Question.noul("Is someone speaking?"),
+    Question.choice("What language?", ["en", "pt", "es"]),
+    Question.noul('Did someone say "everything"?'),
+]
+for decision in model(audio, questions):
+    print(decision.task, decision.kind, decision.value, decision.probability)
+```
+
+The example clip is synthetic speech from the Space. The first load downloads the
+weights at the revision pinned in `marimba.weights.DEFAULT_MODEL_REVISION`, with
+SHA256-verified files, plus the pinned Qwen3-ASR-0.6B encoder.
+
+To build an integration without downloads, use the deterministic synthetic model.
+Its outputs are not model predictions.
 
 ```python
 import numpy as np
@@ -27,130 +83,128 @@ from marimba.testing import FakeMarimba
 model = FakeMarimba()
 questions = [Question.noul("Is someone speaking?")]
 decisions = model(np.zeros(16000, dtype=np.float32), questions, sampling_rate=16000)
-stream = model.stream(questions)
-updates = stream.push(np.zeros(4000, dtype=np.float32))
-updates += stream.flush()
+print(decisions[0].to_dict())
 ```
 
-`Question.score("Has the speaker finished?")` and
-`Question.choice("What language?", ["English", "French"])` select other result kinds.
-Pass `task=` for custom wording. Quoted terms are exposed as `question.term`.
-Real language inference takes ISO codes or full English names. An `Other` option
-collects the softmax mass of all supported languages not explicitly listed:
-`Question.choice("What language is being spoken?", ["English", "Portuguese", "Spanish", "Other"], task="language")`.
-`Decision.to_dict()` and `StreamUpdate.to_dict()` return JSON-safe dictionaries.
+## Questions
 
-`model.batch(audios, questions, batch_size=16)` accepts decoded audio mappings or files.
-`dataset.map(model.map_fn(questions), batched=True)` adds `marimba_0`, `marimba_1`, etc.,
-one structured decision column per question. Arrays require their sampling rate;
-files and lazy audio decoders carry it. Two-dimensional arrays are samples by channels;
-lazy decoder tensors are channels by samples. Audio is mixed to mono and resampled to 16 kHz.
+| Task | Example question | Kind | Status | Evidence |
+|---|---|---|---|---|
+| `turn_end` | `Has the speaker finished?` | `score`, `noul` | validated | AUROC 0.930 on Smart Turn v3.2 evaluation; 0.716 out of domain |
+| `voice_activity` | `Is someone speaking?` | `noul` | validated | AUROC 0.995 on AMI, 0.9996 on VoxConverse; default threshold 0.225 |
+| `language` | `What language?` + options | `choice` | validated | Native LID, 30 languages; closed-set FLEURS 100%, Common Voice 93% (300 each) |
+| `term` | `Did someone say "hello"?` | `noul` | validated | Raw fraction of greedy + four beam hypotheses; uncalibrated |
+| `same_speaker` | `Is this the same speaker?` | `noul`, `score` | validated | AUROC 0.998 on AMI, 0.996 on VoxConverse |
+| `speaker_change` | `Did the speaker change?` | `noul`, `score` | validated | Last 2 s vs previous 6 s; AUROC 0.966 on AMI, 0.980 on VoxConverse |
+| `speaker_count` | `How many speakers?` + `0`, `1`, `2`, `3+` | `choice` | validated | Accuracy 0.778 on AMI, 0.859 on VoxConverse; undercounts 3+ |
+| `pii` | `Does this audio contain any personal information?` | `noul` | experimental | Needs a caller-supplied text detector; none included |
+| `audio_class` | | `choice` | unavailable | No installed lane |
 
-Streaming accepts mono int16 or floating-point samples at 16 kHz, without re-decoding.
-Each complete hop emits one update; `flush()` emits a final partial hop once, with no
-extra silence added to the clock. Windows retain the latest eight seconds, left-padding
-short inputs with a validity mask. Non-16-kHz stream input is rejected: resample before ingest.
-`latency_ms` measures synchronized inference for all questions on one assembled window,
-excluding capture, decoding, and resampling. Batch currently uses sequential inference;
-`batch_size` is reserved for backend batching.
+Unavailable tasks return `None` values, never a fallback prediction. Evidence,
+routing rules and option rules: [capabilities](docs/capabilities.md).
 
-Run `marimba doctor` for optional runtime discovery, or
-`marimba bench --fake --questions 4 --hops 100 --warmup 10` for p50/p95 per-hop latency.
-Fake results are synthetic, not calibrated predictions.
+## Outputs
 
-## Pretrained torch lanes
+Each question returns one `Decision`; `Decision.to_dict()` is JSON-safe.
 
-Install `marimba-audio[torch]` (or `uv sync --extra torch`) and authenticate with Hugging Face
-using `HF_TOKEN` or `hf auth login` if your model repository requires access:
+| Field | Meaning |
+|---|---|
+| `task`, `kind`, `question` | Routed task, answer kind and the question asked |
+| `value` | `bool` for `noul`, `float` for `score`, option for `choice`; `None` when unavailable |
+| `probability` | Positive-class or chosen-option probability |
+| `probabilities` | Per-option probabilities for `choice` |
+| `score`, `threshold` | Raw lane score and the threshold `noul` compares against |
+| `status` | `validated`, `experimental` or `unavailable` |
+| `calibrated` | `True` when a [domain calibration](docs/calibration.md) is attached |
+| `window_start_s`, `window_end_s` | Audio time the decision describes |
+| `latency_ms` | Synchronized inference time, excluding loading and decoding |
+
+## Use it
+
+| Need | Entry point | Guide |
+|---|---|---|
+| Files, bytes, arrays | `model(audio, questions)` | [Audio inputs](docs/audio.md) |
+| Many clips | `model.batch(audios, questions)` | [Batch](docs/batch.md) |
+| Hugging Face datasets | `ds.map(model.map_fn(questions), batched=True)` | [Batch](docs/batch.md) |
+| Live audio | `model.stream(questions)` with `push`/`flush` or `ingest`/`decide` | [Streaming](docs/streaming.md) |
+| Split encoder and decoder work | `model.encode`, `decide_encoded`, `decide_snapshot` | [Scheduling](docs/scheduling.md) |
+| Your own domain | `model.calibrate(windows, labels, question)` | [Calibration](docs/calibration.md) |
+| HTTP for routers and OpenAI SDKs | `marimba serve` | [Server](docs/openai-server.md), [hosting](docs/hosting.md) |
+| Pipecat | `MarimbaTurnAnalyzer` | [Example](examples/pipecat/README.md) |
+| LiveKit Agents | `MarimbaTurnDetector` | [Example](examples/livekit/README.md) |
+| Vapi | Custom transcriber bridge | [Example](examples/vapi/README.md) |
+| Local live demo | `marimba-demo` | [Demo](demo/README.md) |
+| Runpod Serverless | Decoder worker | [Worker](.runpod/README.md) |
+
+Streaming takes mono 16 kHz chunks; each complete hop emits one update:
 
 ```python
-from marimba import Marimba, Question
-
-model = Marimba.from_pretrained(backend="torch", device="cpu", dtype="float32")
-questions = [
-    Question.score("Has the speaker finished?"),
-    Question.choice("What language?", ["en", "pt", "es", "fr", "de"]),
-    Question.noul('Did someone say "hello"?'),
-]
+stream = model.stream(questions, hop_seconds=0.25)
+updates = stream.push(np.zeros(4000, dtype=np.float32))
+updates += stream.flush()
+print([update.to_dict() for update in updates])
 ```
 
-The default manifest revision is pinned in `marimba.weights.DEFAULT_MODEL_REVISION`.
-An explicit `revision=` can be a commit, tag, or branch; it is resolved once to an immutable
-commit before fetching the manifest and SHA256-verified per-lane files. The frozen
-Qwen3-ASR-0.6B encoder revision is pinned separately. Only torch is supported for these
-lanes; selecting ONNX fails explicitly. Heavy imports and downloads happen only at load time.
+## Runtime and latency
 
-Each window runs the audio tower once. Its native L18 frames, quantized to float16 as in
-the readout extraction pipeline, feed valid-frame tail pooling over the last two seconds,
-a standardized linear readout, and Platt calibration. Language choices use the sum of
-native language-name token log probabilities, softmaxed within the supplied options.
-Unsupported options and duplicate aliases raise an error before inference.
-Without `Other`, probabilities are normalized within that question's choices;
-with `Other`, all 30 supported languages are scored before aggregation.
+`marimba doctor` reports platform, extras, devices and ONNX providers.
+`marimba bench --fake --questions 4 --hops 100 --warmup 10` times the integration
+path with synthetic outputs. The pretrained lanes run on torch CPU or CUDA; CUDA
+`dtype="auto"` picks bf16, then fp16, then fp32. MPS is opt-in and not validated.
+See [runtime](docs/runtime.md).
 
-All term questions share greedy decoding plus four beam hypotheses. Unicode normalization
-removes accents and punctuation, retains non-Latin letters, and matches exact token sequences.
-**Term probabilities are currently uncalibrated raw fractions of five hypotheses**, not
-Platt-calibrated probabilities; their capability is validated and states this limitation.
-No calibration is fitted at inference time.
+Public-API calls on one NVIDIA L4, bf16, batch one, eight-second windows:
 
-See [Calibrate on your domain](docs/calibration.md) to fit and persist a per-question
-Platt map from your own binary labels. This does not train model weights.
+| Question | p50 ms | p95 ms |
+|---|---:|---:|
+| Turn end | 12.23 | 13.31 |
+| Voice activity | 14.40 | 15.77 |
+| Language | 153.67 | 160.80 |
+| Term | 1399.44 | 2349.14 |
 
-Voice activity uses a frozen question-conditioned head, validated with Portuguese prompts
-and held-out Arabic, Hindi, Korean and Russian prompts; recognized questions use the
-canonical prompt; custom wording passes through unchanged. It uses L9 features
-interpolated to 100 frames from the same encoder pass as turn-end.
-The head uses the physical valid-frame mask, a frozen Whisper question embedding, a small
-text tower, grapheme-encoded Portuguese `sim`, and sigmoid on the head logit.
-Probabilities are temperature-scaled on validation; the default threshold is 0.225.
-The validated two-second tail option is documented in [capabilities](docs/capabilities.md).
+Protocol, CPU and Mac numbers: [benchmarks](docs/benchmarks.md). No real-time
+guarantee is claimed.
 
-Three L12 encoder readouts share that same pass:
+## Limits
 
-| Task | Evidence / limitation |
-|---|---|
-| same_speaker | AMI AUROC 0.998, VoxConverse 0.996; both 4 s halves single-speaker; on par with ECAPA |
-| speaker_change | dominant speaker in last 2 s vs previous 6 s; AMI AUROC 0.966, VoxConverse 0.980 |
-| speaker_count | 0/1/2/3+ speakers; accuracy AMI 0.778, VoxConverse 0.859; undercounts 3+ |
+- Decisions describe the last eight seconds; shorter audio is left-padded and masked.
+- Decoder context above eight seconds is **unvalidated**, although the API accepts up to 30 seconds.
+- Speaker questions need eight valid seconds and return `None` on partial windows.
+- Term probabilities are uncalibrated fractions of five hypotheses.
+- `Other` in language choices aggregates the unlisted supported languages; it is not an unknown-language detector.
+- Accent, language, noise, overlap, microphone and domain shifts can change decisions; [calibrate](docs/calibration.md) on your own labels.
+- Not for diagnosis, identity verification, surveillance or safety-critical automation.
 
-Use `Question.noul("Is this the same speaker?")`,
-`Question.score("Did the speaker change?")`, or
-`Question.choice("How many speakers?", ["0", "1", "2", "3+"])`.
-Both binary lanes support noul/score; count requires exactly those four options
-in any order. Diarization requires eight valid seconds: partial or masked
-windows return `None` for value, probability and probabilities.
-Audio-class is unavailable and does not receive fallback predictions.
-PII is experimental when a caller supplies a text detector and unavailable otherwise;
-the package does not include a detector. See [PII questions](docs/capabilities.md#pii-questions).
-Empty real-model audio raises an error; silence with valid samples is supported.
+## Development
 
-`marimba bench --per-question --audio public_speech.wav --json bench.json` measures
-the four fixed benchmark questions (turn_end, voice_activity, language, and term),
-each question alone, and the encoder. The live demo also shows speaker_change and
-speaker_count cards. Warmup and model loading are excluded.
-Language options are `en`, `pt`, and `es`.
+```sh
+uv sync --locked --extra datasets --extra pipecat --extra server --group dev
+uv run ruff check . && uv run ruff format --check .
+uv run mypy
+uv run pytest -q
+```
 
-See [lane scheduling and long context](docs/scheduling.md) for immutable snapshots,
-reusable encoded windows, independent encoder/decoder locks, decoder cadence,
-and contexts up to `MAX_DECODER_SECONDS`. Direct lane APIs report lane-only
-decision latency; `model()` and stream updates retain total-window latency.
-Real-model tests require authentication/downloads and are excluded by default; run them
-explicitly with `uv run pytest -m real_model`.
+Real-model tests download weights and are excluded by default:
+`uv run pytest -m real_model`. See [CONTRIBUTING](CONTRIBUTING.md) and
+[CHANGELOG](CHANGELOG.md).
 
-## Streaming on slow devices
+## Citation
 
-`stream.ingest(chunk) -> None` only updates the ring buffer. Call
-`stream.decide() -> StreamUpdate | None` to score the latest window on demand; it returns
-`None` until audio arrives. A decision snapshots the audio, valid mask, and timestamps
-under a lock, then releases the lock before inference, so another thread can keep ingesting.
-The returned timestamps always describe the snapshot, not audio received during inference.
-Repeated `decide()` calls can score the same window; each call restarts hop accounting.
+```bibtex
+@software{marimba,
+  author  = {Amadori, Solano},
+  title   = {Marimba: typed, calibrated decisions about short and streaming audio},
+  year    = {2026},
+  url     = {https://github.com/Charcot-AI/marimba-api},
+  version = {0.1.1}
+}
+```
 
-`model.stream(questions, coalesce=True)` makes `push()` emit at most one update: the latest
-due hop in that chunk. Trailing samples remain buffered for the next hop or `flush()`.
-Skipped hops never clear the context. The default `coalesce=False` still emits every hop.
-`ingest()` does not queue historical inference; switching back to `push()` resumes hop
-accounting from the retained partial hop. These APIs also work with `FakeMarimba`.
-For Pipecat, set `UserTurnStrategies(stop=[TurnAnalyzerUserTurnStopStrategy(turn_analyzer=MarimbaTurnAnalyzer())])`; see [Pipecat turn analyzer](docs/streaming.md#pipecat-turn-analyzer).
-For LiveKit Agents, set `AgentSession(turn_handling={"turn_detection": MarimbaTurnDetector()})`; the detector warms the model in the background and defaults to a 2-second `prediction_timeout`. See [LiveKit turn detector](docs/streaming.md#livekit-turn-detector).
+## License
+
+Code and the converted head and readout weights are Apache-2.0. The frozen
+Qwen3-ASR-0.6B encoder is Apache-2.0; vendored code is attributed in
+[THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md). The turn-end readout was trained on
+`pipecat-ai/smart-turn-data-v3.2-train` (CC BY 4.0); no dataset audio ships here.
+
+An open-source project by [Charcot](https://charcot.ai).
