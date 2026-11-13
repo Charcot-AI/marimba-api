@@ -295,7 +295,9 @@ def test_review_emits_language_before_term_and_finishes_language_status_first():
             "Which language is spoken?", ["en", "pt", "es"], task="language"
         )
         term = Question.noul('Was "marimba" spoken?', task="term")
-        scheduler = Scheduler(OrderedModel(), [language, term], send, speech=timeline())
+        model = OrderedModel()
+        assert not getattr(model, "concurrent_decoder", False)
+        scheduler = Scheduler(model, [language, term], send, speech=timeline())
         scheduler.utterance_queue.append(
             [
                 Work(
@@ -324,9 +326,109 @@ def test_review_emits_language_before_term_and_finishes_language_status_first():
             ("term",),
         ]
         assert emitted == ["language", "language", "term", "term"]
+        assert events[0] == ("status", ("language", "term"), True)
+        finished_statuses = [
+            event for event in events if event[0] == "status" and event[2] is False
+        ]
+        assert finished_statuses == [
+            ("status", ("language",), False),
+            ("status", ("term",), False),
+        ]
         language_finished = events.index(("status", ("language",), False))
         first_term = events.index(("infer", ("term",)))
         assert language_finished < first_term
+
+    asyncio.run(run())
+
+
+def test_review_runs_language_and_term_concurrently_in_chunk_order():
+    async def run():
+        calls = []
+        calls_lock = threading.Lock()
+        term_started = threading.Event()
+
+        class ConcurrentModel(FakeMarimba):
+            concurrent_decoder = True
+
+            def decide_snapshot(self, snapshot, questions):
+                task = questions[0].task
+                end = snapshot.window_end_s
+                with calls_lock:
+                    calls.append(("start", task, end))
+                if task == "language":
+                    assert term_started.wait(2)
+                else:
+                    term_started.set()
+                decisions = [
+                    Decision(
+                        question,
+                        question.task or "",
+                        question.kind,
+                        "en" if task == "language" else True,
+                        probability=0.9,
+                        probabilities={"en": 0.9, "pt": 0.05, "es": 0.05}
+                        if task == "language"
+                        else None,
+                        score=0.9,
+                        threshold=question.resolved_threshold,
+                        window_start_s=snapshot.window_start_s,
+                        window_end_s=snapshot.window_end_s,
+                        status="validated",
+                    )
+                    for question in questions
+                ]
+                with calls_lock:
+                    calls.append(("finish", task, end))
+                return decisions
+
+        statuses = []
+
+        async def send(message):
+            if message["type"] == "review_status":
+                statuses.append((tuple(message["tasks"]), message["running"]))
+
+        language = Question.choice(
+            "Which language is spoken?", ["en", "pt", "es"], task="language"
+        )
+        term = Question.noul('Was "marimba" spoken?', task="term")
+        scheduler = Scheduler(
+            ConcurrentModel(), [language, term], send, speech=timeline()
+        )
+        scheduler.utterance_queue.append(
+            [
+                Work(
+                    WindowSnapshot(
+                        np.zeros(128000, np.float32), np.ones(128000, bool), 0, 8
+                    ),
+                    (0, 0),
+                ),
+                Work(
+                    WindowSnapshot(
+                        np.zeros(128000, np.float32), np.ones(128000, bool), 8, 16
+                    ),
+                    (1, 250),
+                ),
+            ]
+        )
+        scheduler.finish()
+        await asyncio.wait_for(scheduler.review(), 3)
+
+        term_started_index = calls.index(("start", "term", 8))
+        language_finished_index = calls.index(("finish", "language", 8))
+        assert term_started_index < language_finished_index
+        for task in ("language", "term"):
+            assert [
+                end
+                for phase, call_task, end in calls
+                if phase == "start" and call_task == task
+            ] == [8, 16]
+        assert statuses[0] == (("language", "term"), True)
+        finished_statuses = [status for status in statuses if status[1] is False]
+        assert len(finished_statuses) == 2
+        assert {tasks for tasks, _ in finished_statuses} == {
+            ("language",),
+            ("term",),
+        }
 
     asyncio.run(run())
 

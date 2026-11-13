@@ -1,5 +1,6 @@
 export type Kind = 'noul' | 'score' | 'choice';
 export const PACKET_DURATION_MS = 250;
+export const TERM_HOLD_MS = 2000;
 export const defaultThreshold = (task: string): number =>
   task === 'voice_activity' ? 0.225 : 0.5;
 export interface Card {
@@ -39,6 +40,11 @@ export interface CardState {
   receivedAt: number;
   intervalMs?: number;
   windowEndAt?: number;
+}
+export function shownDecision(card: Card, state: CardState, now: number): Decision | undefined {
+  const d = state.decision;
+  if (card.task === 'term' && d?.value === true && now - state.receivedAt > TERM_HOLD_MS) return undefined;
+  return d;
 }
 export const isRollingUpdate = (lane: 'encoder' | 'decoder', decisions: Decision[]): boolean =>
   lane === 'encoder' && decisions.some((decision) => decision.task !== 'turn_end');
