@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/marimba-horizontal-white.svg">
-    <img src="docs/assets/marimba-horizontal-black.svg" width="320" alt="marimba">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Charcot-AI/marimba-api/main/docs/assets/marimba-horizontal-white.svg">
+    <img src="https://raw.githubusercontent.com/Charcot-AI/marimba-api/main/docs/assets/marimba-horizontal-black.svg" width="320" alt="marimba">
   </picture>
 </p>
 
@@ -190,13 +190,27 @@ Real-model tests download weights and are excluded by default:
 
 ## Citation
 
+Cite the paper:
+
+```bibtex
+@misc{amadori_marimba,
+  author = {Solano Amadori},
+  title = {Marimba: A System One Model for Speech},
+  archivePrefix = {arXiv},
+  eprint = {[PENDING]},
+  url = {https://huggingface.co/charcot-ai/marimba}
+}
+```
+
+To cite this software package:
+
 ```bibtex
 @software{marimba,
   author  = {Amadori, Solano},
   title   = {Marimba: typed, calibrated decisions about short and streaming audio},
   year    = {2026},
   url     = {https://github.com/Charcot-AI/marimba-api},
-  version = {0.1.1}
+  version = {0.1.2}
 }
 ```
 
