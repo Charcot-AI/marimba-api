@@ -7,7 +7,7 @@ import {
   isRollingUpdate,
   PACKET_DURATION_MS,
   reduceCard,
-  shownDecision,
+  shownState,
   type Card,
   type CardState,
   type Decision,
@@ -69,24 +69,24 @@ function renderCards(now: number) {
   for (const card of config.cards) {
     const state = states.get(card.task)!;
     const element = document.getElementById(`card-${card.task}`)!;
-    const d = shownDecision(card, state, now);
-    const shownState = { ...state, decision: d };
+    const shown = shownState(card, state, now);
+    const d = shown.decision;
     const review = card.lane === 'decoder';
     const stale =
-      !!d && !review && card.task !== 'turn_end' && now - state.receivedAt > 2500;
+      !!state.decision && !review && card.task !== 'turn_end' && now - state.receivedAt > 2500;
     const pending =
-      !(card.task === 'turn_end' && d?.status === 'speaking') &&
+      !(card.task === 'turn_end' && state.decision?.status === 'speaking') &&
       (state.pending || (review && reviewsRunning.has(card.task)) || stale);
     element.classList.toggle('crossed', now - state.crossedAt < 650);
     const value = element.querySelector<HTMLElement>('.reading')!;
     value.textContent = reading(card, d);
     value.classList.toggle('pending', pending);
     value.setAttribute('aria-busy', String(pending));
-    const footer = timing(card, shownState, now);
+    const footer = timing(card, shown, now);
     element.querySelector('.card-latency')!.textContent = footer.latency;
     element.querySelector('.card-interval')!.textContent = footer.interval;
     element.querySelector('.card-window')!.textContent = footer.window;
-    element.querySelector('.instrument')!.innerHTML = instrument(card, shownState, now);
+    element.querySelector('.instrument')!.innerHTML = instrument(card, shown, now);
     element.querySelectorAll('[data-option]').forEach((el, i) => {
       el.textContent = card.options[i];
     });

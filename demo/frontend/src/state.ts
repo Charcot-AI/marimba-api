@@ -1,6 +1,7 @@
 export type Kind = 'noul' | 'score' | 'choice';
 export const PACKET_DURATION_MS = 250;
 export const TERM_HOLD_MS = 2000;
+export const TURN_HOLD_MS = 2000;
 export const defaultThreshold = (task: string): number =>
   task === 'voice_activity' ? 0.225 : 0.5;
 export interface Card {
@@ -34,6 +35,12 @@ export interface Decision {
 }
 export interface CardState {
   decision?: Decision;
+  held?: {
+    decision: Decision;
+    receivedAt: number;
+    windowEndAt?: number;
+    intervalMs?: number;
+  };
   pending: boolean;
   trail: { time: number; value: number }[];
   crossedAt: number;
@@ -41,10 +48,23 @@ export interface CardState {
   intervalMs?: number;
   windowEndAt?: number;
 }
+export function shownState(card: Card, state: CardState, now: number): CardState {
+  if (
+    card.task === 'turn_end' &&
+    state.held &&
+    state.decision?.value !== true &&
+    now - state.held.receivedAt <= TURN_HOLD_MS
+  ) return { ...state, ...state.held };
+  const decision =
+    card.task === 'term' &&
+    state.decision?.value === true &&
+    now - state.receivedAt > TERM_HOLD_MS
+      ? undefined
+      : state.decision;
+  return { ...state, decision };
+}
 export function shownDecision(card: Card, state: CardState, now: number): Decision | undefined {
-  const d = state.decision;
-  if (card.task === 'term' && d?.value === true && now - state.receivedAt > TERM_HOLD_MS) return undefined;
-  return d;
+  return shownState(card, state, now).decision;
 }
 export const isRollingUpdate = (lane: 'encoder' | 'decoder', decisions: Decision[]): boolean =>
   lane === 'encoder' && decisions.some((decision) => decision.task !== 'turn_end');
@@ -76,7 +96,9 @@ export function reduceCard(
     ) return state;
   }
   if (decision.status === 'not_enough_speech') return { ...state, pending: true };
+  const heldTurnYes = decision.task === 'turn_end' && decision.value === true;
   const previous = state.decision;
+  const intervalMs = state.decision ? now - state.receivedAt : undefined;
   const crossed =
     !(decision.task === 'turn_end' && decision.status === 'speaking') &&
     previous && previous.value !== null && decision.value !== null &&
@@ -85,9 +107,12 @@ export function reduceCard(
       scalar(decision) >= (decision.threshold ?? defaultThreshold(decision.task));
   return {
     decision,
+    held: heldTurnYes
+      ? { decision, receivedAt: now, windowEndAt, intervalMs }
+      : state.held,
     pending: false,
     receivedAt: now,
-    intervalMs: state.decision ? now - state.receivedAt : undefined,
+    intervalMs,
     windowEndAt,
     trail: [
       ...state.trail.filter((p) => p.time >= now - 5000),
