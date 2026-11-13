@@ -612,6 +612,8 @@ def test_early_term_probe_emits_yes_before_utterance_closes():
         assert update["type"] == "update"
         assert update["decisions"][0]["task"] == "term"
         assert update["decisions"][0]["value"] is True
+        assert update["decision_interval_ms"] == 1500
+        assert scheduler.previous_end["decoder"] == 1.5
         assert model.calls == [(0, 1.5)]
         assert scheduler.speech.onset == 0
 

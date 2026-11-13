@@ -245,6 +245,7 @@ class Scheduler:
                     ],
                 }
             )
+            self.previous_end["decoder"] = work.snapshot.window_end_s
 
     def finish(self, *, aborted: bool = False) -> None:
         self.finished = True
