@@ -63,6 +63,7 @@ class Scheduler:
         self.early_term_busy = False
         self.internal_speech_question: Question | None = None
         self.internal_turn_speech_question: Question | None = None
+        self.turn_speech_question: Question | None = None
         self.turn_speech: SpeechTimeline | None = None
         self.speech_question: Any | None = next(
             (q for q in self.heads if self._is_speech_question(q)), None
@@ -77,14 +78,15 @@ class Scheduler:
                 _SPEECH_QUESTION_TEXT, task="voice_activity", seconds=2.0
             )
             self.speech_question = self.internal_speech_question
-        if self.internal_speech_question is not None or (
-            use_1s_turn_tail
-            and self.speech_question is not None
-            and self._is_speech_question(self.speech_question)
-        ):
-            self.internal_turn_speech_question = Question.noul(
-                _SPEECH_QUESTION_TEXT, task="voice_activity", seconds=1.0
+        if use_1s_turn_tail and self.turns and self.speech_question is not None:
+            self.turn_speech_question = next(
+                (q for q in self.heads if self._is_turn_speech_question(q)), None
             )
+            if self.turn_speech_question is None:
+                self.internal_turn_speech_question = Question.noul(
+                    _SPEECH_QUESTION_TEXT, task="voice_activity", seconds=1.0
+                )
+                self.turn_speech_question = self.internal_turn_speech_question
             self.turn_speech = SpeechTimeline(offset_lag_s=TURN_OFFSET_LAG_S)
         if len(self.heads) + len(self.turns) + len(self.reviews) != len(questions):
             raise ValueError("Unknown inference lane.")
@@ -128,6 +130,17 @@ class Scheduler:
             and getattr(question, "options", None) is None
         )
 
+    @staticmethod
+    def _is_turn_speech_question(question: Any) -> bool:
+        return (
+            question.task == "voice_activity"
+            and question.text == _SPEECH_QUESTION_TEXT
+            and question.kind == "noul"
+            and getattr(question, "seconds", None) == 1.0
+            and getattr(question, "threshold", None) is None
+            and getattr(question, "options", None) is None
+        )
+
     def snapshot(self, start: int, end: int) -> WindowSnapshot:
         if start < self.audio_start or end > self.total:
             raise ValueError(
@@ -142,7 +155,7 @@ class Scheduler:
         if segment.end <= segment.start:
             return
 
-        if self.internal_turn_speech_question is None:
+        if self.turn_speech_question is None:
             self.enqueue_turn(segment)
         if self.reviews:
             self.utterance_queue.append(
@@ -336,12 +349,12 @@ class Scheduler:
                     and self.turns
                 ):
                     speaking_onset_s = self.speech.onset / SAMPLE_RATE
-        if lane == "encoder" and self.internal_turn_speech_question is not None:
+        if lane == "encoder" and self.turn_speech_question is not None:
             turn_speech_decision = next(
                 (
                     decision
                     for decision in decisions
-                    if decision.question == self.internal_turn_speech_question
+                    if decision.question == self.turn_speech_question
                 ),
                 None,
             )
