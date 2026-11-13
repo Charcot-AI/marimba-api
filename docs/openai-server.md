@@ -1,5 +1,7 @@
 # OpenAI-compatible server
 
+Hosted API data handling is described in the [Marimba API Data Policy](api-data-policy.md).
+
 `marimba serve` exposes a minimal OpenAI-compatible HTTP API so routers and OpenAI SDKs
 can send one audio clip plus typed questions and receive decisions as JSON assistant
 content. It wraps the public package API (`Marimba.from_pretrained`, `Question`, and
