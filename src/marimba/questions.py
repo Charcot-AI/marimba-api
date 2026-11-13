@@ -64,8 +64,14 @@ class Question:
                 raise UnsupportedQuestion(
                     f"No routing template for {self.text!r}; pass task explicitly"
                 )
-        if self.seconds is not None and (self.task != "voice_activity" or self.seconds != 2.0):
-            raise UnsupportedQuestion("Only voice activity supports a two-second tail window")
+        if self.seconds is not None and (
+            self.task != "voice_activity"
+            or isinstance(self.seconds, bool)
+            or self.seconds not in (1.0, 2.0)
+        ):
+            raise UnsupportedQuestion(
+                "Only voice activity supports one- or two-second tail windows"
+            )
         if self.task in ("same_speaker", "speaker_change") and self.kind not in ("noul", "score"):
             raise UnsupportedQuestion(f"Task {self.task} supports noul or score")
         if self.task == "speaker_count" and (

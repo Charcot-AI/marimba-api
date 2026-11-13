@@ -5,11 +5,13 @@ Voice activity is validated with Portuguese prompts and held-out Arabic, Hindi, 
 Russian prompts; recognized questions use the canonical prompt; custom wording passes
 through unchanged but is not automatically validated.
 
-Voice activity also accepts `seconds=2.0`, scoring only the final two seconds of
-the eight-second encoder window with the same encoder pass. On held-out validation,
-the tail temperature 0.7869027171235091 yielded AUROC 0.998, F1 0.993 and
-specificity 0.967 at the default 0.225 threshold. This is the only supported tail;
-other non-`None` durations and other tasks are rejected.
+Voice activity also accepts `seconds=1.0` or `seconds=2.0`, scoring only the
+specified tail of the eight-second encoder window with the same encoder pass.
+The one-second and two-second tails use temperatures 1.2544709139576355 and
+0.7869027171235091, respectively. On held-out validation at the default 0.225 threshold, the two-second tail
+yielded AUROC 0.998, F1 0.993 and specificity 0.967, and the one-second tail
+yielded AUROC 0.994, F1 0.983 and specificity 0.954.
+Other non-`None` durations and other tasks are rejected.
 
 | Task | Kind | Lane | Installed status | Evidence / limitation |
 |---|---|---|---|---|

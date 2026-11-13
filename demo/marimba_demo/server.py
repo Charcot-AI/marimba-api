@@ -123,6 +123,7 @@ def create_app(
                     model,
                     questions,
                     send,
+                    use_1s_turn_tail=True,
                 )
 
                 async def receive():

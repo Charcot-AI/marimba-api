@@ -24,8 +24,10 @@ from .windows import EncodedWindow, WindowSnapshot, decoder_snapshot
 _CANONICAL_VAD_STEM = "Há fala humana neste áudio?"
 # Fitted on the validation calibration split for the shipped head.
 _VAD_TEMPERATURE = 0.6540604692061299
-# Fitted on the validation calibration split for the two-second tail.
-_VAD_TAIL_TEMPERATURE = 0.7869027171235091
+_VAD_TAIL_TEMPERATURES = {
+    2.0: 0.7869027171235091,
+    1.0: 1.2544709139576355,
+}
 
 
 def _render_vad_prompt(stem: str) -> str:
@@ -269,7 +271,7 @@ class PretrainedMarimba(Marimba):
                         head_mask = mask.copy()
                         tail_samples = int(question.seconds * SAMPLE_RATE)
                         head_mask[:-tail_samples] = False
-                        temperature = _VAD_TAIL_TEMPERATURE
+                        temperature = _VAD_TAIL_TEMPERATURES[question.seconds]
                     score = float(
                         self._engine.head_score(features, head_mask, _render_vad_prompt(stem))
                     )

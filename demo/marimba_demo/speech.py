@@ -10,6 +10,8 @@ from .protocol import SAMPLE_RATE
 # These lags match the measured flip delays of the two-second readout.
 ONSET_LAG_S = 0.5
 OFFSET_LAG_S = 1.75
+# Measured flip delay of the 1 s readout.
+TURN_OFFSET_LAG_S = 0.75
 
 
 @dataclass(frozen=True)
@@ -23,23 +25,29 @@ class SpeechSegment:
 
 
 class SpeechTimeline:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        onset_lag_s: float = ONSET_LAG_S,
+        offset_lag_s: float = OFFSET_LAG_S,
+    ) -> None:
         self.segments: list[SpeechSegment] = []
         self.onset: int | None = None
         self.last_observed_end = 0
+        self.onset_lag_samples = round(onset_lag_s * SAMPLE_RATE)
+        self.offset_lag_samples = round(offset_lag_s * SAMPLE_RATE)
 
     def observe(self, window_end_s: float, speaking: bool) -> list[SpeechSegment]:
         window_end = round(window_end_s * SAMPLE_RATE)
         self.last_observed_end = max(self.last_observed_end, window_end)
         if speaking:
             if self.onset is None:
-                self.onset = max(0, window_end - round(ONSET_LAG_S * SAMPLE_RATE))
+                self.onset = max(0, window_end - self.onset_lag_samples)
             return []
         if self.onset is None:
             return []
         segment = SpeechSegment(
             self.onset,
-            max(self.onset, window_end - round(OFFSET_LAG_S * SAMPLE_RATE)),
+            max(self.onset, window_end - self.offset_lag_samples),
         )
         self.segments.append(segment)
         self.onset = None

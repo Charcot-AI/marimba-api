@@ -9,7 +9,12 @@ from marimba.testing import FakeMarimba
 
 from marimba_demo.protocol import Frame
 from marimba_demo.scheduler import Scheduler, Work, utterance_chunks
-from marimba_demo.speech import SpeechSegment, SpeechTimeline, speaker_change_eligible
+from marimba_demo.speech import (
+    TURN_OFFSET_LAG_S,
+    SpeechSegment,
+    SpeechTimeline,
+    speaker_change_eligible,
+)
 
 
 def timeline():
@@ -75,6 +80,15 @@ def test_timeline_applies_measured_onset_and_offset_lags():
     assert speech.coverage(0, 2) == 0.75
 
 
+def test_timeline_accepts_a_separate_turn_offset_lag():
+    speech = SpeechTimeline(offset_lag_s=TURN_OFFSET_LAG_S)
+    speech.observe(1.0, True)
+
+    (segment,) = speech.observe(2.0, False)
+
+    assert segment == SpeechSegment(8000, 20000)
+
+
 def test_open_run_coverage_stops_at_last_observed_window_end():
     speech = timeline()
     speech.observe(1, True)
@@ -121,24 +135,94 @@ def test_internal_tail_question_updates_timeline_without_sending_its_decision():
         updates = asyncio.Queue()
         model = Model()
         card_question = Question.noul("Is someone speaking?")
-        scheduler = Scheduler(model, [card_question], updates.put, speech=timeline())
+        turn_question = Question.noul("Has the speaker finished?", task="turn_end")
+        scheduler = Scheduler(
+            model,
+            [card_question, turn_question],
+            updates.put,
+            speech=timeline(),
+            use_1s_turn_tail=True,
+        )
         internal = scheduler.internal_speech_question
+        turn_internal = scheduler.internal_turn_speech_question
         assert internal == Question.noul(
             "Is someone speaking?", task="voice_activity", seconds=2.0
         )
+        assert turn_internal == Question.noul(
+            "Is someone speaking?", task="voice_activity", seconds=1.0
+        )
+        assert turn_internal in scheduler.stream.questions
 
         snapshot = WindowSnapshot(
             np.zeros(128000, np.float32), np.ones(128000, bool), 0, 8
         )
         await scheduler.emit(
-            Work(snapshot, (0, 0)), [card_question, internal], "encoder"
+            Work(snapshot, (0, 0)),
+            [card_question, internal, turn_internal],
+            "encoder",
         )
 
         update = await updates.get()
-        assert [decision["question"]["text"] for decision in update["decisions"]] == [
-            "Is someone speaking?"
-        ]
+        assert all(
+            decision.get("question", {}).get("seconds") != 1.0
+            for decision in update["decisions"]
+        )
         assert scheduler.speech.last_observed_end == 128000
+
+    asyncio.run(run())
+
+
+def test_replay_turn_without_speech_question_uses_only_two_second_closure():
+    async def run():
+        updates = asyncio.Queue()
+        model = Model()
+        turn = Question.noul("Has the speaker finished?", task="turn_end")
+        scheduler = Scheduler(model, [turn], updates.put, speech=timeline())
+
+        assert scheduler.internal_speech_question is not None
+        assert scheduler.internal_turn_speech_question is None
+        assert not any(
+            question.task == "voice_activity" and question.seconds == 1.0
+            for question in scheduler.stream.questions
+        )
+
+        scheduler.audio = np.zeros(8 * 16000, np.float32)
+        scheduler.total = len(scheduler.audio)
+        scheduler.latest_capture = (7, 3750.0)
+        scheduler.latest_capture_start_sample = 60000
+
+        def compute(snapshot, questions, lane):
+            value = snapshot.window_end_s == 2.0
+            return (
+                [
+                    Decision(
+                        question,
+                        question.task or "",
+                        question.kind,
+                        value,
+                        probability=0.9 if value else 0.1,
+                        score=0.9 if value else 0.1,
+                        threshold=question.resolved_threshold,
+                        window_start_s=snapshot.window_start_s,
+                        window_end_s=snapshot.window_end_s,
+                        status="validated",
+                    )
+                    for question in questions
+                ],
+                0.0,
+            )
+
+        scheduler.compute = compute
+        for end_s in (2.0, 4.0):
+            snapshot = scheduler.snapshot(0, round(end_s * 16000))
+            await scheduler.emit(
+                Work(snapshot, scheduler.latest_capture),
+                [scheduler.internal_speech_question],
+                "encoder",
+            )
+
+        (turn_work,) = scheduler.turn_queue
+        assert turn_work.snapshot.window_end_s == 2.25
 
     asyncio.run(run())
 
@@ -152,6 +236,8 @@ def test_no_flip_closes_turn_window_at_the_lag_adjusted_sample():
         )
         turn = Question.noul("Has the speaker finished?")
         scheduler = Scheduler(model, [voice, turn], updates.put, speech=timeline())
+        assert scheduler.internal_turn_speech_question is None
+        assert scheduler.turn_speech is None
         scheduler.audio = np.ones(64000, np.float32)
         scheduler.total = 64000
         scheduler.latest_capture = (7, 3750.0)
@@ -191,6 +277,257 @@ def test_no_flip_closes_turn_window_at_the_lag_adjusted_sample():
         assert work.snapshot.window_end_s == 2.25
         assert work.window_end_at_ms == 2250
         assert scheduler.changed["turn"].is_set()
+
+    asyncio.run(run())
+
+
+def test_existing_one_second_speech_question_drives_turn_and_stays_visible():
+    async def run():
+        updates = asyncio.Queue()
+        model = Model()
+        speech = Question.noul(
+            "Is someone speaking?", task="voice_activity", seconds=2.0
+        )
+        turn_speech = Question.noul(
+            "Is someone speaking?", task="voice_activity", seconds=1.0
+        )
+        turn = Question.noul("Has the speaker finished?", task="turn_end")
+        scheduler = Scheduler(
+            model,
+            [speech, turn_speech, turn],
+            updates.put,
+            speech=timeline(),
+            use_1s_turn_tail=True,
+        )
+
+        assert scheduler.turn_speech_question == turn_speech
+        assert scheduler.internal_turn_speech_question is None
+        assert scheduler.stream.questions.count(turn_speech) == 1
+        scheduler.audio = np.zeros(8 * 16000, np.float32)
+        scheduler.total = len(scheduler.audio)
+        scheduler.latest_capture = (7, 0.0)
+        scheduler.latest_capture_start_sample = 0
+        values = {
+            2.0: {2.0: True, 1.0: True},
+            2.5: {2.0: True, 1.0: False},
+        }
+
+        def compute(snapshot, questions, lane):
+            return (
+                [
+                    Decision(
+                        question,
+                        question.task or "",
+                        question.kind,
+                        values[snapshot.window_end_s][question.seconds],
+                        probability=0.9,
+                        score=0.9,
+                        threshold=question.resolved_threshold,
+                        window_start_s=snapshot.window_start_s,
+                        window_end_s=snapshot.window_end_s,
+                        status="validated",
+                    )
+                    for question in questions
+                ],
+                0.0,
+            )
+
+        scheduler.compute = compute
+        for end_s in (2.0, 2.5):
+            snapshot = scheduler.snapshot(0, round(end_s * 16000))
+            await scheduler.emit(
+                Work(snapshot, scheduler.latest_capture),
+                [speech, turn_speech],
+                "encoder",
+            )
+
+        (turn_work,) = scheduler.turn_queue
+        assert turn_work.snapshot.window_end_s == 1.75
+        assert scheduler.speech.onset is not None
+
+        messages = []
+        while not updates.empty():
+            messages.append(updates.get_nowait())
+        visible_tail_decisions = [
+            decision
+            for message in messages
+            for decision in message["decisions"]
+            if decision.get("question", {}).get("seconds") == 1.0
+        ]
+        assert [decision["value"] for decision in visible_tail_decisions] == [
+            True,
+            False,
+        ]
+
+    asyncio.run(run())
+
+
+def test_one_second_turn_reopen_resets_status_while_two_second_speech_stays_open():
+    async def run():
+        updates = asyncio.Queue()
+        model = Model()
+        speech = Question.noul(
+            "Is someone speaking?", task="voice_activity", seconds=2.0
+        )
+        turn = Question.noul("Has the speaker finished?", task="turn_end")
+        scheduler = Scheduler(
+            model,
+            [speech, turn],
+            updates.put,
+            speech=timeline(),
+            use_1s_turn_tail=True,
+        )
+        turn_speech = scheduler.internal_turn_speech_question
+        assert turn_speech is not None
+        scheduler.audio = np.zeros(8 * 16000, np.float32)
+        scheduler.total = len(scheduler.audio)
+        scheduler.latest_capture = (7, 0.0)
+        scheduler.latest_capture_start_sample = 0
+
+        turn_speech_values = {2.0: True, 2.5: False, 2.75: True}
+
+        def compute(snapshot, questions, lane):
+            return (
+                [
+                    Decision(
+                        question,
+                        question.task or "",
+                        question.kind,
+                        True
+                        if question == speech
+                        else turn_speech_values[snapshot.window_end_s],
+                        probability=0.9,
+                        score=0.9,
+                        threshold=question.resolved_threshold,
+                        window_start_s=snapshot.window_start_s,
+                        window_end_s=snapshot.window_end_s,
+                        status="validated",
+                    )
+                    for question in questions
+                ],
+                0.0,
+            )
+
+        scheduler.compute = compute
+        for end_s in (2.0, 2.5, 2.75):
+            snapshot = scheduler.snapshot(0, round(end_s * 16000))
+            await scheduler.emit(
+                Work(snapshot, scheduler.latest_capture),
+                [speech, turn_speech],
+                "encoder",
+            )
+            update = await updates.get()
+            turn_statuses = [
+                decision
+                for decision in update["decisions"]
+                if decision.get("task") == "turn_end"
+            ]
+
+            if end_s == 2.0:
+                assert scheduler.speech.onset == round(1.5 * 16000)
+                assert scheduler.turn_speech.onset == round(1.5 * 16000)
+            elif end_s == 2.5:
+                assert scheduler.speech.onset == round(1.5 * 16000)
+                assert scheduler.turn_speech.onset is None
+                assert not turn_statuses
+            else:
+                assert scheduler.speech.onset == round(1.5 * 16000)
+                assert scheduler.turn_speech.onset == round(2.25 * 16000)
+                assert len(turn_statuses) == 1
+                assert turn_statuses[0]["status"] == "speaking"
+                assert turn_statuses[0]["window_start_s"] == 2.25
+
+    asyncio.run(run())
+
+
+def test_one_second_turn_closure_precedes_two_second_review_closure():
+    async def run():
+        updates = asyncio.Queue()
+        model = Model()
+        voice = Question.noul(
+            "Is someone speaking?", task="voice_activity", seconds=2.0
+        )
+        turn = Question.noul("Has the speaker finished?")
+        term = Question.noul('Was "hello" spoken?')
+        scheduler = Scheduler(
+            model,
+            [voice, turn, term],
+            updates.put,
+            speech=timeline(),
+            use_1s_turn_tail=True,
+        )
+        assert scheduler.internal_turn_speech_question == Question.noul(
+            "Is someone speaking?", task="voice_activity", seconds=1.0
+        )
+        assert scheduler.internal_turn_speech_question in scheduler.stream.questions
+        scheduler.audio = np.zeros(8 * 16000, np.float32)
+        scheduler.total = len(scheduler.audio)
+        scheduler.latest_capture = (7, 0.0)
+        scheduler.latest_capture_start_sample = 0
+        values = {
+            2.0: {2.0: True, 1.0: True},
+            2.5: {2.0: True, 1.0: False},
+            3.5: {2.0: False, 1.0: False},
+        }
+
+        def compute(snapshot, questions, lane):
+            decisions = []
+            for question in questions:
+                value = values[snapshot.window_end_s][question.seconds]
+                decisions.append(
+                    Decision(
+                        question,
+                        question.task or "",
+                        question.kind,
+                        value,
+                        probability=0.9 if value else 0.1,
+                        score=0.9 if value else 0.1,
+                        threshold=question.resolved_threshold,
+                        window_start_s=snapshot.window_start_s,
+                        window_end_s=snapshot.window_end_s,
+                        status="validated",
+                    )
+                )
+            return decisions, 0.0
+
+        scheduler.compute = compute
+        questions = [
+            scheduler.speech_question,
+            scheduler.internal_turn_speech_question,
+        ]
+        for end_s in (2.0, 2.5):
+            snapshot = scheduler.snapshot(0, round(end_s * 16000))
+            await scheduler.emit(
+                Work(snapshot, scheduler.latest_capture), questions, "encoder"
+            )
+
+        assert len(scheduler.turn_queue) == 1
+        assert not scheduler.utterance_queue
+        turn_work = scheduler.turn_queue[0]
+        assert turn_work.snapshot.window_start_s == 0
+        assert turn_work.snapshot.window_end_s == 1.75
+        assert turn_work.window_end_at_ms == 1750
+
+        snapshot = scheduler.snapshot(0, round(3.5 * 16000))
+        await scheduler.emit(
+            Work(snapshot, scheduler.latest_capture), questions, "encoder"
+        )
+
+        assert len(scheduler.turn_queue) == 1
+        assert len(scheduler.utterance_queue) == 1
+        assert scheduler.changed["decoder"].is_set()
+
+        messages = []
+        while not updates.empty():
+            messages.append(updates.get_nowait())
+        assert all(
+            all(
+                decision["question"]["seconds"] != 1.0
+                for decision in message["decisions"]
+                if "question" in decision and isinstance(decision["question"], dict)
+            )
+            for message in messages
+        )
 
     asyncio.run(run())
 
@@ -804,7 +1141,7 @@ def test_turn_end_runs_only_on_offsets_and_ends_exactly_there():
         speech, model = timeline(), Model()
         questions = [
             Question.noul("Has the speaker finished?"),
-            Question.noul("Is someone speaking?"),
+            Question.noul("Is someone speaking?", seconds=2.0),
         ]
         scheduler = Scheduler(model, questions, updates.put, speech=speech)
         live, turn = (
