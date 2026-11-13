@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { instrument } from './instruments';
 import { bottomLine, reading, timing } from './presentation';
-import { initialState, reduceCard, shownDecision, type Card, type Decision } from './state';
+import {
+  initialState,
+  reduceCard,
+  shownDecision,
+  shownState,
+  type Card,
+  type Decision,
+} from './state';
 
 const card: Card = {
   task: 'speaker_count', title: 'People', text: '', kind: 'choice',
@@ -69,6 +76,32 @@ describe('card presentation', () => {
     const visible = shownDecision(term, state, 2001);
     expect(visible).toBeUndefined();
     expect(reading(term, visible)).toBe('no');
+  });
+  it('shows the held Turn yes with its original receipt age', () => {
+    const turn: Card = {
+      ...card, task: 'turn_end', kind: 'noul', options: [], cadence: 'at end of speech',
+    };
+    const yes: Decision = {
+      ...decision,
+      task: 'turn_end',
+      kind: 'noul',
+      value: true,
+      window_end_s: 1,
+      window_start_s: 0,
+    };
+    const speaking: Decision = {
+      ...yes,
+      value: false,
+      probability: null,
+      threshold: null,
+      status: 'speaking',
+      window_end_s: 2,
+    };
+    const withYes = reduceCard(initialState(), yes, 0, -100);
+    const state = reduceCard(withYes, speaking, 500);
+    const shown = shownState(turn, state, 1000);
+
+    expect(timing(turn, shown, 1000).interval).toContain('RECEIVED 1.0 s AGO');
   });
   it('renders readings and the same timing fields for either lane', () => {
     expect(reading(card, decision)).toBe('2');

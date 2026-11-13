@@ -8,6 +8,7 @@ import {
   reduceCard,
   renderLatency,
   shownDecision,
+  shownState,
   type Card,
   type Decision,
 } from './state';
@@ -67,6 +68,25 @@ describe('card state', () => {
 
     expect(shownDecision(turnEndCard, state, 1999)).toBe(yes);
     expect(shownDecision(turnEndCard, state, 2001)).toBe(speaking);
+  });
+  it('uses the held Turn yes with its original timing metadata', () => {
+    const turnEndCard = { ...termCard, task: 'turn_end' };
+    const yes = { ...decision(1, 1), task: 'turn_end', value: true };
+    const speaking = {
+      ...yes,
+      value: false,
+      probability: null,
+      threshold: null,
+      status: 'speaking',
+      window_end_s: 2,
+    };
+    const withYes = reduceCard(initialState(), yes, 0, -100);
+    const state = reduceCard(withYes, speaking, 500);
+    const shown = shownState(turnEndCard, state, 1000);
+
+    expect(shown.decision).toBe(yes);
+    expect(shown.receivedAt).toBe(0);
+    expect(shown.windowEndAt).toBe(-100);
   });
   it('holds Turn ended yes for two seconds after a negative decision', () => {
     const turnEndCard = { ...termCard, task: 'turn_end' };
