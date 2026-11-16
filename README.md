@@ -103,6 +103,25 @@ print(decisions[0].to_dict())
 Unavailable tasks return `None` values, never a fallback prediction. Evidence,
 routing rules and option rules: [capabilities](docs/capabilities.md).
 
+### Compared with audio LLMs
+
+Paired comparison on the same 1,000 fixed public questions. The audio LLMs answer zero-shot, scoring each option by summed log-probability. Choice rows use accuracy; binary rows use AUROC.
+
+| Slice | n | Metric | Marimba | Qwen3-Omni-30B-A3B | Qwen2-Audio-7B | FireRedAudio |
+|---|---:|---|---:|---:|---:|---:|
+| Common Voice language | 52 | accuracy | 0.904 | 1.000 | 0.846 | 0.962 |
+| FLEURS language | 200 | accuracy | 1.000 | 1.000 | 0.840 | 0.865 |
+| Common Voice term, choice | 41 | accuracy | 0.976 | 0.976 | 0.829 | 1.000 |
+| FLEURS term, choice | 62 | accuracy | 0.855 | 0.855 | 0.758 | 0.871 |
+| Speech Commands, choice | 60 | accuracy | 0.933 | 1.000 | 0.967 | 0.950 |
+| Common Voice term, binary | 107 | AUROC | 0.907 | 0.858 | 0.802 | 0.836 |
+| FLEURS term, binary | 138 | AUROC | 0.901 | 0.791 | 0.682 | 0.776 |
+| Speech Commands, binary | 140 | AUROC | 0.926 | 0.992 | 0.940 | 0.993 |
+| Turn end (Smart Turn v3.2) | 200 | AUROC | 0.935 | 0.786 | 0.476 | 0.542 |
+
+- Marimba's turn-end readout is trained on Smart Turn training data, so that row is in-distribution for Marimba only. All other rows are zero-shot for every system.
+- [FireRedAudio](https://huggingface.co/FireRedTeam/FireRedAudio) was added after the [paper](https://arxiv.org/abs/2611.18330), which reports the other three systems. It received the same Portuguese prompts as the others, while its understanding path is trained on Chinese and English. It ran in bf16 without its optional optimized attention kernels.
+
 ## Outputs
 
 Each question returns one `Decision`; `Decision.to_dict()` is JSON-safe.
