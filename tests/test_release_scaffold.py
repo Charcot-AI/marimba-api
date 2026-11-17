@@ -458,7 +458,10 @@ def test_executed_notebooks_are_small_and_text_only():
     assert "hf-internal-testing/librispeech_asr_dummy" in colab_text
     assert "sanchit-gandhi/librispeech_asr_dummy" in colab_text
     assert "Synthetic audio:" not in colab_text
-    assert "[PENDING]" in colab_text
+    assert "## Measured latency" not in colab_text
+    assert "[PENDING]" not in colab_text
+    assert "call_latency_ms" in colab_text
+    assert "Setting `pad_token_id`" not in colab_text
 
 
 def test_documentation_relative_links_resolve():
