@@ -8,6 +8,7 @@ import {
   reduceCard,
   renderLatency,
   shownDecision,
+  shownState,
   type Card,
   type Decision,
 } from './state';
@@ -50,6 +51,70 @@ describe('card state', () => {
     const yes = { ...decision(1), task: 'turn_end', value: true };
     const state = reduceCard(initialState(), yes, 0);
     expect(shownDecision(turnEndCard, state, 5000)).toBe(yes);
+  });
+  it('holds Turn ended yes for two seconds after a speaking update', () => {
+    const turnEndCard = { ...termCard, task: 'turn_end' };
+    const yes = { ...decision(1, 1), task: 'turn_end', value: true };
+    const speaking = {
+      ...yes,
+      value: false,
+      probability: null,
+      threshold: null,
+      status: 'speaking',
+      window_end_s: 2,
+    };
+    const withYes = reduceCard(initialState(), yes, 0);
+    const state = reduceCard(withYes, speaking, 500);
+
+    expect(shownDecision(turnEndCard, state, 1999)).toBe(yes);
+    expect(shownDecision(turnEndCard, state, 2001)).toBe(speaking);
+  });
+  it('uses the held Turn yes with its original timing metadata', () => {
+    const turnEndCard = { ...termCard, task: 'turn_end' };
+    const yes = { ...decision(1, 1), task: 'turn_end', value: true };
+    const speaking = {
+      ...yes,
+      value: false,
+      probability: null,
+      threshold: null,
+      status: 'speaking',
+      window_end_s: 2,
+    };
+    const withYes = reduceCard(initialState(), yes, 0, -100);
+    const state = reduceCard(withYes, speaking, 500);
+    const shown = shownState(turnEndCard, state, 1000);
+
+    expect(shown.decision).toBe(yes);
+    expect(shown.receivedAt).toBe(0);
+    expect(shown.windowEndAt).toBe(-100);
+  });
+  it('holds Turn ended yes for two seconds after a negative decision', () => {
+    const turnEndCard = { ...termCard, task: 'turn_end' };
+    const yes = { ...decision(1, 1), task: 'turn_end', value: true };
+    const no = { ...decision(0, 2), task: 'turn_end', value: false };
+    const withYes = reduceCard(initialState(), yes, 0);
+    const state = reduceCard(withYes, no, 800);
+
+    expect(shownDecision(turnEndCard, state, 1500)).toBe(yes);
+    expect(shownDecision(turnEndCard, state, 2100)).toBe(no);
+  });
+  it('refreshes the Turn ended hold when another yes arrives', () => {
+    const turnEndCard = { ...termCard, task: 'turn_end' };
+    const firstYes = { ...decision(1, 1), task: 'turn_end', value: true };
+    const secondYes = { ...decision(0.9, 2), task: 'turn_end', value: true };
+    const speaking = {
+      ...secondYes,
+      value: false,
+      probability: null,
+      threshold: null,
+      status: 'speaking',
+      window_end_s: 3,
+    };
+    const firstState = reduceCard(initialState(), firstYes, 0);
+    const secondState = reduceCard(firstState, secondYes, 1500);
+    const state = reduceCard(secondState, speaking, 1600);
+
+    expect(shownDecision(turnEndCard, state, 3000)).toBe(secondYes);
   });
   it('retains the last real decision, trail and timing while an update is ineligible', () => {
     const first = reduceCard(initialState(), decision(0.2, 8), 1000, 800);
