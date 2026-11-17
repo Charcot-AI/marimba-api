@@ -1,4 +1,15 @@
-# Executed CPU notebooks
+# Notebooks
+
+## Colab quickstart
+
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Charcot-AI/marimba-api/blob/main/notebooks/colab_quickstart.ipynb)
+
+The [Colab quickstart](colab_quickstart.ipynb) installs the published PyPI package and
+demonstrates supported question types with public LibriSpeech speech, including a
+transcript-checked term example and a two-speaker clip. It is an API example, not
+an accuracy measurement.
+
+## Executed CPU notebooks
 
 1. [Quickstart](01_quickstart.ipynb)
 2. [datasets.map](02_datasets_map.ipynb)
