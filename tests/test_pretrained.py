@@ -479,7 +479,16 @@ def test_vad_temperature_and_default_threshold(vad_model, monkeypatch):
     assert vad_model._engine.calls == ["encode"]
 
 
-def test_vad_two_second_tail_uses_sample_mask_temperature_and_window_start(vad_model, monkeypatch):
+@pytest.mark.parametrize(
+    ("seconds", "tail_samples", "temperature"),
+    [
+        (2.0, 32000, 0.7869027171235091),
+        (1.0, 16000, 1.2544709139576355),
+    ],
+)
+def test_vad_tail_uses_sample_mask_temperature_and_window_start(
+    vad_model, monkeypatch, seconds, tail_samples, temperature
+):
     seen = {}
 
     def head_score(features, mask, text):
@@ -488,13 +497,13 @@ def test_vad_two_second_tail_uses_sample_mask_temperature_and_window_start(vad_m
         return -0.6
 
     monkeypatch.setattr(vad_model._engine, "head_score", head_score)
-    question = Question.noul("Is someone speaking?", seconds=2.0)
+    question = Question.noul("Is someone speaking?", seconds=seconds)
     source_mask = np.ones(8 * 16000, dtype=np.bool_)
     snapshot = WindowSnapshot(np.zeros(8 * 16000, dtype=np.float32), source_mask, 0, 8)
     decision = vad_model.decide_encoded(vad_model.encode(snapshot), [question])[0]
 
     expected_mask = np.zeros(8 * 16000, dtype=np.bool_)
-    expected_mask[-32000:] = True
+    expected_mask[-tail_samples:] = True
     np.testing.assert_array_equal(seen["mask"], expected_mask)
     assert seen["mask"] is not source_mask
     assert source_mask.all()
@@ -503,10 +512,10 @@ def test_vad_two_second_tail_uses_sample_mask_temperature_and_window_start(vad_m
         "Responda só com a letra da opção.<|im_end|>\n<|im_start|>assistant\n"
     )
     assert decision.score == -0.6
-    assert decision.probability == pytest.approx(1 / (1 + np.exp(0.6 / 0.7869027171235091)))
+    assert decision.probability == pytest.approx(1 / (1 + np.exp(0.6 / temperature)))
     assert decision.threshold == 0.225
     assert decision.value is True
-    assert decision.window_start_s == 6
+    assert decision.window_start_s == 8 - seconds
     assert decision.window_end_s == 8
     assert not decision.calibrated
     assert vad_model._engine.calls == ["encode"]

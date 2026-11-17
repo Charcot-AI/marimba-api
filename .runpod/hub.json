@@ -1,6 +1,6 @@
 {
   "title": "Marimba Decoder",
-  "description": "Language identification and term detection from audio with Marimba.",
+  "description": "System One model for speech.",
   "type": "serverless",
   "category": "audio",
   "config": {

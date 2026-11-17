@@ -15,7 +15,12 @@ from marimba.audio import right_aligned_window
 from marimba.windows import WindowSnapshot
 
 from .protocol import SAMPLE_RATE, Frame
-from .speech import SpeechSegment, SpeechTimeline, speaker_change_eligible
+from .speech import (
+    TURN_OFFSET_LAG_S,
+    SpeechSegment,
+    SpeechTimeline,
+    speaker_change_eligible,
+)
 
 _SPEECH_QUESTION_TEXT = "Is someone speaking?"
 
@@ -41,6 +46,7 @@ class Scheduler:
         send: Any,
         *,
         speech: SpeechTimeline | None = None,
+        use_1s_turn_tail: bool = False,
     ) -> None:
         self.model, self.send = model, send
         self.speech = speech if speech is not None else SpeechTimeline()
@@ -49,7 +55,16 @@ class Scheduler:
         ]
         self.turns = [q for q in questions if q.task == "turn_end"]
         self.reviews = [q for q in questions if model.lane(q) == "decoder"]
+        self.term_reviews = [q for q in self.reviews if q.task == "term"]
+        self.early_term_interval_s = getattr(model, "early_term_interval_s", None)
+        if self.early_term_interval_s is not None and self.early_term_interval_s <= 0:
+            raise ValueError("The early Term probe interval must be positive.")
+        self.early_term_fired_questions: set[tuple[int, Any]] = set()
+        self.early_term_busy = False
         self.internal_speech_question: Question | None = None
+        self.internal_turn_speech_question: Question | None = None
+        self.turn_speech_question: Question | None = None
+        self.turn_speech: SpeechTimeline | None = None
         self.speech_question: Any | None = next(
             (q for q in self.heads if self._is_speech_question(q)), None
         )
@@ -63,11 +78,25 @@ class Scheduler:
                 _SPEECH_QUESTION_TEXT, task="voice_activity", seconds=2.0
             )
             self.speech_question = self.internal_speech_question
+        if use_1s_turn_tail and self.turns and self.speech_question is not None:
+            self.turn_speech_question = next(
+                (q for q in self.heads if self._is_turn_speech_question(q)), None
+            )
+            if self.turn_speech_question is None:
+                self.internal_turn_speech_question = Question.noul(
+                    _SPEECH_QUESTION_TEXT, task="voice_activity", seconds=1.0
+                )
+                self.turn_speech_question = self.internal_turn_speech_question
+            self.turn_speech = SpeechTimeline(offset_lag_s=TURN_OFFSET_LAG_S)
         if len(self.heads) + len(self.turns) + len(self.reviews) != len(questions):
             raise ValueError("Unknown inference lane.")
         stream_questions = list(questions)
-        if self.internal_speech_question is not None:
-            stream_questions.append(self.internal_speech_question)
+        for question in (
+            self.internal_speech_question,
+            self.internal_turn_speech_question,
+        ):
+            if question is not None and question not in stream_questions:
+                stream_questions.append(question)
         self.stream = model.stream(
             stream_questions,
             window_seconds=8.0,
@@ -77,7 +106,8 @@ class Scheduler:
             coalesce=True,
         )
         self.changed = {
-            lane: asyncio.Event() for lane in ("encoder", "turn", "decoder")
+            lane: asyncio.Event()
+            for lane in ("encoder", "turn", "decoder", "early_term")
         }
         self.turn_queue: deque[Work] = deque()
         self.utterance_queue: deque[list[Work]] = deque()
@@ -100,6 +130,17 @@ class Scheduler:
             and getattr(question, "options", None) is None
         )
 
+    @staticmethod
+    def _is_turn_speech_question(question: Any) -> bool:
+        return (
+            question.task == "voice_activity"
+            and question.text == _SPEECH_QUESTION_TEXT
+            and question.kind == "noul"
+            and getattr(question, "seconds", None) == 1.0
+            and getattr(question, "threshold", None) is None
+            and getattr(question, "options", None) is None
+        )
+
     def snapshot(self, start: int, end: int) -> WindowSnapshot:
         if start < self.audio_start or end > self.total:
             raise ValueError(
@@ -114,25 +155,32 @@ class Scheduler:
         if segment.end <= segment.start:
             return
 
-        def work(start: int, end: int) -> Work:
-            _, timestamp = self.latest_capture
-            return Work(
-                self.snapshot(start, end),
-                self.latest_capture,
-                timestamp
-                + (end - self.latest_capture_start_sample) * 1000 / SAMPLE_RATE,
-            )
-
-        if self.turns:
-            self.turn_queue.append(
-                work(max(0, segment.end - 8 * SAMPLE_RATE), segment.end)
-            )
-            self.changed["turn"].set()
+        if self.turn_speech_question is None:
+            self.enqueue_turn(segment)
         if self.reviews:
             self.utterance_queue.append(
-                [work(s, e) for s, e in utterance_chunks(segment.start, segment.end)]
+                [
+                    self.make_work(s, e)
+                    for s, e in utterance_chunks(segment.start, segment.end)
+                ]
             )
             self.changed["decoder"].set()
+
+    def make_work(self, start: int, end: int) -> Work:
+        _, timestamp = self.latest_capture
+        return Work(
+            self.snapshot(start, end),
+            self.latest_capture,
+            timestamp + (end - self.latest_capture_start_sample) * 1000 / SAMPLE_RATE,
+        )
+
+    def enqueue_turn(self, segment: SpeechSegment) -> None:
+        if not self.turns or segment.end <= segment.start:
+            return
+        self.turn_queue.append(
+            self.make_work(max(0, segment.end - 8 * SAMPLE_RATE), segment.end)
+        )
+        self.changed["turn"].set()
 
     def ingest(self, frame: Frame) -> None:
         self.latest_capture_start_sample = self.total
@@ -153,6 +201,92 @@ class Scheduler:
         self.audio_start = keep
         for event in self.changed.values():
             event.set()
+
+    async def early_term(self) -> None:
+        if self.early_term_interval_s is None or not self.term_reviews:
+            return
+        interval_samples = round(self.early_term_interval_s * SAMPLE_RATE)
+        event = self.changed["early_term"]
+        active_onset = None
+        last_probe_end = None
+        while not self.aborted and not self.finished:
+            await event.wait()
+            event.clear()
+            if self.aborted or self.finished:
+                return
+            onset = self.speech.onset
+            if onset is None:
+                active_onset = None
+                last_probe_end = None
+                continue
+            if active_onset != onset:
+                active_onset = onset
+                last_probe_end = onset
+            probe_questions = [
+                question
+                for question in self.term_reviews
+                if (onset, question) not in self.early_term_fired_questions
+            ]
+            if (
+                not probe_questions
+                or last_probe_end is None
+                or self.total - last_probe_end < interval_samples
+            ):
+                continue
+
+            end = self.total
+            start = max(onset, end - 8 * SAMPLE_RATE)
+            _, timestamp = self.latest_capture
+            work = Work(
+                self.snapshot(start, end),
+                self.latest_capture,
+                timestamp
+                + (end - self.latest_capture_start_sample) * 1000 / SAMPLE_RATE,
+            )
+            last_probe_end = end
+            self.early_term_busy = True
+            try:
+                decisions, elapsed = await asyncio.to_thread(
+                    self.compute, work.snapshot, probe_questions, "decoder"
+                )
+            finally:
+                self.early_term_busy = False
+            if self.aborted or self.finished or self.speech.onset != onset:
+                continue
+            yes_decisions = [
+                decision
+                for decision in decisions
+                if decision.task == "term" and decision.value is True
+            ]
+            if not yes_decisions:
+                continue
+            self.early_term_fired_questions.update(
+                (onset, decision.question) for decision in yes_decisions
+            )
+            await self.send(
+                {
+                    "type": "update",
+                    "lane": "decoder",
+                    "sequence": work.capture[0],
+                    "captured_at_ms": work.capture[1],
+                    "window_end_at_ms": work.window_end_at_ms,
+                    "decision_interval_ms": (
+                        work.snapshot.window_end_s
+                        - self.previous_end.get("decoder", 0.0)
+                    )
+                    * 1000,
+                    "coalesced_hops": self.coalesced["decoder"],
+                    "queued_utterances": len(self.utterance_queue),
+                    "decisions": [
+                        {
+                            **decision.to_dict(),
+                            "window_latency_ms": elapsed,
+                        }
+                        for decision in yes_decisions
+                    ],
+                }
+            )
+            self.previous_end["decoder"] = work.snapshot.window_end_s
 
     def finish(self, *, aborted: bool = False) -> None:
         self.finished = True
@@ -214,13 +348,41 @@ class Scheduler:
                     previous_onset is None
                     and self.speech.onset is not None
                     and self.turns
+                    and self.turn_speech is None
                 ):
                     speaking_onset_s = self.speech.onset / SAMPLE_RATE
+        if lane == "encoder" and self.turn_speech_question is not None:
+            turn_speech_decision = next(
+                (
+                    decision
+                    for decision in decisions
+                    if decision.question == self.turn_speech_question
+                ),
+                None,
+            )
+            if (
+                turn_speech_decision is not None
+                and isinstance(turn_speech_decision.value, bool)
+                and self.turn_speech is not None
+            ):
+                previous_turn_onset = self.turn_speech.onset
+                for segment in self.turn_speech.observe(
+                    snapshot.window_end_s, turn_speech_decision.value
+                ):
+                    self.enqueue_turn(segment)
+                if (
+                    previous_turn_onset is None
+                    and self.turn_speech.onset is not None
+                    and self.turns
+                ):
+                    speaking_onset_s = self.turn_speech.onset / SAMPLE_RATE
         sequence, timestamp = work.capture
         visible_decisions = [
             d
             for d in decisions
-            if d.question != self.internal_speech_question and d.question not in neutral
+            if d.question != self.internal_speech_question
+            and d.question != self.internal_turn_speech_question
+            and d.question not in neutral
         ]
         payloads = []
         for decision in visible_decisions:
@@ -307,11 +469,12 @@ class Scheduler:
                     and not speaker_change_eligible(snapshot, self.speech)
                 ]
                 questions = [q for q in questions if q not in neutral]
-                if (
-                    self.internal_speech_question is not None
-                    and self.internal_speech_question not in questions
+                for question in (
+                    self.internal_speech_question,
+                    self.internal_turn_speech_question,
                 ):
-                    questions.append(self.internal_speech_question)
+                    if question is not None and question not in questions:
+                        questions.append(question)
                 await self.emit(
                     Work(snapshot, self.latest_capture), questions, "encoder", neutral
                 )
@@ -348,9 +511,24 @@ class Scheduler:
                     [q for q in self.reviews if q.task == "term"],
                     [q for q in self.reviews if q.task not in {"language", "term"}],
                 )
-                for questions in groups:
+
+                async def review_group(
+                    utterance: list[Work], questions: list[Any], *, skip: bool = False
+                ) -> None:
                     if not questions:
-                        continue
+                        return
+                    if skip:
+                        if not self.aborted:
+                            await self.send(
+                                {
+                                    "type": "review_status",
+                                    "tasks": list(
+                                        dict.fromkeys(q.task for q in questions)
+                                    ),
+                                    "running": False,
+                                }
+                            )
+                        return
                     for work in utterance:
                         if self.aborted:
                             return
@@ -363,5 +541,47 @@ class Scheduler:
                                 "running": False,
                             }
                         )
+
+                utterance_start = round(
+                    utterance[0].snapshot.window_start_s * SAMPLE_RATE
+                )
+                term_group = groups[1]
+                term_questions = [
+                    question
+                    for question in term_group
+                    if (utterance_start, question)
+                    not in self.early_term_fired_questions
+                ]
+                term_already_probed = bool(term_group) and not term_questions
+                self.early_term_fired_questions.difference_update(
+                    (utterance_start, question) for question in term_group
+                )
+                term_review_questions = term_questions if term_questions else term_group
+                if getattr(self.model, "concurrent_decoder", False):
+                    await asyncio.gather(
+                        review_group(utterance, groups[0]),
+                        review_group(
+                            utterance,
+                            term_review_questions,
+                            skip=term_already_probed,
+                        ),
+                    )
+                    if self.aborted:
+                        return
+                    await review_group(utterance, groups[2])
+                else:
+                    review_groups = (
+                        groups[0],
+                        term_review_questions,
+                        groups[2],
+                    )
+                    for index, questions in enumerate(review_groups):
+                        await review_group(
+                            utterance,
+                            questions,
+                            skip=index == 1 and term_already_probed,
+                        )
+                        if self.aborted:
+                            return
             if self.finished:
                 return

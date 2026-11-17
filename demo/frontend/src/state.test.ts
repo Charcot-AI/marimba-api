@@ -7,6 +7,8 @@ import {
   percentile,
   reduceCard,
   renderLatency,
+  shownDecision,
+  type Card,
   type Decision,
 } from './state';
 
@@ -22,7 +24,33 @@ const decision = (p: number, end = 1): Decision => ({
   window_end_s: end,
   latency_ms: 12,
 });
+const termCard: Card = {
+  task: 'term',
+  title: 'Marimba spoken',
+  text: 'Was "marimba" spoken?',
+  kind: 'noul',
+  options: [],
+  status: 'unvalidated',
+  lane: 'decoder',
+};
 describe('card state', () => {
+  it('holds a positive term decision for two seconds', () => {
+    const yes = { ...decision(1), task: 'term', value: true };
+    const state = reduceCard(initialState(), yes, 0);
+    expect(shownDecision(termCard, state, 1999)).toBe(yes);
+    expect(shownDecision(termCard, state, 2001)).toBeUndefined();
+  });
+  it('keeps a negative term decision visible', () => {
+    const no = { ...decision(0), task: 'term', value: false };
+    const state = reduceCard(initialState(), no, 0);
+    expect(shownDecision(termCard, state, 5000)).toBe(no);
+  });
+  it('keeps positive non-term decisions visible', () => {
+    const turnEndCard = { ...termCard, task: 'turn_end' };
+    const yes = { ...decision(1), task: 'turn_end', value: true };
+    const state = reduceCard(initialState(), yes, 0);
+    expect(shownDecision(turnEndCard, state, 5000)).toBe(yes);
+  });
   it('retains the last real decision, trail and timing while an update is ineligible', () => {
     const first = reduceCard(initialState(), decision(0.2, 8), 1000, 800);
     const pending = reduceCard(first, {

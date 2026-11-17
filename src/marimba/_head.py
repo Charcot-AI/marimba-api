@@ -176,7 +176,8 @@ class SpeechReadout:
         )
         # The head was validated with the "sim" option.
         ids, mask = GraphemeTokenizer()("sim")
-        with torch.inference_mode():
+        # Cached tensors cross inference contexts, including ZeroGPU worker boundaries.
+        with torch.no_grad():
             self.option = self.model.text_options(ids.to(device), mask.to(device))
         self.option_mask = mask.to(device)
         self.question_features = self._question_features

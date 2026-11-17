@@ -1,15 +1,17 @@
 # Quickstart
 
-From a source checkout with Python 3.10 or newer:
+With Python 3.10 or newer:
 
 ```sh
-pip install '.[torch]'
+pip install "marimba-audio[torch]"
 marimba doctor
 ```
 
+From a source checkout, use `pip install '.[torch]'` instead.
+
 Authenticate with `hf auth login` or set `HF_TOKEN` if your configured model
 repository requires access. Converted head/readout weights are Apache-2.0; see the
-[model card](../hf/README.md). Do not put credentials in notebooks or source.
+[model card](https://huggingface.co/charcot-ai/marimba). Do not put credentials in notebooks or source.
 
 ```python
 from marimba import Marimba, Question

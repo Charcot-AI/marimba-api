@@ -1,3 +1,4 @@
+import asyncio
 import importlib
 
 import numpy as np
@@ -73,12 +74,13 @@ def test_audio_is_truncated_to_last_eight_seconds(analyzer_class):
     np.testing.assert_array_equal(model.audio, audio[-128000:])
 
 
-def test_audio_is_resampled_to_model_rate(analyzer_class):
+@pytest.mark.parametrize("rate", [8000, 16000, 24000, 44100, 48000])
+def test_audio_is_resampled_to_model_rate(analyzer_class, rate):
     model = FakeModel()
-    analyzer = analyzer_class(model=model, sample_rate=8000)
-    analyzer.set_sample_rate(8000)
-    audio = np.linspace(-1, 1, 8000, dtype=np.float32)
-    resampled = soxr.resample(audio, 8000, 16000, quality="HQ")
+    analyzer = analyzer_class(model=model, sample_rate=rate)
+    analyzer.set_sample_rate(rate)
+    audio = np.linspace(-1, 1, rate, dtype=np.float32)
+    resampled = soxr.resample(audio, rate, 16000, quality="HQ") if rate != 16000 else audio
 
     analyzer._predict_endpoint(audio)
 
@@ -111,3 +113,171 @@ def test_default_model_is_loaded_lazily(analyzer_class, monkeypatch):
 def test_threshold_must_be_a_probability(analyzer_class, threshold):
     with pytest.raises(ValueError, match="threshold"):
         analyzer_class(model=FakeModel(), threshold=threshold)
+
+
+@pytest.mark.parametrize("probability", [0.25, 0.75])
+def test_public_api_returns_turn_metrics(analyzer_class, probability):
+    analyzer = analyzer_class(model=FakeModel(probability))
+    analyzer.set_sample_rate(16000)
+
+    async def run():
+        try:
+            analyzer.append_audio(np.ones(320, dtype=np.int16).tobytes(), is_speech=True)
+            state, metrics = await analyzer.analyze_end_of_turn()
+            assert state.name == ("COMPLETE" if probability >= 0.5 else "INCOMPLETE")
+            assert metrics.probability == probability
+            assert metrics.e2e_processing_time_ms >= 0
+        finally:
+            await analyzer.cleanup()
+
+    asyncio.run(run())
+
+
+def test_public_api_empty_audio_has_no_metrics(analyzer_class):
+    analyzer = analyzer_class(model=FakeModel())
+    analyzer.set_sample_rate(16000)
+
+    async def run():
+        try:
+            state, metrics = await analyzer.analyze_end_of_turn()
+            assert state.name == "INCOMPLETE"
+            assert metrics is None
+        finally:
+            await analyzer.cleanup()
+
+    asyncio.run(run())
+
+
+def test_public_api_inference_error_allows_silence_fallback(analyzer_class, caplog):
+    class BrokenModel:
+        def __call__(self, *args, **kwargs):
+            raise RuntimeError("Synthetic inference failure")
+
+    analyzer = analyzer_class(model=BrokenModel())
+    analyzer.set_sample_rate(16000)
+
+    async def run():
+        try:
+            analyzer.append_audio(np.ones(320, dtype=np.int16).tobytes(), is_speech=True)
+            state, metrics = await analyzer.analyze_end_of_turn()
+            assert state.name == "INCOMPLETE"
+            assert metrics is None
+            assert "Synthetic inference failure" in caplog.text
+            assert analyzer.speech_triggered
+            for _ in range(150):
+                state = analyzer.append_audio(bytes(640), is_speech=False)
+            assert state.name == "COMPLETE"
+            assert not analyzer.speech_triggered
+            state, metrics = await analyzer.analyze_end_of_turn()
+            assert state.name == "INCOMPLETE"
+            assert metrics is None
+        finally:
+            await analyzer.cleanup()
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("num_channels", [0, -1, 1.5])
+def test_invalid_channels(analyzer_class, num_channels):
+    with pytest.raises(ValueError, match="num_channels"):
+        analyzer_class(model=FakeModel(), num_channels=num_channels)
+
+
+def test_stereo_is_downmixed_before_buffering_and_timeout(analyzer_class):
+    model = FakeModel(0.25)
+    analyzer = analyzer_class(model=model, num_channels=2)
+    analyzer.set_sample_rate(16000)
+    stereo = np.tile(np.array([[1000, 3000], [1000, 3001]], dtype=np.int16), (160, 1))
+
+    async def run():
+        try:
+            analyzer.append_audio(stereo.tobytes(), is_speech=True)
+            _, metrics = await analyzer.analyze_end_of_turn()
+            expected = np.rint(stereo.astype(np.float32).mean(axis=1)) / 32768
+            np.testing.assert_array_equal(model.audio, expected)
+            assert len(model.audio) == 320
+            assert metrics.probability == 0.25
+            for _ in range(149):
+                state = analyzer.append_audio(bytes(1280), is_speech=False)
+            assert state.name == "INCOMPLETE"
+            assert analyzer.append_audio(bytes(1280), is_speech=False).name == "COMPLETE"
+        finally:
+            await analyzer.cleanup()
+
+    asyncio.run(run())
+
+
+def test_public_api_load_error_allows_retry(analyzer_class, monkeypatch, caplog):
+    integration = importlib.import_module("marimba.integrations.pipecat")
+    model = FakeModel()
+    loads = []
+
+    def load():
+        loads.append(True)
+        if len(loads) == 1:
+            raise OSError("Synthetic missing cached model")
+        return model
+
+    monkeypatch.setattr(integration.Marimba, "from_pretrained", load)
+    analyzer = analyzer_class()
+    analyzer.set_sample_rate(16000)
+
+    async def run():
+        try:
+            analyzer.append_audio(bytes(640), is_speech=True)
+            state, metrics = await analyzer.analyze_end_of_turn()
+            assert state.name == "INCOMPLETE"
+            assert metrics is None
+            assert "Synthetic missing cached model" in caplog.text
+            state, metrics = await analyzer.analyze_end_of_turn()
+            assert state.name == "COMPLETE"
+            assert metrics.probability == 0.75
+            assert len(loads) == 2
+        finally:
+            await analyzer.cleanup()
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("samples", [1, 160, 320, 1600])
+def test_public_api_short_audio(analyzer_class, samples):
+    model = FakeModel()
+    analyzer = analyzer_class(model=model)
+    analyzer.set_sample_rate(16000)
+    audio = np.arange(samples, dtype=np.int16)
+
+    async def run():
+        try:
+            analyzer.append_audio(audio.tobytes(), is_speech=True)
+            _, metrics = await analyzer.analyze_end_of_turn()
+            np.testing.assert_array_equal(model.audio, audio.astype(np.float32) / 32768)
+            assert metrics.probability == 0.75
+        finally:
+            await analyzer.cleanup()
+
+    asyncio.run(run())
+
+
+def test_concurrent_analyzers_keep_independent_state(analyzer_class):
+    model = FakeModel(0.25)
+    analyzers = [analyzer_class(model=model), analyzer_class(model=model)]
+
+    async def turn(analyzer, samples):
+        analyzer.set_sample_rate(16000)
+        try:
+            for _ in range(20):
+                analyzer.append_audio(np.ones(samples, dtype=np.int16).tobytes(), is_speech=True)
+                state, metrics = await analyzer.analyze_end_of_turn()
+                assert state.name == "INCOMPLETE"
+                assert metrics.probability == 0.25
+                analyzer.clear()
+                state, metrics = await analyzer.analyze_end_of_turn()
+                assert state.name == "INCOMPLETE"
+                assert metrics is None
+        finally:
+            await analyzer.cleanup()
+
+    async def run():
+        await asyncio.gather(turn(analyzers[0], 320), turn(analyzers[1], 1600))
+
+    asyncio.run(run())
