@@ -14,6 +14,7 @@ from threading import Event
 from time import perf_counter
 
 import numpy as np
+import numpy.typing as npt
 
 from ._diarization import TASKS
 from .audio import SAMPLE_RATE, AudioArray, Mask
@@ -42,23 +43,25 @@ TRAIL_BODY_MIN_FRAMES = 10
 TRAIL_SCALE_DB = 6.0
 _PAIR_SPLIT_SECONDS = {"same_speaker": 4.0, "speaker_change": 6.0}
 
+Floats = npt.NDArray[np.float64]
 
-def frame_power(audio: AudioArray, mask: Mask) -> tuple[np.ndarray, np.ndarray]:
+
+def frame_power(audio: AudioArray, mask: Mask) -> tuple[Floats, Mask]:
     """Mean-square power of each 10 ms frame, and which frames are fully valid."""
     count = len(audio) // FRAME_SAMPLES
     size = count * FRAME_SAMPLES
     frames = audio[:size].astype(np.float64).reshape(count, FRAME_SAMPLES)
-    valid = mask[:size].reshape(count, FRAME_SAMPLES).all(axis=1)
+    valid: Mask = np.asarray(mask[:size].reshape(count, FRAME_SAMPLES).all(axis=1), dtype=np.bool_)
     return np.mean(frames**2, axis=1), valid
 
 
-def frame_activity(power: np.ndarray) -> np.ndarray:
+def frame_activity(power: Floats) -> Floats:
     """Zero at -60 dBFS and below, one at -30 dBFS and above, linear in dB between."""
     level = 10 * np.log10(power + 1e-12)
     return np.clip((level - SILENCE_DB) / (SPEECH_DB - SILENCE_DB), 0.0, 1.0)
 
 
-def frame_pitch(audio: AudioArray) -> np.ndarray:
+def frame_pitch(audio: AudioArray) -> Floats:
     """log2 of the pitch in Hz of each 64 ms frame; NaN where the frame is unvoiced."""
     count = len(audio) // PITCH_FRAME_SAMPLES
     if count == 0:
