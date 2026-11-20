@@ -75,6 +75,16 @@ def test_joiner_slices_segments_longer_than_the_cap():
     ]
 
 
+def test_joiner_releases_a_full_unit_without_waiting_for_more_speech():
+    joiner = UnitJoiner()
+    # A 30 s slice of continuous speech cannot grow, so it is ready at once.
+    assert [u.seconds for u in joiner.add(seg(0, 30))] == [(0.0, 30.0)]
+    assert joiner.pending is None
+    assert joiner.add(seg(30, 40)) == []
+    # Joined speech that reaches the cap exactly is released too.
+    assert [u.seconds for u in joiner.add(seg(41, 60))] == [(30.0, 60.0)]
+
+
 def test_joiner_closes_a_unit_once_the_pause_cannot_be_bridged():
     joiner = UnitJoiner()
     joiner.add(seg(0, 2))

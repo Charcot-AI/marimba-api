@@ -104,8 +104,12 @@ class UnitJoiner:
             if pending is not None:
                 closed.append(pending)
             self.pending = SpeechUnit(start, end, turn_ended and last)
-        if self.pending is not None and self.pending.turn_ended:
-            closed.append(self.pending)
+        pending = self.pending
+        # Nothing can join a unit that ended a turn or already fills the cap.
+        if pending is not None and (
+            pending.turn_ended or pending.end - pending.start >= limit
+        ):
+            closed.append(pending)
             self.pending = None
         return closed
 
