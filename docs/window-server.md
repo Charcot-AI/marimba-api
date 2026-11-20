@@ -216,7 +216,7 @@ table and the first failure is returned.
 | 400 | `invalid_questions` | `Marimba-Questions` is missing, longer than 4096 bytes, not a JSON array, has the wrong number of questions, has an unknown field, task, kind, threshold or `seconds`, or names a task this server cannot answer | fix the request |
 | 413 | `request_too_large` | the body is larger than one window (`/v1/windows`) or 32 windows (`/v1/pairs`) | split the request |
 | 400 | `invalid_audio_length` | the body is empty or not a whole number of 256,000-byte windows | fix the request |
-| 429 | `rate_limited` | all inference slots are busy (`--max-concurrency`, default 4) | retry after a short backoff, or skip this hop |
+| 429 | `rate_limited` | all inference slots are busy (`--max-concurrency`, default 4; see [sizing](hosting.md#sizing-for-streaming-clients)) | retry after a short backoff, or skip this hop |
 | 500 | `server_error` | inference failed; no detail is returned | retry once, then alert |
 
 After a `413` the server may close the connection. An unknown path returns
@@ -277,8 +277,9 @@ pip install "marimba-audio[torch,server]"
 MARIMBA_API_KEY=change-me marimba serve --host 0.0.0.0 --port 8000 --threads 1
 ```
 
-See [hosting.md](hosting.md) for the container image, thread pinning and the optional
-batched encoder for `/v1/pairs`.
+See [hosting.md](hosting.md) for the container image, thread pinning, the optional
+batched encoder for `/v1/pairs` and
+[how many streaming sessions one process holds](hosting.md#sizing-for-streaming-clients).
 
 ## Fake server
 

@@ -471,13 +471,14 @@ def create_app(model: Marimba, config: ServerConfig | None = None) -> FastAPI:
         authorized,
     )
 
+    # Coroutines, so these never wait for a worker thread held by inference.
     @app.get("/ping")
     @app.get("/health")
-    def health() -> dict[str, str]:
+    async def health() -> dict[str, str]:
         return {"status": "healthy"}
 
     @app.get("/v1/models")
-    def models(request: Request) -> Any:
+    async def models(request: Request) -> Any:
         if not authorized(request):
             return _error("Invalid API key", 401, "invalid_api_key")
         return {"data": [model_document(settings)]}
