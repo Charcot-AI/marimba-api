@@ -50,6 +50,7 @@ class SpeakerSpan:
 class PipelineResult:
     hops: list[tuple[float, float]] = field(default_factory=list)
     segments: list[SpeechSegment] = field(default_factory=list)
+    raw_units: list[SpeechUnit] = field(default_factory=list)
     units: list[SpeechUnit] = field(default_factory=list)
     emitted_at_s: list[float] = field(default_factory=list)
     words: list[list[Word]] = field(default_factory=list)
@@ -124,6 +125,7 @@ def run_pipeline(
         audio_end = min(now, end + margin)
         if following is not None:
             audio_end = min(audio_end, max(end, (end + following) // 2))
+        result.raw_units.append(unit)
         unit = replace(
             unit, start=start, end=end, audio_start=audio_start, audio_end=audio_end
         )

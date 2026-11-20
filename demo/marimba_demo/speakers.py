@@ -28,6 +28,8 @@ class CutConfig:
     min_peak_gap_s: float = 2.0
     sentence_snap_s: float = 1.5
     candidate_step_s: float = 0.5
+    # False drops a peak with no sentence end in reach instead of cutting at a word end.
+    word_fallback: bool = True
     reference_s: float = 6.0
     segment_s: float = 2.0
 
@@ -87,6 +89,8 @@ def snap_cuts(
     for peak_s, probability in peaks:
         distance = np.abs(ends - peak_s)
         reachable = sentence & (distance <= config.sentence_snap_s)
+        if not reachable.any() and not config.word_fallback:
+            continue
         index = int(
             np.argmin(
                 np.where(reachable, distance, np.inf) if reachable.any() else distance

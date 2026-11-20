@@ -144,6 +144,8 @@ def test_cuts_snap_to_a_sentence_end_in_reach_or_the_nearest_word():
     far = snap_cuts(words, [(2.6, 0.9)], CutConfig(sentence_snap_s=0.4))
     assert [(c.word_index, c.at_sentence_end) for c in far] == [(4, False)]
     assert snap_cuts(words[:1], [(0.2, 0.9)]) == []
+    strict = CutConfig(sentence_snap_s=0.4, word_fallback=False)
+    assert snap_cuts(words, [(2.6, 0.9)], strict) == []
 
 
 def test_speaker_cuts_score_six_seconds_before_and_two_after_each_candidate():
@@ -286,3 +288,46 @@ def test_pipeline_closes_speech_that_runs_to_the_end():
     result = run_pipeline(FakeMarimba(), Question, audio)
     assert len(result.units) == 1
     assert result.units[0].end <= len(audio) and result.units[0].audio_end <= len(audio)
+
+
+def test_validation_report_on_a_synthetic_conversation():
+    from marimba_demo.validate import build_conversation, evaluate, transcriber
+
+    clips = [
+        (0, np.concatenate((quiet(0.2), tone(3.0, 200), quiet(0.2))), "one two three"),
+        (0, tone(3.0, 200), "four five"),
+        (1, tone(4.0, 400), "six seven eight"),
+        (2, tone(3.0, 600), "nine ten"),
+    ]
+    conversation = build_conversation(clips, pauses_s=(0.0, 0.0, 6.0, 1.0))
+    # The silence around the first clip is trimmed to within the smoothing width.
+    edges = [(r.start_s, r.end_s) for r in conversation.regions]
+    np.testing.assert_allclose(
+        edges, [(1.0, 4.0), (4.0, 7.0), (7.0, 11.0), (17.0, 20.0)], atol=0.1
+    )
+    assert [r.speaker for r in conversation.regions] == [0, 0, 1, 2]
+    assert [w.text for w in conversation.words][2:5] == ["three.", "four", "five."]
+    config = PipelineConfig()
+    result = run_pipeline(
+        ToneModel(),
+        Question,
+        conversation.audio,
+        transcribe=transcriber(conversation),
+        config=config,
+    )
+    report = evaluate(conversation, result, config)
+    assert report["units"]["count"] == 2 and report["known_speakers"] == 3
+    assert report["onset_lag_s"]["measured"]["count"] == 2
+    assert 0.45 < report["onset_lag_s"]["measured"]["mean"] <= 1.05
+    assert 0.8 <= report["offset_lag_s"]["measured"]["mean"] <= 1.3
+    assert report["units"]["speech_outside_units_s"]["padded"] <= 0.05
+    assert report["speaker_cuts"] == {
+        "known_changes_inside_units": 1,
+        "found_within_1s": 1,
+        "cuts": 1,
+        "cuts_at_a_known_change": 1,
+        "cuts_at_sentence_end": 1,
+    }
+    assert report["primer_bank"]["speakers_created"] == 3
+    assert report["primer_bank"]["duration_weighted_accuracy"] == 1.0
+    assert report["streaming"]["buffered_audio_needed_at_opening_hop_s"]["max"] <= 1.25
