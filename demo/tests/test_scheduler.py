@@ -1314,3 +1314,32 @@ def test_long_closed_utterance_preserves_all_chunks_until_worker_claims_it():
     joined = np.concatenate([w.snapshot.audio[w.snapshot.mask] for w in chunks])
     expected = np.repeat(np.arange(1, 81, dtype=np.float32), 4000)[1000:300000] / 32768
     np.testing.assert_array_equal(joined, expected)
+
+
+def test_thresholded_one_second_question_drives_the_turn_timeline():
+    async def run():
+        updates = asyncio.Queue()
+        low = Question.noul("Is someone speaking?", seconds=1.0, threshold=0.1)
+        turn_question = Question.noul("Has the speaker finished?", task="turn_end")
+        scheduler = Scheduler(
+            FakeMarimba(),
+            [low, turn_question],
+            updates.put,
+            speech=timeline(),
+            use_1s_turn_tail=True,
+        )
+        # The caller's threshold is used; no default-threshold copy is added beside it.
+        assert scheduler.turn_speech_question is low
+        assert scheduler.internal_turn_speech_question is None
+        assert low in scheduler.stream.questions
+        # Synthetic probability 0.16: speech at the 0.1 threshold, silence at 0.225.
+        level = np.sqrt(0.02)
+        window = np.full(128000, level, np.float32)
+        snapshot = WindowSnapshot(window, np.ones(128000, bool), 0, 8)
+        model = scheduler.model
+        decision = model.decide_encoded(model.encode(snapshot), [low])[0]
+        assert 0.1 <= decision.probability < 0.225 and decision.value is True
+        await scheduler.emit(Work(snapshot, (0, 0)), [low], "encoder")
+        assert scheduler.turn_speech.onset == round(7.5 * 16000)
+
+    asyncio.run(run())

@@ -109,3 +109,28 @@ def synchronize(runtime: RuntimeInfo) -> None:
     if runtime.backend == "torch" and runtime.device in ("cuda", "mps"):
         torch = importlib.import_module("torch")
         getattr(torch, runtime.device).synchronize()
+
+
+THREAD_VARIABLES = (
+    "OMP_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+    "NUMEXPR_NUM_THREADS",
+)
+
+
+def pin_threads(count: int) -> None:
+    """Cap CPU thread pools; unpinned pools oversubscribe many-core hosts on every hop."""
+    if count <= 0:
+        raise ValueError("Thread count must be positive")
+    for name in THREAD_VARIABLES:
+        os.environ[name] = str(count)
+    os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+    if importlib.util.find_spec("torch") is not None:
+        torch = importlib.import_module("torch")
+        torch.set_num_threads(count)
+        try:
+            torch.set_num_interop_threads(count)
+        except RuntimeError:
+            # Torch refuses once parallel work has started; the intra-op cap still applies.
+            pass

@@ -20,7 +20,7 @@ from .audio import AudioArray, Mask, decode_audio
 from .decision import Decision
 from .model import Marimba
 from .questions import Question
-from .runtime import detect_runtime, select_backend, synchronize
+from .runtime import detect_runtime, pin_threads, select_backend, synchronize
 from .stream import Stream
 from .testing import FakeMarimba
 
@@ -134,6 +134,12 @@ def run_server(args: argparse.Namespace) -> int:
 
     if args.max_concurrency <= 0:
         raise SystemExit("--max-concurrency must be positive")
+    if args.keep_alive_seconds <= 0 or args.encoder_batch_size <= 0:
+        raise SystemExit("--keep-alive-seconds and --encoder-batch-size must be positive")
+    if args.threads is not None:
+        if args.threads <= 0:
+            raise SystemExit("--threads must be positive")
+        pin_threads(args.threads)
     try:
         model = (
             FakeMarimba()
@@ -152,8 +158,16 @@ def run_server(args: argparse.Namespace) -> int:
         is_ready=args.ready,
         api_key=os.environ.get("MARIMBA_API_KEY") or None,
         max_concurrency=args.max_concurrency,
+        batched_encoder=args.batched_encoder,
+        encoder_batch_size=args.encoder_batch_size,
     )
-    serve(model, config, host=args.host, port=args.port)
+    serve(
+        model,
+        config,
+        host=args.host,
+        port=args.port,
+        keep_alive_seconds=args.keep_alive_seconds,
+    )
     return 0
 
 
@@ -192,6 +206,16 @@ def main(argv: list[str] | None = None) -> int:
     server.add_argument("--datacenters", default="", help="Comma-separated ISO country codes")
     server.add_argument("--max-concurrency", type=int, default=4)
     server.add_argument("--ready", action="store_true", help="Advertise is_ready: true")
+    server.add_argument("--threads", type=int, help="Pin CPU thread pools to this count")
+    server.add_argument(
+        "--keep-alive-seconds", type=int, default=75, help="Idle time before a connection closes"
+    )
+    server.add_argument(
+        "--batched-encoder",
+        action="store_true",
+        help="Share one encoder forward across the windows of a /v1/pairs request",
+    )
+    server.add_argument("--encoder-batch-size", type=int, default=16)
     args = parser.parse_args(argv)
     if args.command == "serve":
         return run_server(args)
