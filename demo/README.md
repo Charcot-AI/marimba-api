@@ -185,13 +185,13 @@ CPU, float32:
 | Audio buffered before the opening hop to pad a start | at most 1.245 s |
 | Speaker changes inside units found within 1 s | 5 of 5 |
 | Cuts placed | 18, of which 5 at a known change and 5 at a sentence end |
-| Primer bank | 4 speakers for 4 readers; 99.6% of span time on the right speaker |
+| Primer bank | 4 speakers for 4 readers; 99.6% of the known speech inside spans on the right speaker |
 
 Reading the table: at a 500 ms hop both readout flips arrive about 0.18 s later on
 average than the two lag constants assume, and snapping absorbs most of it. Thirteen
 of the eighteen cuts were not at a speaker change and thirteen used the word-end
 fallback; whether those are the same thirteen was not checked. The extra cuts cost
-little here: the primer bank still put 99.6% of span time on the right speaker. Every
+little here: the primer bank still put 99.6% of the speech on the right speaker. Every
 unit in this run ended with a turn end, so joining across a pause is covered by the
 synthetic tests only.
 
