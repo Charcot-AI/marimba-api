@@ -143,6 +143,8 @@ def run_pipeline(
             ]
 
         cuts = speaker_cuts(words, score_change, audio_at, config.cuts) if words else []
+        # Words come from the padded audio; a cut in the padding is outside the unit.
+        cuts = [cut for cut in cuts if start < round(cut.time_s * SAMPLE_RATE) < end]
         result.words.append(words)
         result.cuts.append(cuts)
         edges = [start, *(round(cut.time_s * SAMPLE_RATE) for cut in cuts), end]

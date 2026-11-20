@@ -331,3 +331,21 @@ def test_validation_report_on_a_synthetic_conversation():
     assert report["primer_bank"]["speakers_created"] == 3
     assert report["primer_bank"]["duration_weighted_accuracy"] == 1.0
     assert report["streaming"]["buffered_audio_needed_at_opening_hop_s"]["max"] <= 1.25
+
+
+def test_cuts_in_the_padding_do_not_move_spans_outside_the_unit():
+    audio = np.concatenate((quiet(1.0), tone(3.0, 200), quiet(8.0)))
+
+    def transcribe(clip, start_s):
+        # The first word ends inside the leading padding, where silence meets speech.
+        return [
+            Word("pad.", start_s, start_s + 0.1),
+            Word("one", 1.5, 2.5),
+            Word("two.", 2.5, 3.9),
+        ]
+
+    result = run_pipeline(ToneModel(), Question, audio, transcribe=transcribe)
+    (unit,) = result.units
+    assert unit.audio_start / RATE + 0.1 < unit.start / RATE
+    assert result.cuts == [[]]
+    assert [(s.start_s, s.end_s) for s in result.spans] == [unit.seconds]
