@@ -210,15 +210,16 @@ def evaluate(
         any(abs(cut.time_s - change) <= 1.0 for change in changes) for cut in cuts
     )
 
-    def truth(start_s: float, end_s: float) -> int:
-        overlap = [
-            max(0.0, min(end_s, r.end_s) - max(start_s, r.start_s)) for r in regions
-        ]
-        return regions[int(np.argmax(overlap))].speaker
-
+    # Time is credited region by region, so a span that crosses a missed change is
+    # right only for the part its speaker actually spoke.
     spans = [
-        (s.end_s - s.start_s, truth(s.start_s, s.end_s), s.speaker)
-        for s in result.spans
+        (overlap, region.speaker, span.speaker)
+        for span in result.spans
+        for region in regions
+        if (
+            overlap := min(span.end_s, region.end_s) - max(span.start_s, region.start_s)
+        )
+        > 0
     ]
     labels = sorted({speaker for _, _, speaker in spans} | {r.speaker for r in regions})
     best = max(
@@ -278,8 +279,8 @@ def evaluate(
             "cuts_at_sentence_end": sum(cut.at_sentence_end for cut in cuts),
         },
         "primer_bank": {
-            "speakers_created": len({speaker for _, _, speaker in spans}),
-            "spans": len(spans),
+            "speakers_created": len({span.speaker for span in result.spans}),
+            "spans": len(result.spans),
             "duration_weighted_accuracy": round(
                 best / max(sum(d for d, _, _ in spans), 1e-9), 3
             ),
