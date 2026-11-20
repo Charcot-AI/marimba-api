@@ -40,4 +40,6 @@ Other scores all 30 native languages and aggregates unlisted mass; it is not an
 unknown-language detector. Duplicate aliases such as English plus en are rejected.
 
 For integration without weights, use `marimba.testing.FakeMarimba`; its outputs
-are synthetic and must not be presented as model predictions.
+are synthetic and must not be presented as model predictions. Its encoder answers
+follow [documented signal rules](window-server.md#fake-server), so a synthetic fixture
+can trigger each decision.

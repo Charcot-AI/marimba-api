@@ -83,14 +83,16 @@ def test_window_request_matches_the_python_api(client: TestClient) -> None:
 @pytest.mark.parametrize("batched", [False, True])
 def test_pair_request_answers_each_window_in_order(batched: bool) -> None:
     client = TestClient(create_app(FakeMarimba(), ServerConfig(batched_encoder=batched)))
-    body = pcm(220.0) + bytes(WINDOW_BYTES) + pcm(220.0)
+    two_voices = pcm(110.0)[: WINDOW_BYTES // 2] + pcm(330.0)[WINDOW_BYTES // 2 :]
+    body = pcm(220.0) + two_voices + pcm(220.0)
     question = [{"task": "same_speaker", "kind": "score"}]
     status, payload = post(client, "/v1/pairs", question, body)
     assert status == 200
     assert payload["object"] == "pair.decisions"
     values = [d["value"] for d in payload["decisions"]]
     assert len(values) == 3
-    assert values[0] == values[2] != values[1]
+    # The middle window holds one voice per half; the fake reads pitch per half.
+    assert values[0] == values[2] > 0.99 and values[1] < 0.2
 
 
 @pytest.mark.parametrize(
@@ -208,3 +210,31 @@ def test_contract_examples_match_the_server(client: TestClient) -> None:
         assert post(client, path, questions, pcm())[0] == 200
     for constant in (str(WINDOW_BYTES), f"`1 <= N <= {MAX_PAIR_WINDOWS}`", "4096 bytes"):
         assert constant in doc.replace(",", "")
+
+
+def test_fake_server_follows_the_documented_fixture(client: TestClient) -> None:
+    doc = (ROOT / "docs" / "window-server.md").read_text()
+    scope: dict[str, Any] = {}
+    section = doc[doc.index("### Fixture recipe") :]
+    exec(re.search(r"```python\n(.*?)```", section, re.S).group(1), scope)
+    stream = scope["pcm"]
+    # The window ending 7 s into the fixture has the voice change on its 6 s / 2 s split.
+    window = bytes(WINDOW_BYTES - 7 * 32000) + stream[: 7 * 32000]
+    status, payload = post(client, "/v1/windows", WINDOW_QUESTIONS, window)
+    assert status == 200
+    speech, turn_end, change, count = payload["decisions"]
+    assert speech["value"] is True and speech["probability"] == pytest.approx(1.0, abs=0.01)
+    assert turn_end["probability"] == pytest.approx(0.0, abs=0.01)
+    assert change["probability"] == pytest.approx(0.87, abs=0.01)
+    assert count["value"] == "2"
+    silent = post(client, "/v1/windows", WINDOW_QUESTIONS, bytes(WINDOW_BYTES))[1]["decisions"]
+    assert silent[0]["value"] is False and silent[3]["value"] == "0"
+    # The window ending 14.5 s in holds the utterance that trails off.
+    ended = stream[int(6.5 * 32000) : int(14.5 * 32000)]
+    assert post(client, "/v1/windows", [{"task": "turn_end"}], ended)[1]["decisions"][0][
+        "value"
+    ] == pytest.approx(0.80, abs=0.01)
+    a, b = stream[32000 : 5 * 32000], stream[5 * 32000 : 9 * 32000]
+    question = [{"task": "same_speaker", "kind": "noul"}]
+    answers = post(client, "/v1/pairs", question, a + a + a + b)[1]["decisions"]
+    assert [d["value"] for d in answers] == [True, False]
