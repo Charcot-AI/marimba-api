@@ -32,6 +32,7 @@ from .language import LANGUAGES, resolve_options
 from .lexical import normalize
 from .model import Marimba
 from .questions import Question, UnsupportedQuestion
+from .window_server import WindowServerSettings, add_window_routes
 
 AUDIO_TOKENS_PER_SECOND = 12.5
 SCORED_WINDOW_SECONDS = 8.0
@@ -337,6 +338,8 @@ class ServerConfig:
     api_key: str | None = None
     max_concurrency: int = 4
     requests_per_minute: int | None = None
+    batched_encoder: bool = False
+    encoder_batch_size: int = 16
 
 
 def model_document(config: ServerConfig) -> dict[str, Any]:
@@ -458,6 +461,16 @@ def create_app(model: Marimba, config: ServerConfig | None = None) -> FastAPI:
         )
         return content, usage(parsed.audio.size / SAMPLE_RATE, parsed.text, content)
 
+    add_window_routes(
+        app,
+        model,
+        WindowServerSettings(
+            settings.model_id, settings.batched_encoder, settings.encoder_batch_size
+        ),
+        slots,
+        authorized,
+    )
+
     @app.get("/ping")
     @app.get("/health")
     def health() -> dict[str, str]:
@@ -558,7 +571,14 @@ def serve(
     config: ServerConfig,
     host: str = "127.0.0.1",
     port: int = 8000,
+    keep_alive_seconds: int = 75,
 ) -> None:
     import uvicorn
 
-    uvicorn.run(create_app(model, config), host=host, port=port, log_level="info")
+    uvicorn.run(
+        create_app(model, config),
+        host=host,
+        port=port,
+        log_level="info",
+        timeout_keep_alive=keep_alive_seconds,
+    )

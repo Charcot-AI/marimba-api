@@ -141,7 +141,9 @@ class FakeMarimba(Marimba):
                     probabilities,
                     probability,
                     question.resolved_threshold,
-                    start_s,
+                    max(start_s, end_s - question.seconds)
+                    if question.seconds is not None
+                    else start_s,
                     end_s,
                     status="experimental",
                 )

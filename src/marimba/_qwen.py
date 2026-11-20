@@ -13,6 +13,7 @@ from typing import Any
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from huggingface_hub import snapshot_download
 from safetensors.numpy import load_file
 
@@ -73,6 +74,7 @@ class QwenEngine:
         }
         if self.diarization_readouts:
             layers = (*layers, 12)
+        self._layers = layers
         self._hooks = [
             self.thinker.audio_tower.layers[layer - 1].register_forward_hook(
                 partial(self._capture, layer)
@@ -125,6 +127,78 @@ class QwenEngine:
         finally:
             self._captures.reset(token)
         return {"features": captures, "audio_features": encoded.detach().float().cpu().numpy()}
+
+    def encode_batch(self, windows: Sequence[AudioArray]) -> list[Any]:
+        """One audio-tower forward for several eight-second windows."""
+        tower = self.thinker.audio_tower
+        features = self.processor.feature_extractor(
+            list(windows),
+            sampling_rate=16000,
+            padding=True,
+            return_attention_mask=True,
+            return_tensors="pt",
+            truncation=False,
+        )
+        lengths = features["attention_mask"].sum(-1)
+        frames, chunk = int(lengths[0]), tower.n_window * 2
+        # The sequential pass attends over a whole window under SDPA; other layouts keep it.
+        if (
+            len(windows) < 2
+            or tower.config._attn_implementation != "sdpa"
+            or bool((lengths != frames).any())
+            or frames % chunk
+        ):
+            return [self.encode(window) for window in windows]
+        mel = features["input_features"][:, :, :frames]
+        mel = mel.to(self.asr.model.device, self.asr.model.dtype)
+        batch, bins = mel.shape[:2]
+        with torch.inference_mode():
+            chunks = mel.unflatten(2, (-1, chunk)).permute(0, 2, 1, 3).reshape(-1, 1, bins, chunk)
+            embeds = []
+            for part in chunks.split(tower.conv_chunksize, dim=0):
+                part = F.gelu(tower.conv2d1(part))
+                part = F.gelu(tower.conv2d2(part))
+                embeds.append(F.gelu(tower.conv2d3(part)))
+            embed = torch.cat(embeds, dim=0)
+            count, channels, height, steps = embed.shape
+            embed = tower.conv_out(
+                embed.permute(0, 3, 1, 2).contiguous().view(count, steps, channels * height)
+            )
+            positions = tower.positional_embedding.positional_embedding[:steps]
+            hidden = (embed + positions.to(embed.dtype)).reshape(batch, -1, embed.shape[-1])
+            captures: dict[int, Any] = {}
+            for index, layer in enumerate(tower.layers, 1):
+                hidden = self._batched_layer(layer, hidden)
+                if index in self._layers:
+                    kept = hidden.to(torch.float16) if index in (12, 18) else hidden
+                    captures[index] = kept.float().cpu().numpy()
+            encoded = tower.proj2(tower.act(tower.proj1(tower.ln_post(hidden))))
+            audio_features = encoded.float().cpu().numpy()
+        return [
+            {
+                "features": {layer: values[row].copy() for layer, values in captures.items()},
+                "audio_features": audio_features[row].copy(),
+            }
+            for row in range(batch)
+        ]
+
+    @staticmethod
+    def _batched_layer(layer: Any, hidden: Any) -> Any:
+        attention = layer.self_attn
+        batch, steps, _ = hidden.shape
+        query, key, value = (
+            projection(layer.self_attn_layer_norm(hidden))
+            .view(batch, steps, attention.num_heads, -1)
+            .transpose(1, 2)
+            for projection in (attention.q_proj, attention.k_proj, attention.v_proj)
+        )
+        attended = F.scaled_dot_product_attention(query, key, value, scale=attention.scaling)
+        hidden = hidden + attention.out_proj(attended.transpose(1, 2).reshape(batch, steps, -1))
+        hidden = hidden + layer.fc2(layer.activation_fn(layer.fc1(layer.final_layer_norm(hidden))))
+        if hidden.dtype == torch.float16:
+            limit = torch.finfo(hidden.dtype).max - 1000
+            hidden = torch.clamp(hidden, min=-limit, max=limit)
+        return hidden
 
     def _inputs(self, text: str, encoded: Any) -> dict[str, Any]:
         encoded = torch.from_numpy(np.array(encoded, copy=True))
