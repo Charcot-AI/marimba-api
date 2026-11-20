@@ -572,6 +572,8 @@ def serve(
     host: str = "127.0.0.1",
     port: int = 8000,
     keep_alive_seconds: int = 75,
+    tls_certfile: str | None = None,
+    tls_keyfile: str | None = None,
 ) -> None:
     import uvicorn
 
@@ -581,4 +583,6 @@ def serve(
         port=port,
         log_level="info",
         timeout_keep_alive=keep_alive_seconds,
+        ssl_certfile=tls_certfile,
+        ssl_keyfile=tls_keyfile,
     )

@@ -43,6 +43,46 @@ HTTP connections are persistent: the server keeps an idle connection open for
 hop reuses one connection. Keep any proxy in front of the server at a longer idle
 timeout than the client's hop.
 
+## TLS
+
+`marimba serve --tls-certfile cert.pem --tls-keyfile key.pem` terminates TLS in the
+server process, so a port exposed directly to the internet needs no proxy in front of
+it. Both flags default to the environment variables `MARIMBA_TLS_CERTFILE` and
+`MARIMBA_TLS_KEYFILE`, the listener then serves HTTPS only, and startup fails when one
+file is missing. Without them the server speaks plain HTTP.
+
+The image also accepts the pair as base64-encoded PEM in `MARIMBA_TLS_CERT_B64` and
+`MARIMBA_TLS_KEY_B64`, for platforms that inject environment variables but cannot mount
+files; its entrypoint writes them to `/run/marimba` with owner-only permissions.
+
+Two ways to give clients a certificate they can verify:
+
+- **Public certificate.** Point a DNS name at the host and issue a certificate for it.
+  A direct port is rarely 80 or 443, so use the ACME DNS-01 challenge.
+- **Private certificate authority.** Issue the server certificate for a fixed name of
+  your choosing and ship the CA certificate to clients. Clients connect to whatever
+  address the host has and verify against the fixed name, so the certificate survives
+  an address change.
+
+```python
+import http.client
+import ssl
+
+context = ssl.create_default_context(cafile="ca.pem")
+
+
+class PinnedConnection(http.client.HTTPSConnection):
+    def connect(self) -> None:
+        http.client.HTTPConnection.connect(self)
+        self.sock = context.wrap_socket(self.sock, server_hostname="marimba.internal")
+
+
+connection = PinnedConnection("203.0.113.7", 31234, timeout=5)
+```
+
+Set `MARIMBA_API_KEY` as well: TLS protects the bearer token and the audio in transit,
+and the token is what keeps other callers out.
+
 ## Batched encoder for `/v1/pairs`
 
 `marimba serve --batched-encoder` answers the windows of one
