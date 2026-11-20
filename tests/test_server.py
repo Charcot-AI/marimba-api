@@ -377,3 +377,33 @@ def test_serve_exits_cleanly_when_the_model_fails_to_load(monkeypatch: pytest.Mo
     monkeypatch.setattr(cli.Marimba, "from_pretrained", fail)
     with pytest.raises(SystemExit, match="Could not load the model: OSError"):
         cli.main(["serve", "--port", "0"])
+
+
+def test_serve_pins_threads_and_passes_connection_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimba import cli
+
+    seen: dict[str, Any] = {}
+    monkeypatch.setattr(cli, "pin_threads", lambda count: seen.setdefault("threads", count))
+    monkeypatch.setattr(
+        "marimba.server.serve",
+        lambda model, config, **kwargs: seen.update(config=config, **kwargs),
+    )
+    cli.main(
+        [
+            "serve",
+            "--fake",
+            "--threads",
+            "1",
+            "--keep-alive-seconds",
+            "30",
+            "--batched-encoder",
+            "--encoder-batch-size",
+            "8",
+        ]
+    )
+    assert (seen["threads"], seen["keep_alive_seconds"]) == (1, 30)
+    assert (seen["config"].batched_encoder, seen["config"].encoder_batch_size) == (True, 8)
+    with pytest.raises(SystemExit):
+        cli.main(["serve", "--fake", "--threads", "0"])

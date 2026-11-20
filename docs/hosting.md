@@ -1,7 +1,8 @@
 # Hosting the OpenAI-compatible server
 
-The [server](openai-server.md) is a single FastAPI process holding one model in GPU
-memory. Decoder questions (language, term) share one lock per process, so scale out
+The [server](openai-server.md), which also serves the
+[stateless window endpoints](window-server.md), is a single FastAPI process holding one
+model in GPU memory. Decoder questions (language, term) share one lock per process, so scale out
 with workers rather than threads.
 
 ## Image
@@ -19,6 +20,36 @@ CMD ["sh", "-c", "marimba serve --host 0.0.0.0 --port ${PORT} --device cuda --ba
 
 Set `MARIMBA_API_KEY` as a secret environment variable when the endpoint is reachable
 from the internet.
+
+The published image, `.runpod/Dockerfile.server`, downloads the pinned model manifest,
+encoder snapshot and tokenizer at build time and then sets `HF_HUB_OFFLINE=1`, so a
+container starts without network access to the Hub.
+
+## Threads and connections
+
+A GPU server does little CPU work per window, and unpinned BLAS and OpenMP pools on a
+many-core host spend that time contending instead: one unpinned server measured 194 ms
+per hop where a pinned one took about 12 ms. Pin the pools:
+
+- `marimba serve --threads 1` caps the torch intra-op and inter-op pools and exports
+  `OMP_NUM_THREADS`, `MKL_NUM_THREADS`, `OPENBLAS_NUM_THREADS` and `NUMEXPR_NUM_THREADS`.
+- Libraries that read those variables at import need them in the environment before
+  the process starts. The image sets all four to `1` and passes `--threads 1`.
+- On a CPU-only host the encoder itself runs on these threads, so use the number of
+  cores reserved for the process instead of `1`. Without `--threads` nothing is pinned.
+
+HTTP connections are persistent: the server keeps an idle connection open for
+`--keep-alive-seconds` (default 75), so a streaming client that sends a request every
+hop reuses one connection. Keep any proxy in front of the server at a longer idle
+timeout than the client's hop.
+
+## Batched encoder for `/v1/pairs`
+
+`marimba serve --batched-encoder` answers the windows of one
+[`/v1/pairs`](window-server.md#post-v1pairs) request with one encoder forward per
+`--encoder-batch-size` windows (default 16). It is off by default and responses have the
+same schema either way; see [batch.md](batch.md#batched-encoder-forward) for the measured
+difference against the sequential path.
 
 ## Option A: Runpod Serverless load-balancing endpoint (recommended)
 

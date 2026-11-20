@@ -28,8 +28,15 @@ PY
 ENV HF_HUB_OFFLINE=1 \
     TRANSFORMERS_OFFLINE=1
 
+# BLAS and OpenMP read these at import, before `--threads` can cap them.
+ENV OMP_NUM_THREADS=1 \
+    MKL_NUM_THREADS=1 \
+    OPENBLAS_NUM_THREADS=1 \
+    NUMEXPR_NUM_THREADS=1 \
+    TOKENIZERS_PARALLELISM=false
+
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=120s \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ping', timeout=4)"
 
-CMD ["marimba", "serve", "--host", "0.0.0.0", "--port", "8000", "--backend", "torch", "--device", "cuda", "--model-id", "charcot-ai/marimba", "--prompt-price", "0.000002", "--completion-price", "0.000001", "--datacenters", "US", "--ready"]
+CMD ["marimba", "serve", "--host", "0.0.0.0", "--port", "8000", "--backend", "torch", "--device", "cuda", "--model-id", "charcot-ai/marimba", "--prompt-price", "0.000002", "--completion-price", "0.000001", "--datacenters", "US", "--ready", "--threads", "1", "--keep-alive-seconds", "75"]
