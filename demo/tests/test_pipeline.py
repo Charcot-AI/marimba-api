@@ -388,3 +388,50 @@ def test_validation_credits_speaker_time_by_overlap_and_counts_padding_from_zero
     assert report["speaker_cuts"]["found_within_1s"] == 0
     outside = report["units"]["speech_outside_units_s"]
     assert (outside["snapped"], outside["padded"]) == (0.2, 0.0)
+
+
+def harmonic(f0, seconds, level=0.1):
+    t = np.arange(round(seconds * RATE)) / RATE
+    wave = sum(np.sin(2 * np.pi * k * f0 * t) / k for k in range(1, 6))
+    return (level * wave / np.sqrt(np.mean(wave**2))).astype(np.float32)
+
+
+def trail_off(utterance):
+    out = utterance.copy()
+    out[-round(0.3 * RATE) :] *= 0.25
+    return out
+
+
+@pytest.mark.parametrize("first_turn_ends", [False, True])
+def test_pipeline_on_the_fake_model_with_a_two_voice_fixture(first_turn_ends):
+    # Voice A, voice B without a pause, a 2 s pause, then voice A ending its turn.
+    second = harmonic(250.0, 4.0)
+    audio = np.concatenate(
+        (
+            quiet(1.0),
+            harmonic(100.0, 4.0),
+            trail_off(second) if first_turn_ends else second,
+            quiet(2.0),
+            trail_off(harmonic(100.0, 3.0)),
+            quiet(3.0),
+        )
+    )
+    result = run_pipeline(
+        FakeMarimba(), Question, audio, transcribe=words_every(0.25, (5.0, 9.0, 11.25))
+    )
+    assert [s.seconds for s in result.segments] == [(1.0, 9.25), (11.0, 14.25)]
+    # The fake ends a turn only where the utterance trails off, so the pause is joined
+    # unless the fixture says otherwise.
+    assert [u.turn_ended for u in result.units] == (
+        [True, True] if first_turn_ends else [True]
+    )
+    cut_times = [cut.time_s for group in result.cuts for cut in group]
+    assert any(abs(time_s - 5.0) < 0.1 for time_s in cut_times)
+    if not first_turn_ends:
+        assert any(abs(time_s - 11.0) < 0.3 for time_s in cut_times)
+
+    def speaker_at(time_s):
+        return next(s.speaker for s in result.spans if s.start_s <= time_s < s.end_s)
+
+    assert [speaker_at(t) for t in (3.0, 7.0, 8.5, 12.0, 13.5)] == [0, 1, 1, 0, 0]
+    assert {s.speaker for s in result.spans} == {0, 1}

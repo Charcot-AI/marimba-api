@@ -39,14 +39,14 @@ def test_pair_layouts_trim_and_repeat() -> None:
 
 def test_window_decisions_cover_every_window_question() -> None:
     model = FakeMarimba()
-    windows = [tone(8.0), tone(8.0, level=0.05)]
+    windows = [tone(8.0), np.concatenate((tone(6.0, 110.0), tone(2.0, 330.0)))]
     rows = model.decide_windows(windows, QUESTIONS)
     assert [[d.task for d in row] for row in rows] == [
         ["turn_end", "voice_activity", "speaker_change", "speaker_count"]
     ] * 2
     assert all((d.window_end_s, d.status) == (8.0, "experimental") for row in rows for d in row)
     assert rows[0][1].window_start_s == 7.0 and rows[0][0].window_start_s == 0.0
-    assert rows[0][0].probability != rows[1][0].probability
+    assert rows[0][2].probability != rows[1][2].probability
     batched = model.decide_windows(windows, QUESTIONS, batched=True, batch_size=1)
     assert [[d.value for d in row] for row in batched] == [[d.value for d in row] for row in rows]
     assert model.decide_windows([], QUESTIONS) == []
@@ -69,7 +69,7 @@ def test_window_decisions_reject_bad_input() -> None:
 def test_pair_decisions_match_assembled_windows(task: str) -> None:
     model = FakeMarimba()
     question = Question.score("pair", task=task)
-    pairs = [(tone(9.0), tone(1.0, level=0.05)), (tone(2.0, level=0.1), tone(5.0, level=0.3))]
+    pairs = [(tone(9.0), tone(1.0, level=0.05)), (tone(2.0, 110.0), tone(5.0, 330.0))]
     decisions = model.decide_pairs(question, pairs, batched=True)
     windows = [assemble_pair(task, reference, segment) for reference, segment in pairs]
     expected = [row[0] for row in model.decide_windows(windows, [question])]

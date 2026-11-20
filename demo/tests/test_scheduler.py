@@ -1332,8 +1332,8 @@ def test_thresholded_one_second_question_drives_the_turn_timeline():
         assert scheduler.turn_speech_question is low
         assert scheduler.internal_turn_speech_question is None
         assert low in scheduler.stream.questions
-        # Synthetic probability 0.16: speech at the 0.1 threshold, silence at 0.225.
-        level = np.sqrt(0.02)
+        # -55.2 dBFS reads 0.16 on the fake: speech at the 0.1 threshold, not at 0.225.
+        level = 10 ** (-55.2 / 20)
         window = np.full(128000, level, np.float32)
         snapshot = WindowSnapshot(window, np.ones(128000, bool), 0, 8)
         model = scheduler.model
