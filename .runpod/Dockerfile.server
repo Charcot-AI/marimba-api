@@ -35,8 +35,41 @@ ENV OMP_NUM_THREADS=1 \
     NUMEXPR_NUM_THREADS=1 \
     TOKENIZERS_PARALLELISM=false
 
-EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=120s \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ping', timeout=4)"
+# Platforms that inject only environment variables pass the PEM pair base64-encoded.
+COPY --chmod=755 <<'SH' /usr/local/bin/marimba-entrypoint
+#!/bin/sh
+set -eu
+if [ -n "${MARIMBA_TLS_CERT_B64:-}" ] && [ -n "${MARIMBA_TLS_KEY_B64:-}" ]; then
+    umask 077
+    mkdir -p /run/marimba
+    printf %s "$MARIMBA_TLS_CERT_B64" | base64 -d > /run/marimba/tls.crt
+    printf %s "$MARIMBA_TLS_KEY_B64" | base64 -d > /run/marimba/tls.key
+    export MARIMBA_TLS_CERTFILE=/run/marimba/tls.crt MARIMBA_TLS_KEYFILE=/run/marimba/tls.key
+    unset MARIMBA_TLS_CERT_B64 MARIMBA_TLS_KEY_B64
+fi
+exec "$@"
+SH
 
+# The probe cannot see how TLS was configured (flags, variables or the entrypoint), so it
+# tries HTTPS first. Loopback only, hence no certificate verification.
+COPY --chmod=755 <<'PY' /usr/local/bin/marimba-healthcheck
+#!/usr/bin/env python
+import ssl
+import urllib.error
+import urllib.request
+
+try:
+    urllib.request.urlopen(
+        "https://127.0.0.1:8000/ping", timeout=2, context=ssl._create_unverified_context()
+    )
+except urllib.error.HTTPError:
+    raise
+except (urllib.error.URLError, OSError):
+    urllib.request.urlopen("http://127.0.0.1:8000/ping", timeout=2)
+PY
+
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s CMD ["marimba-healthcheck"]
+
+ENTRYPOINT ["marimba-entrypoint"]
 CMD ["marimba", "serve", "--host", "0.0.0.0", "--port", "8000", "--backend", "torch", "--device", "cuda", "--model-id", "charcot-ai/marimba", "--prompt-price", "0.000002", "--completion-price", "0.000001", "--datacenters", "US", "--ready", "--threads", "1", "--keep-alive-seconds", "75"]

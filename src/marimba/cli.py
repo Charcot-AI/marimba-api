@@ -140,6 +140,11 @@ def run_server(args: argparse.Namespace) -> int:
         if args.threads <= 0:
             raise SystemExit("--threads must be positive")
         pin_threads(args.threads)
+    if bool(args.tls_certfile) != bool(args.tls_keyfile):
+        raise SystemExit("--tls-certfile and --tls-keyfile must be given together")
+    for path in filter(None, (args.tls_certfile, args.tls_keyfile)):
+        if not Path(path).is_file():
+            raise SystemExit(f"TLS file not found: {path}")
     try:
         model = (
             FakeMarimba()
@@ -167,6 +172,8 @@ def run_server(args: argparse.Namespace) -> int:
         host=args.host,
         port=args.port,
         keep_alive_seconds=args.keep_alive_seconds,
+        tls_certfile=args.tls_certfile or None,
+        tls_keyfile=args.tls_keyfile or None,
     )
     return 0
 
@@ -216,6 +223,16 @@ def main(argv: list[str] | None = None) -> int:
         help="Share one encoder forward across the windows of a /v1/pairs request",
     )
     server.add_argument("--encoder-batch-size", type=int, default=16)
+    server.add_argument(
+        "--tls-certfile",
+        default=os.environ.get("MARIMBA_TLS_CERTFILE"),
+        help="PEM certificate chain; serve HTTPS when given with --tls-keyfile",
+    )
+    server.add_argument(
+        "--tls-keyfile",
+        default=os.environ.get("MARIMBA_TLS_KEYFILE"),
+        help="PEM private key for --tls-certfile",
+    )
     args = parser.parse_args(argv)
     if args.command == "serve":
         return run_server(args)

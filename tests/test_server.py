@@ -407,3 +407,34 @@ def test_serve_pins_threads_and_passes_connection_settings(
     assert (seen["config"].batched_encoder, seen["config"].encoder_batch_size) == (True, 8)
     with pytest.raises(SystemExit):
         cli.main(["serve", "--fake", "--threads", "0"])
+
+
+def test_serve_passes_tls_files_and_rejects_half_a_pair(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    from marimba import cli
+
+    seen: dict[str, Any] = {}
+    monkeypatch.setattr(
+        "marimba.server.serve",
+        lambda model, config, **kwargs: seen.update(kwargs),
+    )
+    cert, key = tmp_path / "tls.crt", tmp_path / "tls.key"
+    cert.write_text("synthetic")
+    key.write_text("synthetic")
+    cli.main(["serve", "--fake", "--tls-certfile", str(cert), "--tls-keyfile", str(key)])
+    assert (seen["tls_certfile"], seen["tls_keyfile"]) == (str(cert), str(key))
+    monkeypatch.setenv("MARIMBA_TLS_CERTFILE", str(cert))
+    monkeypatch.setenv("MARIMBA_TLS_KEYFILE", str(key))
+    seen.clear()
+    cli.main(["serve", "--fake"])
+    assert (seen["tls_certfile"], seen["tls_keyfile"]) == (str(cert), str(key))
+    monkeypatch.delenv("MARIMBA_TLS_KEYFILE")
+    with pytest.raises(SystemExit, match="must be given together"):
+        cli.main(["serve", "--fake"])
+    with pytest.raises(SystemExit, match="TLS file not found"):
+        cli.main(["serve", "--fake", "--tls-keyfile", str(tmp_path / "missing.key")])
+    monkeypatch.delenv("MARIMBA_TLS_CERTFILE")
+    seen.clear()
+    cli.main(["serve", "--fake"])
+    assert (seen["tls_certfile"], seen["tls_keyfile"]) == (None, None)

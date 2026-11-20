@@ -18,8 +18,9 @@ served by the same process.
 
 ## Transport
 
-- HTTP/1.1 over TCP. The default listener is plain HTTP on port 8000; terminate TLS in
-  front of it if needed.
+- HTTP/1.1 over TCP. The default listener is plain HTTP on port 8000. Started with
+  `--tls-certfile` and `--tls-keyfile`, the same port serves HTTPS only; see
+  [hosting.md](hosting.md#tls) for certificates and client pinning.
 - Connections are persistent. Send requests one after another on the same connection (no
   pipelining) and do not send `Connection: close`. The server closes a connection that has
   been idle for 75 seconds (`--keep-alive-seconds`), so a client must reconnect and resend
