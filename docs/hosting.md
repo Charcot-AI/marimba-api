@@ -23,9 +23,9 @@ from the internet.
 
 The published image, `.runpod/Dockerfile.server`, downloads the pinned model manifest,
 encoder snapshot and tokenizer at build time and then sets `HF_HUB_OFFLINE=1`, so a
-container starts without network access to the Hub. Its command does not pass
-`--max-concurrency`, so it runs with the default of four inference slots; for streaming
-traffic see [Sizing for streaming clients](#sizing-for-streaming-clients).
+container starts without network access to the Hub. Its command passes
+`--max-concurrency 64 --batched-encoder`, the settings for streaming traffic described
+in [Sizing for streaming clients](#sizing-for-streaming-clients).
 
 ## Threads and connections
 
@@ -89,9 +89,10 @@ and the token is what keeps other callers out.
 
 `marimba serve --batched-encoder` answers the windows of one
 [`/v1/pairs`](window-server.md#post-v1pairs) request with one encoder forward per
-`--encoder-batch-size` windows (default 16). It is off by default and responses have the
-same schema either way; see [batch.md](batch.md#batched-encoder-forward) for the measured
-difference against the sequential path.
+`--encoder-batch-size` windows (default 16). It is off by default in the CLI and on in
+the published image. Responses have the same schema either way; see
+[batch.md](batch.md#batched-encoder-forward) for the measured difference against the
+sequential path.
 
 ## Sizing for streaming clients
 
@@ -110,7 +111,13 @@ with one encoder forward:
 CMD ["marimba", "serve", "--host", "0.0.0.0", "--port", "8000", "--backend", "torch", "--device", "cuda", "--model-id", "charcot-ai/marimba", "--prompt-price", "0.000002", "--completion-price", "0.000001", "--datacenters", "US", "--ready", "--threads", "1", "--keep-alive-seconds", "75", "--max-concurrency", "64", "--batched-encoder"]
 ```
 
-This is the command of `.runpod/Dockerfile.server` plus the last three arguments.
+This is the command of `.runpod/Dockerfile.server`. `marimba serve` without these flags
+keeps four slots and the sequential path.
+
+The ceiling counts every inference request, `/v1/chat/completions` included. Decoder
+questions (language, term) run one at a time per process, so with 64 slots a burst of
+them waits in line instead of getting `429`. Lower the ceiling on a deployment that
+serves mostly decoder questions.
 
 ### Measured capacity
 
