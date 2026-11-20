@@ -8,7 +8,13 @@ from .pii import PIIDetector
 from .questions import Question, UnsupportedQuestion
 from .runtime import RuntimeInfo
 from .stream import Stream
-from .windows import MAX_DECODER_SECONDS, EncodedWindow, WindowSnapshot
+from .windows import (
+    MAX_DECODER_SECONDS,
+    PAIR_LAYOUTS,
+    EncodedWindow,
+    WindowSnapshot,
+    assemble_pair,
+)
 
 __all__ = [
     "Calibration",
@@ -16,6 +22,7 @@ __all__ = [
     "Decision",
     "EncodedWindow",
     "MAX_DECODER_SECONDS",
+    "PAIR_LAYOUTS",
     "Marimba",
     "PIIDetector",
     "Question",
@@ -24,5 +31,6 @@ __all__ = [
     "StreamUpdate",
     "UnsupportedQuestion",
     "WindowSnapshot",
+    "assemble_pair",
 ]
 __version__ = "0.1.2"

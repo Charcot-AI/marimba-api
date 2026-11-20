@@ -137,7 +137,6 @@ class Scheduler:
             and question.text == _SPEECH_QUESTION_TEXT
             and question.kind == "noul"
             and getattr(question, "seconds", None) == 1.0
-            and getattr(question, "threshold", None) is None
             and getattr(question, "options", None) is None
         )
 

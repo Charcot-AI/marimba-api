@@ -129,6 +129,72 @@ Per-card model time excludes capture, transport and paint; it includes the relev
 encoder call. CPU decoding can lag well behind real time. Neither a 250 ms ingest
 hop nor the speech readout's flip delay guarantees a completed model decision every hop.
 
+## Units, speaker cuts and speakers for a transcription pipeline
+
+`marimba_demo.pipeline.run_pipeline` replays audio hop by hop through the public
+stateless calls (`Marimba.decide_windows` and `Marimba.decide_pairs`, the same
+questions the [window server](../docs/window-server.md) answers) and reads only audio
+before the current hop. It does not change the live cards. Every number below is a
+field of `UnitConfig`, `CutConfig` or `PipelineConfig`.
+
+**Speech units** (`units.py`). The signal is the 1 s `voice_activity` probability, one
+per hop. A segment opens on the first hop with `p >= 0.1` and closes on the first hop
+with `p < 0.1`; there is no hysteresis or hangover. Its start is the opening window end
+minus 0.5 s and its end is the closing window end minus 0.75 s; segments under 0.25 s
+are dropped. Segments join into one unit while the previous segment did not end a turn
+(`turn_end` asked on the eight seconds ending at that segment's end), the pause is at
+most 5 s and the unit stays within 30 s; longer speech is sliced at 30 s. Each unit edge
+then moves to the quietest 10 ms frame within 0.5 s, bounded by the neighbouring units:
+mean-square energy, centred five-frame average, in dB rounded to 1 dB, ties to the
+frame nearest the original edge. The edge is placed at the centre of that frame. The
+audio handed to transcription is padded by 0.25 s on each side, capped at the midpoint
+of the gap to the neighbouring unit and at the audio bounds; unit edges stay snapped.
+`snap_units` applies this rule to a finished list. `run_pipeline` emits each unit as
+soon as it closes, so a later unit may not exist yet: the end padding is then capped by
+the audio heard so far, and the next unit's start padding never crosses it.
+
+**Speaker cuts** (`speakers.py`). After transcription, `speaker_change` is asked at
+word ends at least 0.5 s apart, on the 6 s before and the 2 s after each. Scores of 0.5
+or more are kept strongest first and at least 2 s apart, and each is moved to the
+nearest sentence end within 1.5 s. A peak with no sentence end in reach cuts at the
+nearest word end (`word_fallback=False` drops it instead).
+
+**Primer bank** (`speakers.py`). `PrimerBank` starts empty. Each span is compared with
+every stored primer through `same_speaker`; the speaker with the highest mean score
+takes the span at 0.5 or more, otherwise a new speaker opens until there are four.
+A speaker keeps at most three primers of up to 4 s, taken from matched spans of at
+least 2 s; the first span of a new speaker is always kept.
+
+### Validation at a 500 ms hop
+
+`python -m marimba_demo.validate` (needs the `datasets` extra) builds a 182 s
+conversation from public LibriSpeech `validation.clean` utterances of four readers with
+known pauses of 0, 0.4, 0.8, 1.5 and 6 s, and compares the pipeline with the known
+speech edges and speakers. Word times are synthetic: each utterance's words are spread
+over its speech by character count and its last word ends the sentence. One run on
+CPU, float32:
+
+| Measure | Result |
+|---|---|
+| Opening hop after a known onset (assumed 0.5 s) | mean 0.68 s, median 0.58 s, 11 onsets |
+| Closing hop after a known offset (assumed 0.75 s) | mean 0.94 s, median 0.85 s, 11 offsets |
+| Unit start error, before and after snapping | median 0.17 s, then 0.025 s (largest 1.29 s) |
+| Unit end error, before and after snapping | median 0.22 s, then 0.075 s (largest 0.79 s) |
+| Known speech left outside units | 5.5 s raw, 1.8 s snapped, 1.3 s with padding |
+| Start snapped at the opening hop against the final snap | identical for all 17 units |
+| Audio buffered before the opening hop to pad a start | at most 1.245 s |
+| Speaker changes inside units found within 1 s | 5 of 5 |
+| Cuts placed | 18, of which 5 at a known change and 5 at a sentence end |
+| Primer bank | 4 speakers for 4 readers; 99.6% of the known speech inside spans on the right speaker |
+
+Reading the table: at a 500 ms hop both readout flips arrive about 0.18 s later on
+average than the two lag constants assume, and snapping absorbs most of it. Thirteen
+of the eighteen cuts were not at a speaker change and thirteen used the word-end
+fallback; whether those are the same thirteen was not checked. The extra cuts cost
+little here: the primer bank still put 99.6% of the speech on the right speaker. Every
+unit in this run ended with a turn end, so joining across a pause is covered by the
+synthetic tests only.
+
 ## Optional transcription
 
 No adapter is shipped or enabled by default. The transcript panel stays hidden.

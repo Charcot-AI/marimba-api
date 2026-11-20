@@ -1,9 +1,11 @@
+import asyncio
 import base64
 import io
 import json
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 from typing import Any
 
 import numpy as np
@@ -11,6 +13,7 @@ import pytest
 import soundfile as sf
 
 pytest.importorskip("fastapi")
+import httpx
 from fastapi.testclient import TestClient
 
 from marimba import Question
@@ -303,6 +306,36 @@ def test_health(client: TestClient) -> None:
     assert client.get("/ping").json() == {"status": "healthy"}
 
 
+def test_probes_answer_while_inference_holds_every_worker_thread() -> None:
+    class Held(FakeMarimba):
+        release = Event()
+
+        def __call__(self, *args: Any, **kwargs: Any) -> Any:
+            self.release.wait(10)
+            return super().__call__(*args, **kwargs)
+
+    app = create_app(Held(), ServerConfig(max_concurrency=64))
+
+    async def run() -> list[int]:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
+            busy = [
+                asyncio.create_task(http.post("/v1/chat/completions", json=body("speech?")))
+                for _ in range(64)
+            ]
+            await asyncio.sleep(0.2)
+            try:
+                probes = [
+                    await asyncio.wait_for(http.get(path), 2)
+                    for path in ("/health", "/ping", "/v1/models")
+                ]
+            finally:
+                Held.release.set()
+            return [response.status_code for response in [*probes, *await asyncio.gather(*busy)]]
+
+    assert asyncio.run(run()) == [200] * 67
+
+
 @pytest.mark.parametrize("chunked", [False, True])
 def test_oversized_body_is_rejected(
     client: TestClient, monkeypatch: pytest.MonkeyPatch, chunked: bool
@@ -377,3 +410,64 @@ def test_serve_exits_cleanly_when_the_model_fails_to_load(monkeypatch: pytest.Mo
     monkeypatch.setattr(cli.Marimba, "from_pretrained", fail)
     with pytest.raises(SystemExit, match="Could not load the model: OSError"):
         cli.main(["serve", "--port", "0"])
+
+
+def test_serve_pins_threads_and_passes_connection_settings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimba import cli
+
+    seen: dict[str, Any] = {}
+    monkeypatch.setattr(cli, "pin_threads", lambda count: seen.setdefault("threads", count))
+    monkeypatch.setattr(
+        "marimba.server.serve",
+        lambda model, config, **kwargs: seen.update(config=config, **kwargs),
+    )
+    cli.main(
+        [
+            "serve",
+            "--fake",
+            "--threads",
+            "1",
+            "--keep-alive-seconds",
+            "30",
+            "--batched-encoder",
+            "--encoder-batch-size",
+            "8",
+        ]
+    )
+    assert (seen["threads"], seen["keep_alive_seconds"]) == (1, 30)
+    assert (seen["config"].batched_encoder, seen["config"].encoder_batch_size) == (True, 8)
+    with pytest.raises(SystemExit):
+        cli.main(["serve", "--fake", "--threads", "0"])
+
+
+def test_serve_passes_tls_files_and_rejects_half_a_pair(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    from marimba import cli
+
+    seen: dict[str, Any] = {}
+    monkeypatch.setattr(
+        "marimba.server.serve",
+        lambda model, config, **kwargs: seen.update(kwargs),
+    )
+    cert, key = tmp_path / "tls.crt", tmp_path / "tls.key"
+    cert.write_text("synthetic")
+    key.write_text("synthetic")
+    cli.main(["serve", "--fake", "--tls-certfile", str(cert), "--tls-keyfile", str(key)])
+    assert (seen["tls_certfile"], seen["tls_keyfile"]) == (str(cert), str(key))
+    monkeypatch.setenv("MARIMBA_TLS_CERTFILE", str(cert))
+    monkeypatch.setenv("MARIMBA_TLS_KEYFILE", str(key))
+    seen.clear()
+    cli.main(["serve", "--fake"])
+    assert (seen["tls_certfile"], seen["tls_keyfile"]) == (str(cert), str(key))
+    monkeypatch.delenv("MARIMBA_TLS_KEYFILE")
+    with pytest.raises(SystemExit, match="must be given together"):
+        cli.main(["serve", "--fake"])
+    with pytest.raises(SystemExit, match="TLS file not found"):
+        cli.main(["serve", "--fake", "--tls-keyfile", str(tmp_path / "missing.key")])
+    monkeypatch.delenv("MARIMBA_TLS_CERTFILE")
+    seen.clear()
+    cli.main(["serve", "--fake"])
+    assert (seen["tls_certfile"], seen["tls_keyfile"]) == (None, None)
