@@ -261,7 +261,10 @@ def evaluate(
                 "snapped": clipped(result.units),
                 "padded": clipped(
                     [
-                        type(u)(u.audio_start or u.start, u.audio_end or u.end)
+                        type(u)(
+                            u.start if u.audio_start is None else u.audio_start,
+                            u.end if u.audio_end is None else u.audio_end,
+                        )
                         for u in result.units
                     ]
                 ),

@@ -361,3 +361,30 @@ def test_pipeline_scores_the_audio_after_the_last_whole_hop():
     assert [time_s for time_s, _ in short.hops] == [0.3]
     whole = run_pipeline(ToneModel(), Question, quiet(2.0))
     assert [time_s for time_s, _ in whole.hops] == [0.5, 1.0, 1.5, 2.0]
+
+
+def test_validation_credits_speaker_time_by_overlap_and_counts_padding_from_zero():
+    from marimba_demo.pipeline import PipelineResult, SpeakerSpan
+    from marimba_demo.units import SpeechUnit
+    from marimba_demo.validate import Conversation, Region, evaluate
+
+    conversation = Conversation(
+        tone(10.0, 200), [Region(0.0, 5.0, 0), Region(5.0, 10.0, 1)], []
+    )
+    unit = SpeechUnit(1600, 158400, audio_start=0, audio_end=160000)
+    result = PipelineResult(
+        raw_units=[SpeechUnit(1600, 158400)],
+        units=[unit],
+        cuts=[[]],
+        # The change at 5 s was missed: one span, one speaker, two readers.
+        spans=[SpeakerSpan(0.1, 9.9, 0, None)],
+    )
+    report = evaluate(conversation, result, PipelineConfig())
+    assert report["primer_bank"] == {
+        "speakers_created": 1,
+        "spans": 1,
+        "duration_weighted_accuracy": 0.5,
+    }
+    assert report["speaker_cuts"]["found_within_1s"] == 0
+    outside = report["units"]["speech_outside_units_s"]
+    assert (outside["snapped"], outside["padded"]) == (0.2, 0.0)
