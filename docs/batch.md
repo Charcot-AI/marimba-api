@@ -51,9 +51,23 @@ Measured on CPU in float32, 60 windows, batch size 16:
 | `speaker_change` | 0.0000002 | 0 |
 | `speaker_count` | 0.000013 | 0 |
 
-This check has not been run on a GPU or in bf16, where reduced precision moves
-probabilities more than float32 does. Run the script on the deployment device and dtype
-before enabling `batched=True` or `marimba serve --batched-encoder` there.
+Measured on one NVIDIA L4, 60 windows, largest probability change at batch sizes 16
+and 32; no decision flipped in any of the four runs:
+
+| Question | float32, batch 16 | float32, batch 32 | bf16, batch 16 | bf16, batch 32 |
+|---|---:|---:|---:|---:|
+| `turn_end` | 0.00038 | 0.00038 | 0.0136 | 0.0120 |
+| `voice_activity` (2 s) | 0.0000006 | 0.0000006 | 0.00003 | 0.00002 |
+| `voice_activity` (1 s, threshold 0.1) | 0.0011 | 0.0011 | 0.0169 | 0.0148 |
+| `same_speaker` | 0.00041 | 0.00041 | 0.0035 | 0.0050 |
+| `speaker_change` | 0.00009 | 0.00009 | 0.0015 | 0.0016 |
+| `speaker_count` | 0.00025 | 0.00025 | 0.0073 | 0.0035 |
+
+Reduced precision moves probabilities more than float32 does: in bf16 two questions
+pass the default tolerance of 0.01, so the script exits nonzero there even though no
+decision flips. Run it on the deployment device and dtype before enabling
+`batched=True` or `marimba serve --batched-encoder`, and keep thresholds away from
+values that a change of this size would cross.
 On an eight-thread CPU the batched forward took about 25% less time per window than
 the sequential path at batch size 16; it is a throughput option, not a latency one.
 
