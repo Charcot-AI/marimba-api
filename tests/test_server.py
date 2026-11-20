@@ -1,9 +1,11 @@
+import asyncio
 import base64
 import io
 import json
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 from typing import Any
 
 import numpy as np
@@ -11,6 +13,7 @@ import pytest
 import soundfile as sf
 
 pytest.importorskip("fastapi")
+import httpx
 from fastapi.testclient import TestClient
 
 from marimba import Question
@@ -301,6 +304,36 @@ def test_models_document(client: TestClient) -> None:
 
 def test_health(client: TestClient) -> None:
     assert client.get("/ping").json() == {"status": "healthy"}
+
+
+def test_probes_answer_while_inference_holds_every_worker_thread() -> None:
+    class Held(FakeMarimba):
+        release = Event()
+
+        def __call__(self, *args: Any, **kwargs: Any) -> Any:
+            self.release.wait(10)
+            return super().__call__(*args, **kwargs)
+
+    app = create_app(Held(), ServerConfig(max_concurrency=64))
+
+    async def run() -> list[int]:
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
+            busy = [
+                asyncio.create_task(http.post("/v1/chat/completions", json=body("speech?")))
+                for _ in range(64)
+            ]
+            await asyncio.sleep(0.2)
+            try:
+                probes = [
+                    await asyncio.wait_for(http.get(path), 2)
+                    for path in ("/health", "/ping", "/v1/models")
+                ]
+            finally:
+                Held.release.set()
+            return [response.status_code for response in [*probes, *await asyncio.gather(*busy)]]
+
+    assert asyncio.run(run()) == [200] * 67
 
 
 @pytest.mark.parametrize("chunked", [False, True])
