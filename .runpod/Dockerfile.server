@@ -50,10 +50,26 @@ fi
 exec "$@"
 SH
 
+# The probe cannot see how TLS was configured (flags, variables or the entrypoint), so it
+# tries HTTPS first. Loopback only, hence no certificate verification.
+COPY --chmod=755 <<'PY' /usr/local/bin/marimba-healthcheck
+#!/usr/bin/env python
+import ssl
+import urllib.error
+import urllib.request
+
+try:
+    urllib.request.urlopen(
+        "https://127.0.0.1:8000/ping", timeout=2, context=ssl._create_unverified_context()
+    )
+except urllib.error.HTTPError:
+    raise
+except (urllib.error.URLError, OSError):
+    urllib.request.urlopen("http://127.0.0.1:8000/ping", timeout=2)
+PY
+
 EXPOSE 8000
-# Loopback only, so the probe skips certificate verification when TLS is on.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=120s \
-    CMD python -c "import os, ssl, urllib.request as u; t = bool(os.environ.get('MARIMBA_TLS_CERTFILE')) or os.path.exists('/run/marimba/tls.crt'); u.urlopen(('https' if t else 'http') + '://127.0.0.1:8000/ping', timeout=4, context=ssl._create_unverified_context() if t else None)"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s CMD ["marimba-healthcheck"]
 
 ENTRYPOINT ["marimba-entrypoint"]
 CMD ["marimba", "serve", "--host", "0.0.0.0", "--port", "8000", "--backend", "torch", "--device", "cuda", "--model-id", "charcot-ai/marimba", "--prompt-price", "0.000002", "--completion-price", "0.000001", "--datacenters", "US", "--ready", "--threads", "1", "--keep-alive-seconds", "75"]
