@@ -349,3 +349,15 @@ def test_cuts_in_the_padding_do_not_move_spans_outside_the_unit():
     assert unit.audio_start / RATE + 0.1 < unit.start / RATE
     assert result.cuts == [[]]
     assert [(s.start_s, s.end_s) for s in result.spans] == [unit.seconds]
+
+
+def test_pipeline_scores_the_audio_after_the_last_whole_hop():
+    # Speech starts at 2.0 s, after the last whole hop of a 2.49 s stream.
+    audio = np.concatenate((quiet(2.0), tone(0.49, 200)))
+    result = run_pipeline(ToneModel(), Question, audio)
+    assert [time_s for time_s, _ in result.hops] == [0.5, 1.0, 1.5, 2.0, 2.49]
+    assert len(result.units) == 1 and result.units[0].end <= len(audio)
+    short = run_pipeline(ToneModel(), Question, tone(0.3, 200))
+    assert [time_s for time_s, _ in short.hops] == [0.3]
+    whole = run_pipeline(ToneModel(), Question, quiet(2.0))
+    assert [time_s for time_s, _ in whole.hops] == [0.5, 1.0, 1.5, 2.0]

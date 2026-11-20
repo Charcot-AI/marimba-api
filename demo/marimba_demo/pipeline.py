@@ -162,7 +162,11 @@ def run_pipeline(
             emit(unit, now, following)
 
     total = len(audio)
-    for end in range(hop, total + 1, hop):
+    hop_ends = list(range(hop, total + 1, hop))
+    # The audio after the last whole hop is scored once, at the end of the stream.
+    if total % hop:
+        hop_ends.append(total)
+    for end in hop_ends:
         value = probability(end, speech)
         result.hops.append((end / SAMPLE_RATE, value))
         closed: list[SpeechUnit] = []
