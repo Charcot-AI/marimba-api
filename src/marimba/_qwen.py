@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Sequence
+from collections.abc import Collection, Iterator, Sequence
 from contextvars import ContextVar
 from copy import deepcopy
 from functools import partial
@@ -29,6 +29,7 @@ from .lexical import exact_fraction
 from .readout import pool_layer, predict_readout
 from .runtime import RuntimeInfo
 from .weights import ENCODER_REPO, ENCODER_REVISION
+from .windows import DeviceFeatures
 
 
 class FrozenASR:
@@ -51,6 +52,80 @@ class FrozenASR:
             messages, add_generation_prompt=True, tokenize=False
         )
         return prompt + f"language {force_language}<asr_text>" if force_language else prompt
+
+
+# The audio-tower layer each window readout reads.
+_TASK_LAYERS = {"voice_activity": 9, "turn_end": 18, **dict.fromkeys(TASKS, 12)}
+
+
+class _EncodedBatch:
+    """Activations of one batched pass, left on the device until a readout asks for them."""
+
+    def __init__(self, captures: dict[int, Any], audio: Any, head: SpeechReadout | None) -> None:
+        self.captures = captures
+        self._audio = audio
+        self._head = head
+        self._arrays: dict[int, Any] = {}
+        self._scores: dict[tuple[str, bytes], list[float]] = {}
+
+    def layer(self, index: int) -> Any:
+        if index not in self._arrays:
+            values = self.captures[index].float().cpu().numpy()
+            values.flags.writeable = False
+            self._arrays[index] = values
+        return self._arrays[index]
+
+    def audio(self) -> Any:
+        if self._audio is None:
+            raise RuntimeError("This batch was encoded without decoder features")
+        if not isinstance(self._audio, np.ndarray):
+            self._audio = self._audio.float().cpu().numpy()
+            self._audio.flags.writeable = False
+        return self._audio
+
+    def head_score(self, row: int, mask: Mask, text: str) -> float:
+        if self._head is None:
+            raise ValueError("No speech head weights are installed")
+        key = (text, np.packbits(mask.reshape(100, -1).any(axis=1)).tobytes())
+        if key not in self._scores:
+            # Rows of a batch ask the same question over the same tail: one head pass for all.
+            self._scores[key] = self._head.score_batch(self.captures[9], mask, text)
+        return self._scores[key][row]
+
+
+class _RowFeatures(DeviceFeatures):
+    """Captured layers of one window of a batch, read as host arrays on demand."""
+
+    def __init__(self, batch: _EncodedBatch, row: int) -> None:
+        self.batch = batch
+        self.row = row
+
+    def __getitem__(self, layer: int) -> Any:
+        if layer not in self.batch.captures:
+            raise KeyError(layer)
+        return self.batch.layer(layer)[self.row]
+
+    def __iter__(self) -> Iterator[int]:
+        return iter(self.batch.captures)
+
+    def __len__(self) -> int:
+        return len(self.batch.captures)
+
+
+class _RowAudio:
+    """Decoder features of one window of a batch, copied to the host only when read."""
+
+    def __init__(self, batch: _EncodedBatch, row: int, steps: int) -> None:
+        self._batch = batch
+        self._row = row
+        self._steps = steps
+
+    def __len__(self) -> int:
+        return self._steps
+
+    def __array__(self, dtype: Any = None, copy: bool | None = None) -> Any:
+        values = self._batch.audio()[self._row]
+        return values.astype(dtype) if dtype is not None else values.copy()
 
 
 class QwenEngine:
@@ -128,32 +203,61 @@ class QwenEngine:
             self._captures.reset(token)
         return {"features": captures, "audio_features": encoded.detach().float().cpu().numpy()}
 
-    def encode_batch(self, windows: Sequence[AudioArray]) -> list[Any]:
-        """One audio-tower forward for several eight-second windows."""
-        tower = self.thinker.audio_tower
-        features = self.processor.feature_extractor(
-            list(windows),
-            sampling_rate=16000,
-            padding=True,
-            return_attention_mask=True,
-            return_tensors="pt",
-            truncation=False,
+    def _log_mel(self, windows: Sequence[AudioArray]) -> Any:
+        """Log-mel of equal-length windows on the model device: the arithmetic of the Whisper
+        feature extractor, without its host round trip."""
+        extractor = self.processor.feature_extractor
+        device = self.asr.model.device
+        waveform = torch.from_numpy(np.stack(windows)).to(device, torch.float32)
+        window = torch.hann_window(extractor.n_fft, device=device)
+        stft = torch.stft(
+            waveform, extractor.n_fft, extractor.hop_length, window=window, return_complex=True
         )
-        lengths = features["attention_mask"].sum(-1)
-        frames, chunk = int(lengths[0]), tower.n_window * 2
+        magnitudes = stft[..., :-1].abs() ** 2
+        filters = torch.from_numpy(extractor.mel_filters).to(device, torch.float32)
+        spectrum = torch.clamp(filters.T @ magnitudes, min=1e-10).log10()
+        spectrum = torch.maximum(spectrum, spectrum.amax(dim=(1, 2), keepdim=True) - 8.0)
+        return (spectrum + 4.0) / 4.0
+
+    def encode_batch(
+        self, windows: Sequence[AudioArray], tasks: Collection[str] | None = None
+    ) -> list[Any]:
+        """One audio-tower forward for several eight-second windows.
+
+        With ``tasks``, the pass stops at the last layer those window readouts read and
+        skips the decoder features.
+        """
+        tower = self.thinker.audio_tower
+        extractor = self.processor.feature_extractor
+        samples, chunk = len(windows[0]) if windows else 0, tower.n_window * 2
+        frames = samples // extractor.hop_length
         # The sequential pass attends over a whole window under SDPA; other layouts keep it.
         if (
             len(windows) < 2
             or tower.config._attn_implementation != "sdpa"
-            or bool((lengths != frames).any())
+            or any(len(window) != samples for window in windows)
+            or samples % extractor.hop_length
             or frames % chunk
+            or getattr(extractor, "dither", 0.0) != 0.0
         ):
             return [self.encode(window) for window in windows]
-        mel = features["input_features"][:, :, :frames]
-        mel = mel.to(self.asr.model.device, self.asr.model.dtype)
-        batch, bins = mel.shape[:2]
+        # Window readouts name the layers they read; any other question needs the full pass.
+        known = bool(tasks) and all(task in _TASK_LAYERS for task in tasks or ())
+        wanted = set(self._layers)
+        if known:
+            wanted &= {_TASK_LAYERS[task] for task in tasks or ()}
+        last = max(wanted) if known and wanted else len(tower.layers)
         with torch.inference_mode():
+            mel = self._log_mel(windows).to(self.asr.model.dtype)
+            batch, bins = mel.shape[:2]
             chunks = mel.unflatten(2, (-1, chunk)).permute(0, 2, 1, 3).reshape(-1, 1, bins, chunk)
+            if mel.is_cuda:
+                # The convolutions are most of the pass; NHWC is their faster cuDNN layout.
+                if not getattr(self, "_channels_last", False):
+                    for convolution in (tower.conv2d1, tower.conv2d2, tower.conv2d3):
+                        convolution.to(memory_format=torch.channels_last)
+                    self._channels_last = True
+                chunks = chunks.contiguous(memory_format=torch.channels_last)
             embeds = []
             for part in chunks.split(tower.conv_chunksize, dim=0):
                 part = F.gelu(tower.conv2d1(part))
@@ -167,17 +271,19 @@ class QwenEngine:
             positions = tower.positional_embedding.positional_embedding[:steps]
             hidden = (embed + positions.to(embed.dtype)).reshape(batch, -1, embed.shape[-1])
             captures: dict[int, Any] = {}
-            for index, layer in enumerate(tower.layers, 1):
+            for index, layer in enumerate(tower.layers[:last], 1):
                 hidden = self._batched_layer(layer, hidden)
-                if index in self._layers:
-                    kept = hidden.to(torch.float16) if index in (12, 18) else hidden
-                    captures[index] = kept.float().cpu().numpy()
-            encoded = tower.proj2(tower.act(tower.proj1(tower.ln_post(hidden))))
-            audio_features = encoded.float().cpu().numpy()
+                if index in wanted:
+                    captures[index] = hidden.to(torch.float16) if index in (12, 18) else hidden
+            audio = None
+            if not known:
+                audio = tower.proj2(tower.act(tower.proj1(tower.ln_post(hidden))))
+        encoded = _EncodedBatch(captures, audio, self.head)
+        length = 0 if audio is None else audio.shape[1]
         return [
             {
-                "features": {layer: values[row].copy() for layer, values in captures.items()},
-                "audio_features": audio_features[row].copy(),
+                "features": _RowFeatures(encoded, row),
+                "audio_features": None if audio is None else _RowAudio(encoded, row, length),
             }
             for row in range(batch)
         ]
@@ -230,6 +336,8 @@ class QwenEngine:
         }
 
     def head_score(self, features: Any, mask: Mask, text: str) -> float:
+        if isinstance(features, _RowFeatures):
+            return features.batch.head_score(features.row, mask, text)
         if self.head is None:
             raise ValueError("No speech head weights are installed")
         return self.head.score(torch.from_numpy(np.array(features[9], copy=True)), mask, text)
