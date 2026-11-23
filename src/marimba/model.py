@@ -236,10 +236,22 @@ class Marimba:
         backend: str = "auto",
         dtype: str = "auto",
         pii_detector: PIIDetector | None = None,
+        encoder_only: bool = False,
+        encoder_dir: str | Path | None = None,
     ) -> Marimba:
+        """Load the pinned model.
+
+        ``encoder_only`` loads the audio tower without the text decoder: the encoder lanes
+        answer as before and ``language``, ``term`` and ``pii`` become unavailable.
+        ``encoder_dir`` reads that tower from a directory written by
+        ``marimba export-encoder`` instead of the full encoder checkpoint, and implies
+        ``encoder_only``.
+        """
         from .pretrained import load_pretrained
 
-        return load_pretrained(repo, revision, device, backend, dtype, pii_detector)
+        return load_pretrained(
+            repo, revision, device, backend, dtype, pii_detector, encoder_only, encoder_dir
+        )
 
     @property
     def capabilities(self) -> dict[str, Capability]:

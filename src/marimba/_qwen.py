@@ -9,6 +9,7 @@ from contextvars import ContextVar
 from copy import deepcopy
 from functools import partial
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
@@ -19,8 +20,11 @@ from safetensors.numpy import load_file
 
 from ._diarization import TASKS, DiarizationReadout, task_features
 from ._head import SpeechReadout
-from ._vendor.qwen_asr.configuration_qwen3_asr import Qwen3ASRConfig
-from ._vendor.qwen_asr.modeling_qwen3_asr import Qwen3ASRForConditionalGeneration
+from ._vendor.qwen_asr.configuration_qwen3_asr import Qwen3ASRAudioEncoderConfig, Qwen3ASRConfig
+from ._vendor.qwen_asr.modeling_qwen3_asr import (
+    Qwen3ASRAudioEncoder,
+    Qwen3ASRForConditionalGeneration,
+)
 from ._vendor.qwen_asr.processing_qwen3_asr import Qwen3ASRProcessor
 from ._vendor.qwen_asr.utils import parse_asr_output
 from .audio import AudioArray, Mask
@@ -28,7 +32,7 @@ from .language import LANGUAGES
 from .lexical import exact_fraction
 from .readout import pool_layer, predict_readout
 from .runtime import RuntimeInfo
-from .weights import ENCODER_REPO, ENCODER_REVISION
+from .weights import ENCODER_REPO, ENCODER_REVISION, load_audio_encoder
 from .windows import DeviceFeatures
 
 
@@ -52,6 +56,46 @@ class FrozenASR:
             messages, add_generation_prompt=True, tokenize=False
         )
         return prompt + f"language {force_language}<asr_text>" if force_language else prompt
+
+
+class _AudioTower:
+    """Stands in for the thinker when the text decoder is not loaded."""
+
+    def __init__(self, tower: Any) -> None:
+        self.audio_tower = tower
+
+    def get_audio_features(self, input_features: Any, feature_attention_mask: Any) -> Any:
+        # One window per tower pass, as the thinker does.
+        lengths = feature_attention_mask.sum(dim=1)
+        return torch.cat(
+            [
+                self.audio_tower(
+                    features[:, :length], feature_lens=length.unsqueeze(0)
+                ).last_hidden_state
+                for features, length in zip(input_features, lengths, strict=True)
+            ],
+            dim=0,
+        )
+
+
+class FrozenAudioEncoder:
+    """The audio tower alone: what the encoder lanes read, without the text decoder."""
+
+    def __init__(self, directory: str | Path | None, runtime: RuntimeInfo) -> None:
+        from transformers import WhisperFeatureExtractor
+
+        audio_config, tensors, files = load_audio_encoder(directory)
+        self.model = Qwen3ASRAudioEncoder.from_pretrained(
+            None,
+            config=Qwen3ASRAudioEncoderConfig.from_dict(audio_config),
+            state_dict=tensors,
+            dtype=getattr(torch, runtime.dtype),
+            attn_implementation="sdpa",
+        ).to(runtime.device)
+        self.thinker = _AudioTower(self.model)
+        self.processor: Any = SimpleNamespace(
+            feature_extractor=WhisperFeatureExtractor.from_pretrained(files)
+        )
 
 
 # The audio-tower layer each window readout reads.
@@ -129,12 +173,25 @@ class _RowAudio:
 
 
 class QwenEngine:
-    def __init__(self, runtime: RuntimeInfo, paths: dict[str, Path]) -> None:
-        self.asr = FrozenASR(snapshot_download(ENCODER_REPO, revision=ENCODER_REVISION), runtime)
+    def __init__(
+        self,
+        runtime: RuntimeInfo,
+        paths: dict[str, Path],
+        encoder_only: bool = False,
+        encoder_dir: str | Path | None = None,
+    ) -> None:
+        self.asr: Any
+        if encoder_only or encoder_dir is not None:
+            self.asr = FrozenAudioEncoder(encoder_dir, runtime)
+            self.thinker = self.asr.thinker
+        else:
+            self.asr = FrozenASR(
+                snapshot_download(ENCODER_REPO, revision=ENCODER_REVISION), runtime
+            )
+            self.asr.processor.tokenizer.padding_side = "left"
+            self.thinker = self.asr.model.thinker
         self.asr.model.eval().requires_grad_(False)
         self.processor = self.asr.processor
-        self.processor.tokenizer.padding_side = "left"
-        self.thinker = self.asr.model.thinker
         self._captures: ContextVar[Any] = ContextVar("audio_captures", default=None)
         self.head = (
             SpeechReadout(paths, runtime.device)

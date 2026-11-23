@@ -39,6 +39,10 @@ and doctor runtime probing may import torch; only model loading fetches weights.
 Core installation has no inference engine. The torch extra excludes Gradio;
 the demo extra is opt-in and brings its web dependencies.
 
+`Marimba.from_pretrained(encoder_only=True)` loads the audio tower without the text
+decoder for deployments that ask encoder questions only; see
+[hosting](hosting.md#audio-encoder-only).
+
 Production term defaults remain greedy plus four beam hypotheses. No encoder-INT8
 or greedy-only switch is exposed by model loading or the bench CLI. Those variants
 exist only in the opt-in report-only matrix script; both reduced quality and failed
