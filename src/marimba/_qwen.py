@@ -61,9 +61,8 @@ _TASK_LAYERS = {"voice_activity": 9, "turn_end": 18, **dict.fromkeys(TASKS, 12)}
 class _EncodedBatch:
     """Activations of one batched pass, left on the device until a readout asks for them."""
 
-    def __init__(self, captures: dict[int, Any], audio: Any, head: SpeechReadout | None) -> None:
+    def __init__(self, captures: dict[int, Any], head: SpeechReadout | None) -> None:
         self.captures = captures
-        self._audio = audio
         self._head = head
         self._arrays: dict[int, Any] = {}
         self._scores: dict[tuple[str, bytes], list[float]] = {}
@@ -74,14 +73,6 @@ class _EncodedBatch:
             values.flags.writeable = False
             self._arrays[index] = values
         return self._arrays[index]
-
-    def audio(self) -> Any:
-        if self._audio is None:
-            raise RuntimeError("This batch was encoded without decoder features")
-        if not isinstance(self._audio, np.ndarray):
-            self._audio = self._audio.float().cpu().numpy()
-            self._audio.flags.writeable = False
-        return self._audio
 
     def head_score(self, row: int, mask: Mask, text: str) -> float:
         if self._head is None:
@@ -110,22 +101,6 @@ class _RowFeatures(DeviceFeatures):
 
     def __len__(self) -> int:
         return len(self.batch.captures)
-
-
-class _RowAudio:
-    """Decoder features of one window of a batch, copied to the host only when read."""
-
-    def __init__(self, batch: _EncodedBatch, row: int, steps: int) -> None:
-        self._batch = batch
-        self._row = row
-        self._steps = steps
-
-    def __len__(self) -> int:
-        return self._steps
-
-    def __array__(self, dtype: Any = None, copy: bool | None = None) -> Any:
-        values = self._batch.audio()[self._row]
-        return values.astype(dtype) if dtype is not None else values.copy()
 
 
 class QwenEngine:
@@ -278,12 +253,13 @@ class QwenEngine:
             audio = None
             if not known:
                 audio = tower.proj2(tower.act(tower.proj1(tower.ln_post(hidden))))
-        encoded = _EncodedBatch(captures, audio, self.head)
-        length = 0 if audio is None else audio.shape[1]
+        encoded = _EncodedBatch(captures, self.head)
+        # Decoder features exist only on the full pass, whose callers read them as arrays.
+        decoder = None if audio is None else audio.float().cpu().numpy()
         return [
             {
                 "features": _RowFeatures(encoded, row),
-                "audio_features": None if audio is None else _RowAudio(encoded, row, length),
+                "audio_features": None if decoder is None else decoder[row].copy(),
             }
             for row in range(batch)
         ]

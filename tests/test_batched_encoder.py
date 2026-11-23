@@ -154,6 +154,7 @@ def test_batched_forward_matches_one_window_per_pass(engine) -> None:
         for layer, values in single["features"].items():
             assert row["features"][layer].shape == values.shape
             np.testing.assert_allclose(row["features"][layer], values, atol=2e-3, rtol=2e-3)
+        assert row["audio_features"].shape == single["audio_features"].shape
         np.testing.assert_allclose(row["audio_features"], single["audio_features"], atol=1e-4)
     # Rows are independent: reordering the batch reorders the output.
     swapped = engine.encode_batch(windows[::-1])
