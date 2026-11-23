@@ -86,7 +86,9 @@ def test_batch_keeps_sequential_default_and_matches_when_batched() -> None:
     ]
     calls = []
     encode_many = model.encode_many
-    model.encode_many = lambda group: calls.append(len(group)) or encode_many(group)  # type: ignore[method-assign]
+    model.encode_many = lambda group, questions=None: (  # type: ignore[method-assign]
+        calls.append(len(group)) or encode_many(group, questions)
+    )
     sequential = model.batch(audios, QUESTIONS)
     assert calls == []
     batched = model.batch(audios, QUESTIONS, batch_size=2, batched=True)
@@ -138,6 +140,7 @@ def engine():
     model.asr = SimpleNamespace(model=SimpleNamespace(device="cpu", dtype=torch.float32))
     model._captures = ContextVar("test_batch_captures", default=None)
     model._layers = (9, 18, 12)
+    model.head = None
     for layer in model._layers:
         tower.layers[layer - 1].register_forward_hook(partial(model._capture, layer))
     return model
@@ -154,6 +157,7 @@ def test_batched_forward_matches_one_window_per_pass(engine) -> None:
         for layer, values in single["features"].items():
             assert row["features"][layer].shape == values.shape
             np.testing.assert_allclose(row["features"][layer], values, atol=2e-3, rtol=2e-3)
+        assert row["audio_features"].shape == single["audio_features"].shape
         np.testing.assert_allclose(row["audio_features"], single["audio_features"], atol=1e-4)
     # Rows are independent: reordering the batch reorders the output.
     swapped = engine.encode_batch(windows[::-1])
@@ -161,3 +165,63 @@ def test_batched_forward_matches_one_window_per_pass(engine) -> None:
         swapped[0]["audio_features"], batched[2]["audio_features"], atol=1e-5
     )
     assert len(engine.encode_batch(windows[:1])) == 1
+
+
+def test_batched_pass_stops_at_the_last_layer_the_window_tasks_read(engine) -> None:
+    rng = np.random.default_rng(1)
+    windows = [(0.1 * rng.standard_normal(128000)).astype(np.float32) for _ in range(3)]
+    full = engine.encode_batch(windows)
+    hop = engine.encode_batch(windows, ["voice_activity", "speaker_change", "speaker_count"])
+    turn = engine.encode_batch(windows, ["turn_end"])
+    assert set(hop[0]["features"]) == {9, 12} and set(turn[0]["features"]) == {18}
+    assert hop[0]["audio_features"] is None and turn[0]["audio_features"] is None
+    with pytest.raises(KeyError):
+        hop[0]["features"][18]
+    for partial_rows, layers in ((hop, (9, 12)), (turn, (18,))):
+        for row, reference in zip(partial_rows, full, strict=True):
+            for layer in layers:
+                np.testing.assert_array_equal(row["features"][layer], reference["features"][layer])
+    # A question outside the window readouts needs everything the full pass computes.
+    mixed = engine.encode_batch(windows, ["voice_activity", "language"])
+    assert set(mixed[0]["features"]) == {9, 12, 18}
+    np.testing.assert_array_equal(mixed[0]["audio_features"], full[0]["audio_features"])
+
+
+def test_batched_log_mel_is_the_feature_extractor(engine) -> None:
+    rng = np.random.default_rng(2)
+    windows = [(0.1 * rng.standard_normal(128000)).astype(np.float32) for _ in range(2)]
+    expected = engine.processor.feature_extractor(
+        windows, sampling_rate=16000, padding=True, return_tensors="np", truncation=False
+    )["input_features"]
+    np.testing.assert_allclose(engine._log_mel(windows).numpy(), expected, atol=1e-6)
+
+
+def test_rows_of_a_batch_stay_on_the_device_and_share_one_head_pass(engine) -> None:
+    from marimba.windows import EncodedWindow, full_window
+
+    calls = []
+
+    class Head:
+        def score_batch(self, native, mask, text):
+            calls.append((native.shape[0], int(mask.sum()), text))
+            return [float(row) for row in range(native.shape[0])]
+
+    engine.head = Head()
+    rng = np.random.default_rng(3)
+    windows = [(0.1 * rng.standard_normal(128000)).astype(np.float32) for _ in range(3)]
+    rows = engine.encode_batch(windows, ["voice_activity"])
+    encoded = [
+        EncodedWindow(full_window(window), row["features"], 0.0, row["audio_features"])
+        for window, row in zip(windows, rows, strict=True)
+    ]
+    # The window keeps the backend mapping instead of copying every layer to the host.
+    assert encoded[0].features is rows[0]["features"]
+    mask = np.ones(128000, dtype=np.bool_)
+    assert [engine.head_score(e.features, mask, "question") for e in encoded] == [0.0, 1.0, 2.0]
+    assert calls == [(3, 128000, "question")]
+    tail = mask.copy()
+    tail[:-16000] = False
+    assert engine.head_score(encoded[1].features, tail, "question") == 1.0
+    assert calls[1:] == [(3, 16000, "question")]
+    with pytest.raises(ValueError, match="read-only"):
+        encoded[0].features[9][0, 0] = 1.0

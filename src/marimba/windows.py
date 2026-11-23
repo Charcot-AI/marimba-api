@@ -91,6 +91,13 @@ def full_window(audio: Any) -> WindowSnapshot:
     return WindowSnapshot(window, np.ones(WINDOW_SAMPLES, dtype=np.bool_), 0.0, 8.0)
 
 
+class DeviceFeatures(Mapping[int, Any]):
+    """Read-only layers a backend keeps on its device until one is read.
+
+    An ``EncodedWindow`` stores this mapping as is instead of copying every layer to the host.
+    """
+
+
 @dataclass(frozen=True)
 class EncodedWindow:
     snapshot: WindowSnapshot
@@ -105,12 +112,15 @@ class EncodedWindow:
             or self.encoder_latency_ms < 0
         ):
             raise ValueError("Invalid encoded duration or encoder latency")
-        object.__setattr__(
-            self,
-            "features",
-            MappingProxyType({layer: readonly(value) for layer, value in self.features.items()}),
-        )
-        if self.audio_features is not None:
+        if not isinstance(self.features, DeviceFeatures):
+            object.__setattr__(
+                self,
+                "features",
+                MappingProxyType(
+                    {layer: readonly(value) for layer, value in self.features.items()}
+                ),
+            )
+        if isinstance(self.audio_features, np.ndarray):
             object.__setattr__(self, "audio_features", readonly(self.audio_features))
 
     @property

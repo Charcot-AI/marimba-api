@@ -30,6 +30,15 @@ them from `(reference, segment)` audio with `marimba.assemble_pair`: the last 4 
 reference and the first 4 s of the segment for `same_speaker`, the last 6 s and the first
 2 s for `speaker_change`. A part shorter than its slot is repeated to fill it.
 
+On a GPU the batched path stays on the device: the log-mel spectrogram is computed
+there for the whole batch, the forward stops at the last layer the questions read
+(`voice_activity` 9, the speaker tasks 12, `turn_end` 18), captured layers are copied to
+the host only when a readout needs them, and windows that share a question and a tail go
+through the speech head in one pass. Measured on one NVIDIA L4 in bfloat16 with consecutive
+windows of a public LibriSpeech sample, batch size 16, one thread: 2.7 ms per window for
+the three questions of a streaming hop (`voice_activity`, `speaker_change`,
+`speaker_count`), 2.2 ms for a `same_speaker` pair and 2.5 ms for `turn_end`.
+
 The sequential path stays the default because the two paths are not bit-identical: the
 batched forward runs attention over a stacked tensor, so results differ in the last
 float bits. `scripts/check_batched_encoder.py` measures the difference on consecutive

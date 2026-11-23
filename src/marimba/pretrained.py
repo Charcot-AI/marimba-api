@@ -126,7 +126,9 @@ class PretrainedMarimba(Marimba):
             latency = (perf_counter() - started) * 1000
         return EncodedWindow(snapshot, data["features"], latency, data["audio_features"])
 
-    def encode_many(self, snapshots: Sequence[WindowSnapshot]) -> list[EncodedWindow]:
+    def encode_many(
+        self, snapshots: Sequence[WindowSnapshot], questions: Sequence[Question] | None = None
+    ) -> list[EncodedWindow]:
         encode_batch = getattr(self._engine, "encode_batch", None)
         if encode_batch is None or len(snapshots) < 2:
             return super().encode_many(snapshots)
@@ -135,7 +137,10 @@ class PretrainedMarimba(Marimba):
         with self._encoder_lock:
             synchronize(self.runtime)
             started = perf_counter()
-            rows = encode_batch([snapshot.audio for snapshot in snapshots])
+            rows = encode_batch(
+                [snapshot.audio for snapshot in snapshots],
+                None if questions is None else [question.task or "" for question in questions],
+            )
             synchronize(self.runtime)
             latency = (perf_counter() - started) * 1000 / len(snapshots)
         return [

@@ -103,3 +103,8 @@ def test_cached_option_is_reusable_with_bit_identical_cpu_scores(tmp_path, monke
     actual = readout.score(audio, audio_mask, "Is someone speaking?")
     assert actual == expected
     assert np.isfinite(actual)
+    batch = torch.randn(3, 104, 896)
+    scores = readout.score_batch(batch, audio_mask, "Is someone speaking?")
+    assert scores == pytest.approx(
+        [readout.score(window, audio_mask, "Is someone speaking?") for window in batch], abs=1e-5
+    )

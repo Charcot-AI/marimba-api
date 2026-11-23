@@ -53,8 +53,14 @@ class Marimba:
             raise ValueError("Encoder lanes require exactly an eight-second snapshot")
         return self._encode_snapshot(snapshot)
 
-    def encode_many(self, snapshots: Sequence[WindowSnapshot]) -> list[EncodedWindow]:
-        """Encode several eight-second snapshots; backends may share one forward pass."""
+    def encode_many(
+        self, snapshots: Sequence[WindowSnapshot], questions: Sequence[Question] | None = None
+    ) -> list[EncodedWindow]:
+        """Encode several eight-second snapshots; backends may share one forward pass.
+
+        With ``questions``, a backend may compute only what those questions read: the result
+        then answers them and nothing else.
+        """
         return [self.encode(snapshot) for snapshot in snapshots]
 
     def decide_encoded(
@@ -85,7 +91,7 @@ class Marimba:
         rows = []
         for start in range(0, len(snapshots), step):
             group = snapshots[start : start + step]
-            for encoded in self.encode_many(group) if batched else [self.encode(group[0])]:
+            for encoded in self.encode_many(group, frozen) if batched else [self.encode(group[0])]:
                 rows.append(
                     [
                         replace(d, latency_ms=d.latency_ms + encoded.encoder_latency_ms)
