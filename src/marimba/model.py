@@ -275,13 +275,17 @@ class Marimba:
         # Decoder questions keep the sequential path: only the encoder forward is batched.
         if not batched or any(self.lane(question) != "encoder" for question in questions):
             return [self(audio, questions) for audio in audios]
-        snapshots = []
-        for audio in audios:
-            samples = decode_audio(audio)
-            window, mask = right_aligned_window(samples)
-            end = len(samples) / SAMPLE_RATE
-            snapshots.append(WindowSnapshot(window, mask, max(0.0, end - 8), end))
-        return self._decide_snapshots(snapshots, questions, True, batch_size)
+        rows: list[list[Decision]] = []
+        # One group of windows in memory at a time, however many clips there are.
+        for first in range(0, len(audios), batch_size):
+            snapshots = []
+            for audio in audios[first : first + batch_size]:
+                samples = decode_audio(audio)
+                window, mask = right_aligned_window(samples)
+                end = len(samples) / SAMPLE_RATE
+                snapshots.append(WindowSnapshot(window, mask, max(0.0, end - 8), end))
+            rows.extend(self._decide_snapshots(snapshots, questions, True, batch_size))
+        return rows
 
     def map_fn(
         self, questions: Sequence[Question], audio_column: str = "audio", prefix: str = "marimba_"
