@@ -354,10 +354,10 @@ def test_oversized_body_is_rejected(
     assert response.json()["error"]["code"] == "request_too_large"
 
 
-def test_stream_disconnect_keeps_slot_until_inference_ends() -> None:
+async def _stream_until_client_disconnects(app: Any) -> None:
+    """One streaming request whose client leaves at the first keep-alive comment."""
     import asyncio
 
-    app = create_app(FakeMarimba(slow_decoder_seconds=1.0), ServerConfig(max_concurrency=1))
     payload = json.dumps(body("term: x", stream=True)).encode()
     scope = {
         "type": "http",
@@ -373,25 +373,32 @@ def test_stream_disconnect_keeps_slot_until_inference_ends() -> None:
         "client": ("testclient", 1),
         "server": ("testserver", 80),
     }
+    processing = asyncio.Event()
+    requested = False
+
+    async def receive() -> dict[str, Any]:
+        nonlocal requested
+        if not requested:
+            requested = True
+            return {"type": "http.request", "body": payload, "more_body": False}
+        await processing.wait()
+        return {"type": "http.disconnect"}
+
+    async def send(message: dict[str, Any]) -> None:
+        if message["type"] == "http.response.body" and message["body"].startswith(b":"):
+            processing.set()
+
+    await app(scope, receive, send)
+
+
+def test_stream_disconnect_keeps_slot_until_inference_ends() -> None:
+    import asyncio
+
+    app = create_app(FakeMarimba(slow_decoder_seconds=1.0), ServerConfig(max_concurrency=1))
 
     async def scenario() -> list[int]:
-        processing = asyncio.Event()
-        requested = False
-
-        async def receive() -> dict[str, Any]:
-            nonlocal requested
-            if not requested:
-                requested = True
-                return {"type": "http.request", "body": payload, "more_body": False}
-            await processing.wait()
-            return {"type": "http.disconnect"}
-
-        async def send(message: dict[str, Any]) -> None:
-            if message["type"] == "http.response.body" and message["body"].startswith(b":"):
-                processing.set()
-
         # Starlette cancels the stream on disconnect; inference keeps running in its thread.
-        await app(scope, receive, send)
+        await _stream_until_client_disconnects(app)
         post = TestClient(app).post
         busy = await asyncio.to_thread(post, "/v1/chat/completions", json=body("speech?"))
         await asyncio.sleep(1.5)
@@ -399,6 +406,29 @@ def test_stream_disconnect_keeps_slot_until_inference_ends() -> None:
         return [busy.status_code, free.status_code]
 
     assert asyncio.run(scenario()) == [429, 200]
+
+
+def test_stream_disconnect_while_inference_is_queued_releases_slot() -> None:
+    import asyncio
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+
+    app = create_app(FakeMarimba(), ServerConfig(max_concurrency=1))
+
+    async def scenario() -> int:
+        loop = asyncio.get_running_loop()
+        loop.set_default_executor(ThreadPoolExecutor(max_workers=1))
+        # The only worker thread is busy, so the stream's inference waits in the queue.
+        blocker = loop.run_in_executor(None, time.sleep, 0.5)
+        await _stream_until_client_disconnects(app)
+        await blocker
+        await asyncio.sleep(0.5)
+        post = TestClient(app).post
+        return (
+            await asyncio.to_thread(post, "/v1/chat/completions", json=body("speech?"))
+        ).status_code
+
+    assert asyncio.run(scenario()) == 200
 
 
 def test_serve_exits_cleanly_when_the_model_fails_to_load(monkeypatch: pytest.MonkeyPatch) -> None:
