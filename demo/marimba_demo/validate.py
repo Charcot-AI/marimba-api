@@ -107,8 +107,10 @@ def public_clips(speakers: int, turns: int, seed: int) -> list[tuple[int, Audio,
     clips: list[tuple[int, Audio, str]] = []
     previous = -1
     for _ in range(turns):
-        speaker = int(rng.choice([s for s in range(len(chosen)) if s != previous]))
-        # Every other turn has two utterances, so same-speaker joins are exercised too.
+        others = [s for s in range(len(chosen)) if s != previous]
+        # A single reader keeps every turn.
+        speaker = int(rng.choice(others)) if others else previous
+        # Turns after the first have two utterances, so same-speaker joins are exercised too.
         for _ in range(1 + len(clips) % 2):
             audio, text = by_speaker[chosen[speaker]].pop(0)
             clips.append((speaker, audio, text))
