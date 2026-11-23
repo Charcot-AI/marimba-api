@@ -113,7 +113,7 @@ def test_energy_is_smoothed_over_five_frames_without_darker_edges():
     step = frame_energy_db(
         np.concatenate((quiet(0.5, 0.0), np.ones(RATE // 2, np.float32)))
     )
-    # A centred five-frame mean sees 1, 2, 3 loud frames just before the step.
+    # A centered five-frame mean sees 1, 2, 3 loud frames just before the step.
     np.testing.assert_allclose(
         step[47:52], 10 * np.log10(np.array([0, 1, 2, 3, 4]) / 5 + 1e-12), atol=1e-6
     )
@@ -132,7 +132,7 @@ def test_snap_picks_the_quietest_frame_and_breaks_ties_towards_the_edge():
         abs(snap_edge(flat, round(1.503 * RATE), 0, 3 * RATE) - round(1.503 * RATE))
         < 160
     )
-    # Out of reach: the search is limited to 0.5 s and to the neighbour bounds.
+    # Out of reach: the search is limited to 0.5 s and to the neighbor bounds.
     assert snap_edge(energy, round(0.4 * RATE), 0, total) < 0.9 * RATE + 80
     assert snap_edge(energy, round(0.7 * RATE), 0, round(0.9 * RATE)) <= 0.9 * RATE
     assert snap_edge(energy, 100, 200, 100) == 100

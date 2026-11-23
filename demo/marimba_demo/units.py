@@ -142,7 +142,7 @@ class UnitJoiner:
 def frame_energy_db(
     audio: npt.NDArray[np.float32], config: UnitConfig | None = None
 ) -> npt.NDArray[np.float64]:
-    """Mean-square energy per frame, centred moving average, in dB."""
+    """Mean-square energy per frame, centered moving average, in dB."""
     config = config or UnitConfig()
     size = config.samples(config.energy_frame_s)
     count = len(audio) // size
@@ -171,7 +171,7 @@ def snap_edge(
     """Move ``edge`` to the quietest frame boundary within the search range.
 
     ``energy_db`` covers the stream from sample ``energy_start``. ``lower`` and ``upper``
-    are the neighbouring unit edges (or the audio bounds) the result must stay within.
+    are the neighboring unit edges (or the audio bounds) the result must stay within.
     """
     config = config or UnitConfig()
     size = config.samples(config.energy_frame_s)
@@ -184,9 +184,9 @@ def snap_edge(
     if not len(frames):
         return edge
     level = np.round(energy_db[frames])
-    centres = energy_start + frames * size + size // 2
+    centers = energy_start + frames * size + size // 2
     quietest = frames[level == level.min()]
-    best = quietest[np.argmin(np.abs(centres[level == level.min()] - edge))]
+    best = quietest[np.argmin(np.abs(centers[level == level.min()] - edge))]
     return int(energy_start + best * size + size // 2)
 
 

@@ -144,11 +144,11 @@ minus 0.5 s and its end is the closing window end minus 0.75 s; segments under 0
 are dropped. Segments join into one unit while the previous segment did not end a turn
 (`turn_end` asked on the eight seconds ending at that segment's end), the pause is at
 most 5 s and the unit stays within 30 s; longer speech is sliced at 30 s. Each unit edge
-then moves to the quietest 10 ms frame within 0.5 s, bounded by the neighbouring units:
-mean-square energy, centred five-frame average, in dB rounded to 1 dB, ties to the
-frame nearest the original edge. The edge is placed at the centre of that frame. The
+then moves to the quietest 10 ms frame within 0.5 s, bounded by the neighboring units:
+mean-square energy, centered five-frame average, in dB rounded to 1 dB, ties to the
+frame nearest the original edge. The edge is placed at the center of that frame. The
 audio handed to transcription is padded by 0.25 s on each side, capped at the midpoint
-of the gap to the neighbouring unit and at the audio bounds; unit edges stay snapped.
+of the gap to the neighboring unit and at the audio bounds; unit edges stay snapped.
 `snap_units` applies this rule to a finished list. `run_pipeline` emits each unit as
 soon as it closes, so a later unit may not exist yet: the end padding is then capped by
 the audio heard so far, and the next unit's start padding never crosses it.
