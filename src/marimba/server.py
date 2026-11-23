@@ -542,7 +542,9 @@ def create_app(model: Marimba, config: ServerConfig | None = None) -> FastAPI:
             # An SSE comment reaches the client before inference finishes.
             yield ": processing\n\n"
             try:
-                content, counts = await pending
+                # Shielded: cancelling this stream must not cancel inference that is still
+                # queued, or its slot would never be released.
+                content, counts = await asyncio.shield(pending)
             except Exception as error:
                 _log_failure("inference", error)
                 yield f"data: {json.dumps(_INTERNAL_ERROR)}\n\n"
