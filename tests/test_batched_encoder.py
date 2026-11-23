@@ -1,3 +1,4 @@
+from collections import deque
 from contextvars import ContextVar
 from functools import partial
 from types import MethodType, SimpleNamespace
@@ -97,6 +98,8 @@ def test_batch_keeps_sequential_default_and_matches_when_batched() -> None:
     # Decoder questions keep the sequential path even when batching is requested.
     model.batch(audios, [Question.choice("What language?", ["en", "pt"])], batched=True)
     assert calls == [2, 1]
+    # Any sequence of clips is accepted, including one that cannot be sliced.
+    assert len(model.batch(deque(audios), QUESTIONS, batch_size=2, batched=True)) == 3
 
 
 @pytest.fixture

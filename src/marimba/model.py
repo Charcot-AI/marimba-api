@@ -277,9 +277,10 @@ class Marimba:
             return [self(audio, questions) for audio in audios]
         rows: list[list[Decision]] = []
         # One group of windows in memory at a time, however many clips there are.
-        for first in range(0, len(audios), batch_size):
+        clips = list(audios)
+        for first in range(0, len(clips), batch_size):
             snapshots = []
-            for audio in audios[first : first + batch_size]:
+            for audio in clips[first : first + batch_size]:
                 samples = decode_audio(audio)
                 window, mask = right_aligned_window(samples)
                 end = len(samples) / SAMPLE_RATE
