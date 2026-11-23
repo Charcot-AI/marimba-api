@@ -421,8 +421,10 @@ def test_stream_disconnect_while_inference_is_queued_releases_slot() -> None:
         # The only worker thread is busy, so the stream's inference waits in the queue.
         release = threading.Event()
         blocker = loop.run_in_executor(None, release.wait)
-        await _stream_until_client_disconnects(app)
-        release.set()
+        try:
+            await _stream_until_client_disconnects(app)
+        finally:
+            release.set()
         await blocker
         await asyncio.sleep(0.5)
         post = TestClient(app).post
