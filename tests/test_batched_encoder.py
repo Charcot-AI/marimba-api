@@ -138,6 +138,7 @@ def engine():
     model._captures = ContextVar("test_batch_captures", default=None)
     model._layers = (9, 18, 12)
     model.head = None
+    model._tensorrt = None
     for layer in model._layers:
         tower.layers[layer - 1].register_forward_hook(partial(model._capture, layer))
     return model
@@ -181,6 +182,34 @@ def test_batched_pass_stops_at_the_last_layer_the_window_tasks_read(engine) -> N
     mixed = engine.encode_batch(windows, ["voice_activity", "language"])
     assert set(mixed[0]["features"]) == {9, 12, 18}
     np.testing.assert_array_equal(mixed[0]["audio_features"], full[0]["audio_features"])
+
+
+def test_tensorrt_engines_answer_only_batched_window_readouts(engine) -> None:
+    torch = pytest.importorskip("torch")
+    rng = np.random.default_rng(3)
+    windows = [(0.1 * rng.standard_normal(128000)).astype(np.float32) for _ in range(3)]
+    tasks = ["voice_activity", "speaker_change", "speaker_count"]
+    reference = engine.encode_batch(windows, tasks)
+    calls = []
+
+    class Engines:
+        def captures(self, mel, wanted):
+            calls.append((tuple(mel.shape), set(wanted)))
+            return {layer: torch.full((len(mel), 104, 32), float(layer)) for layer in wanted}
+
+    engine._tensorrt = Engines()
+    rows = engine.encode_batch(windows, tasks)
+    assert calls == [((3, 128, 800), {9, 12})]
+    assert set(rows[2]["features"]) == {9, 12} and rows[2]["audio_features"] is None
+    np.testing.assert_array_equal(rows[2]["features"][12], np.full((104, 32), 12.0))
+    # Decoder features, single windows and other lengths stay on the torch pass.
+    full = engine.encode_batch(windows, ["voice_activity", "language"])
+    single = engine.encode_batch(windows[:1], tasks)
+    assert len(calls) == 1
+    assert full[0]["audio_features"] is not None
+    np.testing.assert_allclose(
+        single[0]["features"][12], reference[0]["features"][12], atol=2e-3, rtol=2e-3
+    )
 
 
 def test_batched_log_mel_is_the_feature_extractor(engine) -> None:

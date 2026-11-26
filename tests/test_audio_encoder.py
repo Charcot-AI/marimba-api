@@ -65,11 +65,17 @@ def test_encoder_only_answers_encoder_questions_and_rejects_decoder_questions() 
 
 def test_from_pretrained_passes_the_encoder_options(monkeypatch, tmp_path) -> None:
     seen = []
-    monkeypatch.setattr("marimba.pretrained.load_pretrained", lambda *args: seen.append(args[-2:]))
+    monkeypatch.setattr("marimba.pretrained.load_pretrained", lambda *args: seen.append(args[-3:]))
     Marimba.from_pretrained()
     Marimba.from_pretrained(encoder_only=True)
     Marimba.from_pretrained(encoder_dir=tmp_path)
-    assert seen == [(False, None), (True, None), (False, tmp_path)]
+    Marimba.from_pretrained(encoder_only=True, tensorrt_dir=tmp_path)
+    assert seen == [
+        (False, None, None),
+        (True, None, None),
+        (False, tmp_path, None),
+        (True, None, tmp_path),
+    ]
 
 
 @pytest.fixture
