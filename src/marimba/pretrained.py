@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import replace
+from pathlib import Path
 from time import perf_counter
 from typing import Any
 
@@ -44,6 +45,7 @@ class PretrainedMarimba(Marimba):
         engine: Any,
         manifest: dict[str, Any],
         pii_detector: PIIDetector | None = None,
+        encoder_only: bool = False,
     ) -> None:
         super().__init__(runtime)
         self._engine = engine
@@ -98,6 +100,14 @@ class PretrainedMarimba(Marimba):
         )
         if manifest["lanes"].get("term", {}).get("calibration") != "none":
             raise ValueError("Only explicitly uncalibrated lexical manifests are supported")
+        self._encoder_only = encoder_only
+        if encoder_only:
+            for task in ("language", "term", "pii"):
+                self._capabilities[task] = replace(
+                    super().capabilities[task],
+                    status="unavailable",
+                    evaluation="Requires the text decoder; loaded with the audio encoder only",
+                )
 
     @property
     def capabilities(self) -> dict[str, Capability]:
@@ -110,6 +120,11 @@ class PretrainedMarimba(Marimba):
                 raise UnsupportedQuestion(f"Unsupported task {question.task!r}")
             if question.kind not in cap.kinds:
                 raise UnsupportedQuestion(f"Task {question.task} supports kinds {cap.kinds}")
+            if self._encoder_only and self.lane(question) == "decoder":
+                raise UnsupportedQuestion(
+                    f"Task {question.task} needs the text decoder, and this model was loaded "
+                    "with the audio encoder only; load it without encoder_only to ask it"
+                )
             if question.task == "term" and (not question.term or not normalize(question.term)):
                 raise UnsupportedQuestion("Term questions require a nonempty quoted term")
             if question.task == "language":
@@ -346,7 +361,10 @@ def load_pretrained(
     backend: str,
     dtype: str,
     pii_detector: PIIDetector | None = None,
+    encoder_only: bool = False,
+    encoder_dir: str | Path | None = None,
 ) -> Marimba:
+    encoder_only = encoder_only or encoder_dir is not None
     if backend not in ("auto", "torch"):
         raise ValueError("These model lanes require backend='torch'; ONNX is not available yet")
     runtime = select_backend("torch", device, dtype)
@@ -355,4 +373,5 @@ def load_pretrained(
         from ._qwen import QwenEngine
     except ImportError as error:
         raise ImportError("Install marimba-audio[torch] to load Qwen3-ASR model lanes") from error
-    return PretrainedMarimba(runtime, QwenEngine(runtime, paths), manifest, pii_detector)
+    engine = QwenEngine(runtime, paths, encoder_only, encoder_dir)
+    return PretrainedMarimba(runtime, engine, manifest, pii_detector, encoder_only)

@@ -150,7 +150,12 @@ def run_server(args: argparse.Namespace) -> int:
             FakeMarimba()
             if args.fake
             else Marimba.from_pretrained(
-                backend=args.backend, device=args.device, dtype=args.dtype, revision=args.revision
+                backend=args.backend,
+                device=args.device,
+                dtype=args.dtype,
+                revision=args.revision,
+                encoder_only=args.encoder_only,
+                encoder_dir=args.encoder_dir,
             )
         )
     except Exception as error:
@@ -201,6 +206,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     server = commands.add_parser("serve", help="Run the OpenAI-compatible HTTP server")
     server.add_argument("--host", default="127.0.0.1")
+    for command in (bench, server):
+        command.add_argument(
+            "--encoder-only",
+            action="store_true",
+            help="Load the audio encoder without the text decoder; decoder tasks are unavailable",
+        )
+        command.add_argument(
+            "--encoder-dir",
+            type=Path,
+            default=os.environ.get("MARIMBA_ENCODER_DIR"),
+            help="Directory written by export-encoder; implies --encoder-only",
+        )
     server.add_argument("--port", type=int, default=8000)
     server.add_argument("--backend", default="auto")
     server.add_argument("--device", default="auto")
@@ -233,9 +250,21 @@ def main(argv: list[str] | None = None) -> int:
         default=os.environ.get("MARIMBA_TLS_KEYFILE"),
         help="PEM private key for --tls-certfile",
     )
+    export = commands.add_parser(
+        "export-encoder",
+        help="Write the audio encoder alone, without the text decoder, to a directory",
+    )
+    export.add_argument("directory", type=Path)
     args = parser.parse_args(argv)
     if args.command == "serve":
         return run_server(args)
+    if args.command == "export-encoder":
+        from .weights import export_audio_encoder
+
+        path = export_audio_encoder(args.directory)
+        size = sum(file.stat().st_size for file in path.iterdir())
+        print(json.dumps({"directory": str(path), "bytes": size}))
+        return 0
     if args.command == "doctor":
         report = detect_runtime()
         try:
@@ -270,7 +299,12 @@ def main(argv: list[str] | None = None) -> int:
             FakeMarimba()
             if args.fake
             else Marimba.from_pretrained(
-                backend=args.backend, device=args.device, dtype=args.dtype, revision=args.revision
+                backend=args.backend,
+                device=args.device,
+                dtype=args.dtype,
+                revision=args.revision,
+                encoder_only=args.encoder_only,
+                encoder_dir=args.encoder_dir,
             )
         )
     except Exception as error:

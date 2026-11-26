@@ -94,6 +94,42 @@ the published image. Responses have the same schema either way; see
 [batch.md](batch.md#batched-encoder-forward) for the measured difference against the
 sequential path.
 
+## Audio encoder only
+
+A deployment that asks only encoder questions (`turn_end`, `voice_activity`,
+`same_speaker`, `speaker_change`, `speaker_count`) does not need the text decoder, which
+is four fifths of the encoder checkpoint: 1,503 MB of its 1,876 MB. The audio tower is
+the other 373 MB.
+
+```python
+model = Marimba.from_pretrained(encoder_only=True)
+```
+
+or `marimba serve --encoder-only`. The audio tower gets the same weights and runs the
+same code as in the full model, so the answers to encoder questions are the same.
+`language`, `term` and `pii` are reported as unavailable in `model.capabilities`, the
+server rejects them, and asking one in Python raises `UnsupportedQuestion`. Without the
+option the full model loads as before.
+
+`encoder_only=True` still reads the tower from the full checkpoint in the Hub cache. To
+keep the decoder out of an image, export the tower at build time and drop the
+checkpoint in the same layer:
+
+```dockerfile
+RUN marimba export-encoder /opt/marimba/audio-encoder \
+    && rm -rf "${HF_HOME}/hub/models--Qwen--Qwen3-ASR-0.6B"
+ENV MARIMBA_ENCODER_DIR=/opt/marimba/audio-encoder
+```
+
+`marimba serve` and `marimba bench` read `MARIMBA_ENCODER_DIR` (or `--encoder-dir`); in
+Python, pass `Marimba.from_pretrained(encoder_dir=...)`. The directory holds the tower
+weights, its configuration with the encoder revision it was cut from, and the feature
+extractor configuration. A directory cut from another encoder revision is rejected. The
+model manifest, the heads and the voice activity tokenizer are still read from the Hub
+cache. The exported weights are part of
+[Qwen3-ASR-0.6B](https://huggingface.co/Qwen/Qwen3-ASR-0.6B) and stay under its
+Apache-2.0 license; see [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).
+
 ## Sizing for streaming clients
 
 A streaming session keeps the server busy all the time: one
