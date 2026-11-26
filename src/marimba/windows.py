@@ -10,9 +10,14 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from .audio import AudioArray, Mask
+from .audio import SAMPLE_RATE, AudioArray, Mask, normalize_array
 
 MAX_DECODER_SECONDS = 30.0
+WINDOW_SAMPLES = 8 * SAMPLE_RATE
+# Seconds of (reference, segment) each pair readout was trained on.
+PAIR_LAYOUTS: Mapping[str, tuple[float, float]] = MappingProxyType(
+    {"same_speaker": (4.0, 4.0), "speaker_change": (6.0, 2.0)}
+)
 
 
 def readonly(array: npt.NDArray[Any]) -> Any:
@@ -57,6 +62,42 @@ def decoder_snapshot(snapshot: WindowSnapshot) -> WindowSnapshot:
     return WindowSnapshot(audio, mask, snapshot.window_start_s, snapshot.window_end_s)
 
 
+def _fill(part: AudioArray, size: int, *, keep_end: bool) -> AudioArray:
+    if len(part) >= size:
+        return part[-size:] if keep_end else part[:size]
+    # Pair readouts mean-pool each part: repetition keeps that mean, silence would dilute it.
+    return np.resize(part, size)
+
+
+def assemble_pair(task: str, reference: Any, segment: Any) -> AudioArray:
+    """Build the eight-second ``[reference | segment]`` window a pair question expects."""
+    layout = PAIR_LAYOUTS.get(task)
+    if layout is None:
+        raise ValueError(f"Pair windows exist for {', '.join(PAIR_LAYOUTS)}; got {task!r}")
+    parts = [normalize_array(reference), normalize_array(segment)]
+    if not all(len(part) for part in parts):
+        raise ValueError("Reference and segment must both contain 16 kHz mono audio")
+    sizes = [round(seconds * SAMPLE_RATE) for seconds in layout]
+    return np.concatenate(
+        (_fill(parts[0], sizes[0], keep_end=True), _fill(parts[1], sizes[1], keep_end=False))
+    )
+
+
+def full_window(audio: Any) -> WindowSnapshot:
+    """Wrap exactly eight seconds of 16 kHz mono audio as a fully valid snapshot."""
+    window = normalize_array(audio)
+    if window.shape != (WINDOW_SAMPLES,):
+        raise ValueError(f"An assembled window needs exactly {WINDOW_SAMPLES} samples at 16 kHz")
+    return WindowSnapshot(window, np.ones(WINDOW_SAMPLES, dtype=np.bool_), 0.0, 8.0)
+
+
+class DeviceFeatures(Mapping[int, Any]):
+    """Read-only layers a backend keeps on its device until one is read.
+
+    An ``EncodedWindow`` stores this mapping as is instead of copying every layer to the host.
+    """
+
+
 @dataclass(frozen=True)
 class EncodedWindow:
     snapshot: WindowSnapshot
@@ -71,12 +112,15 @@ class EncodedWindow:
             or self.encoder_latency_ms < 0
         ):
             raise ValueError("Invalid encoded duration or encoder latency")
-        object.__setattr__(
-            self,
-            "features",
-            MappingProxyType({layer: readonly(value) for layer, value in self.features.items()}),
-        )
-        if self.audio_features is not None:
+        if not isinstance(self.features, DeviceFeatures):
+            object.__setattr__(
+                self,
+                "features",
+                MappingProxyType(
+                    {layer: readonly(value) for layer, value in self.features.items()}
+                ),
+            )
+        if isinstance(self.audio_features, np.ndarray):
             object.__setattr__(self, "audio_features", readonly(self.audio_features))
 
     @property

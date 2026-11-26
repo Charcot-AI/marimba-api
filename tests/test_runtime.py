@@ -112,3 +112,20 @@ def test_auto_uses_torch_cpu_when_mps_is_the_only_torch_device(monkeypatch):
     assert selected.backend == "torch"
     assert selected.device == "cpu"
     assert selected.dtype == "float32"
+
+
+def test_pin_threads_caps_every_pool(monkeypatch):
+    calls = {}
+    torch = SimpleNamespace(
+        set_num_threads=lambda count: calls.setdefault("intra", count),
+        set_num_interop_threads=Mock(side_effect=RuntimeError("already started")),
+    )
+    monkeypatch.setattr(runtime.importlib.util, "find_spec", lambda name: object())
+    monkeypatch.setattr(runtime.importlib, "import_module", lambda name: torch)
+    for name in runtime.THREAD_VARIABLES:
+        monkeypatch.setenv(name, "64")
+    runtime.pin_threads(2)
+    assert calls == {"intra": 2}
+    assert {runtime.os.environ[name] for name in runtime.THREAD_VARIABLES} == {"2"}
+    with pytest.raises(ValueError):
+        runtime.pin_threads(0)

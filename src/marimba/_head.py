@@ -204,3 +204,31 @@ class SpeechReadout:
                 frames, mask, question, question_mask, self.option, self.option_mask
             )
         return float(logit.item())
+
+    def score_batch(
+        self, native: Tensor, sample_mask: np.ndarray[Any, Any], text: str
+    ) -> list[float]:
+        """``score`` for a batch of windows that share the sample mask and the question."""
+        frames = (
+            F.interpolate(
+                native.float().transpose(1, 2), size=100, mode="linear", align_corners=False
+            )
+            .transpose(1, 2)
+            .to(torch.float16)
+            .float()
+            .to(self.device)
+        )
+        count = frames.shape[0]
+        frame_mask = np.asarray(sample_mask.reshape(100, -1).any(axis=1), dtype=np.bool_)
+        mask = torch.from_numpy(frame_mask[None]).to(self.device).expand(count, -1)
+        with torch.inference_mode():
+            question, question_mask = self.question_features(text)
+            logits = self.model.head(
+                frames,
+                mask,
+                question.expand(count, -1, -1),
+                question_mask.expand(count, -1),
+                self.option.expand(count, -1, -1),
+                self.option_mask.expand(count, -1),
+            )
+        return [float(value) for value in logits.float().cpu().tolist()]

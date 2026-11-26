@@ -20,7 +20,15 @@ from .pii import PIIDetector
 from .questions import Question, UnsupportedQuestion
 from .runtime import RuntimeInfo, select_backend, synchronize
 from .stream import Stream
-from .windows import MAX_DECODER_SECONDS, EncodedWindow, WindowSnapshot, decoder_snapshot
+from .windows import (
+    MAX_DECODER_SECONDS,
+    PAIR_LAYOUTS,
+    EncodedWindow,
+    WindowSnapshot,
+    assemble_pair,
+    decoder_snapshot,
+    full_window,
+)
 
 
 class Marimba:
@@ -45,10 +53,84 @@ class Marimba:
             raise ValueError("Encoder lanes require exactly an eight-second snapshot")
         return self._encode_snapshot(snapshot)
 
+    def encode_many(
+        self, snapshots: Sequence[WindowSnapshot], questions: Sequence[Question] | None = None
+    ) -> list[EncodedWindow]:
+        """Encode several eight-second snapshots; backends may share one forward pass.
+
+        With ``questions``, a backend may compute only what those questions read: the result
+        then answers them and nothing else.
+        """
+        return [self.encode(snapshot) for snapshot in snapshots]
+
     def decide_encoded(
         self, encoded: EncodedWindow, questions: Sequence[Question]
     ) -> list[Decision]:
         raise NotImplementedError("Implement encoded decisions in a model backend")
+
+    def _validate(self, questions: Sequence[Question]) -> None:
+        for question in questions:
+            self.lane(question)
+
+    def _decide_snapshots(
+        self,
+        snapshots: Sequence[WindowSnapshot],
+        questions: Sequence[Question],
+        batched: bool,
+        batch_size: int,
+    ) -> list[list[Decision]]:
+        if batch_size <= 0:
+            raise ValueError("batch_size must be positive")
+        frozen = list(questions)
+        self._validate(frozen)
+        if any(self.lane(question) != "encoder" for question in frozen):
+            raise ValueError("Window decisions accept encoder questions only")
+        if not frozen:
+            return [[] for _ in snapshots]
+        step = batch_size if batched else 1
+        rows = []
+        for start in range(0, len(snapshots), step):
+            group = snapshots[start : start + step]
+            for encoded in self.encode_many(group, frozen) if batched else [self.encode(group[0])]:
+                rows.append(
+                    [
+                        replace(d, latency_ms=d.latency_ms + encoded.encoder_latency_ms)
+                        for d in self.decide_encoded(encoded, frozen)
+                    ]
+                )
+        return rows
+
+    def decide_windows(
+        self,
+        windows: Sequence[Any],
+        questions: Sequence[Question],
+        *,
+        batched: bool = False,
+        batch_size: int = 16,
+    ) -> list[list[Decision]]:
+        """Answer encoder questions on caller-assembled eight-second 16 kHz windows.
+
+        Every sample counts as valid audio and timestamps are relative to the window.
+        ``batched=True`` shares one encoder forward per ``batch_size`` windows.
+        """
+        snapshots = [full_window(window) for window in windows]
+        return self._decide_snapshots(snapshots, questions, batched, batch_size)
+
+    def decide_pairs(
+        self,
+        question: Question,
+        pairs: Sequence[tuple[Any, Any]],
+        *,
+        batched: bool = False,
+        batch_size: int = 16,
+    ) -> list[Decision]:
+        """Answer one pair question for each ``(reference, segment)`` of 16 kHz audio."""
+        task = question.task or ""
+        if task not in PAIR_LAYOUTS:
+            raise ValueError(f"Pair questions are {', '.join(PAIR_LAYOUTS)}")
+        windows = [assemble_pair(task, reference, segment) for reference, segment in pairs]
+        rows = self.decide_windows(windows, [question], batched=batched, batch_size=batch_size)
+        return [row[0] for row in rows]
 
     def decide_snapshot(
         self, snapshot: WindowSnapshot, questions: Sequence[Question]
@@ -187,11 +269,30 @@ class Marimba:
         return [replace(d, latency_ms=latency) for d in decisions]
 
     def batch(
-        self, audios: Sequence[Any], questions: Sequence[Question], batch_size: int = 16
+        self,
+        audios: Sequence[Any],
+        questions: Sequence[Question],
+        batch_size: int = 16,
+        *,
+        batched: bool = False,
     ) -> list[list[Decision]]:
         if batch_size <= 0:
             raise ValueError("batch_size must be positive")
-        return [self(audio, questions) for audio in audios]
+        # Decoder questions keep the sequential path: only the encoder forward is batched.
+        if not batched or any(self.lane(question) != "encoder" for question in questions):
+            return [self(audio, questions) for audio in audios]
+        rows: list[list[Decision]] = []
+        # One group of windows in memory at a time, however many clips there are.
+        clips = list(audios)
+        for first in range(0, len(clips), batch_size):
+            snapshots = []
+            for audio in clips[first : first + batch_size]:
+                samples = decode_audio(audio)
+                window, mask = right_aligned_window(samples)
+                end = len(samples) / SAMPLE_RATE
+                snapshots.append(WindowSnapshot(window, mask, max(0.0, end - 8), end))
+            rows.extend(self._decide_snapshots(snapshots, questions, True, batch_size))
+        return rows
 
     def map_fn(
         self, questions: Sequence[Question], audio_column: str = "audio", prefix: str = "marimba_"

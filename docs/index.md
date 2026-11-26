@@ -15,6 +15,7 @@ weights. Start with the [README](../README.md) for install and a first run.
 | [Measured benchmarks](benchmarks.md) | CPU, L4 and Mac latency with protocol |
 | [Calibrate on your domain](calibration.md) | Per-question Platt maps from your own labels |
 | [OpenAI-compatible server](openai-server.md) | `marimba serve` request, response and token accounting |
+| [Stateless window server](window-server.md) | Binary wire contract for `/v1/windows` and `/v1/pairs` |
 | [Hosting the server](hosting.md) | Image, Runpod options and cost estimate |
 
 Also in this repository:

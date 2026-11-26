@@ -126,6 +126,28 @@ class PretrainedMarimba(Marimba):
             latency = (perf_counter() - started) * 1000
         return EncodedWindow(snapshot, data["features"], latency, data["audio_features"])
 
+    def encode_many(
+        self, snapshots: Sequence[WindowSnapshot], questions: Sequence[Question] | None = None
+    ) -> list[EncodedWindow]:
+        encode_batch = getattr(self._engine, "encode_batch", None)
+        if encode_batch is None or len(snapshots) < 2:
+            return super().encode_many(snapshots)
+        if any(len(s.audio) != 128000 or not s.mask.any() for s in snapshots):
+            raise ValueError("Encoder lanes require nonempty eight-second snapshots")
+        with self._encoder_lock:
+            synchronize(self.runtime)
+            started = perf_counter()
+            rows = encode_batch(
+                [snapshot.audio for snapshot in snapshots],
+                None if questions is None else [question.task or "" for question in questions],
+            )
+            synchronize(self.runtime)
+            latency = (perf_counter() - started) * 1000 / len(snapshots)
+        return [
+            EncodedWindow(snapshot, data["features"], latency, data["audio_features"])
+            for snapshot, data in zip(snapshots, rows, strict=True)
+        ]
+
     def decide_snapshot(
         self, snapshot: WindowSnapshot, questions: Sequence[Question]
     ) -> list[Decision]:
