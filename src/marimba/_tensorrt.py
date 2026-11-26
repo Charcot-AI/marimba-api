@@ -117,7 +117,7 @@ def build_engines(
         )
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
-    seconds = {}
+    seconds, engines = {}, {}
     for part, shape in _INPUT_SHAPES.items():
         logger = trt.Logger(trt.Logger.WARNING)
         builder = trt.Builder(logger)
@@ -136,6 +136,9 @@ def build_engines(
         serialized = builder.build_serialized_network(network, config)
         if serialized is None:
             raise RuntimeError(f"TensorRT could not build {part}")
-        (directory / f"{part}.engine").write_bytes(bytes(serialized))
+        engines[part] = bytes(serialized)
         seconds[part] = time.perf_counter() - started
+    # Both parts or neither: a part from an earlier build may take another batch limit.
+    for part, serialized in engines.items():
+        (directory / f"{part}.engine").write_bytes(serialized)
     return seconds
