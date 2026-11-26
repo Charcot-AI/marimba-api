@@ -61,10 +61,11 @@ class _Engine:
             buffer = torch.empty(shape, dtype=self.dtypes[name], device=tensor.device)
             self.context.set_tensor_address(name, buffer.data_ptr())
             outputs.append(buffer)
-        self.stream.wait_stream(torch.cuda.current_stream())
+        current = torch.cuda.current_stream(tensor.device)
+        self.stream.wait_stream(current)
         if not self.context.execute_async_v3(self.stream.cuda_stream):
             raise RuntimeError("TensorRT execution failed")
-        torch.cuda.current_stream().wait_stream(self.stream)
+        current.wait_stream(self.stream)
         for buffer in (tensor, *outputs):
             buffer.record_stream(self.stream)
         return outputs
