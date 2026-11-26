@@ -199,13 +199,16 @@ def test_tensorrt_engines_answer_only_batched_window_readouts(engine) -> None:
 
     engine._tensorrt = Engines()
     rows = engine.encode_batch(windows, tasks)
-    assert calls == [((3, 128, 800), {9, 12})]
+    turn = engine.encode_batch(windows, ["turn_end"])
+    assert calls == [((3, 128, 800), {9, 12}), ((3, 128, 800), {18})]
+    assert set(turn[0]["features"]) == {18}
     assert set(rows[2]["features"]) == {9, 12} and rows[2]["audio_features"] is None
     np.testing.assert_array_equal(rows[2]["features"][12], np.full((104, 32), 12.0))
     # Decoder features, single windows and other lengths stay on the torch pass.
     full = engine.encode_batch(windows, ["voice_activity", "language"])
     single = engine.encode_batch(windows[:1], tasks)
-    assert len(calls) == 1
+    shorter = engine.encode_batch([window[:96000] for window in windows], tasks)
+    assert len(calls) == 2 and len(shorter) == 3
     assert full[0]["audio_features"] is not None
     np.testing.assert_allclose(
         single[0]["features"][12], reference[0]["features"][12], atol=2e-3, rtol=2e-3
