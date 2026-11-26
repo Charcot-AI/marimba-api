@@ -214,7 +214,11 @@ class QwenEngine:
         if tensorrt_dir is not None:
             from ._tensorrt import TensorRTEncoder
 
-            self._tensorrt = TensorRTEncoder(tensorrt_dir)
+            if not runtime.device.startswith("cuda"):
+                raise ValueError("TensorRT engines need the model on a CUDA device")
+            # Engines and their stream live on the device the tower runs on.
+            with torch.cuda.device(runtime.device):
+                self._tensorrt = TensorRTEncoder(tensorrt_dir)
         self._hooks = [
             self.thinker.audio_tower.layers[layer - 1].register_forward_hook(
                 partial(self._capture, layer)
