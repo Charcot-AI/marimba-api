@@ -2309,8 +2309,11 @@ server = [
     { name = "uvicorn" },
 ]
 tensorrt = [
-    { name = "huggingface-hub" },
+    { name = "accelerate" },
     { name = "tensorrt-cu12" },
+    { name = "torch" },
+    { name = "torchaudio" },
+    { name = "transformers" },
 ]
 torch = [
     { name = "accelerate" },
@@ -2334,8 +2337,8 @@ requires-dist = [
     { name = "fastapi", marker = "extra == 'server'", specifier = ">=0.115" },
     { name = "gradio", marker = "extra == 'demo'", specifier = ">=5" },
     { name = "huggingface-hub", specifier = ">=0.26" },
-    { name = "huggingface-hub", marker = "extra == 'tensorrt'", specifier = ">=0.30" },
     { name = "livekit-agents", marker = "extra == 'livekit'", specifier = ">=1.6.3,<2" },
+    { name = "marimba-audio", extras = ["torch"], marker = "extra == 'tensorrt'" },
     { name = "numpy", specifier = ">=1.24" },
     { name = "onnxruntime", marker = "extra == 'onnx'", specifier = ">=1.20" },
     { name = "pipecat-ai", marker = "python_full_version >= '3.11' and extra == 'pipecat'", specifier = ">=1.15,<2" },
