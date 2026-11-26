@@ -99,6 +99,8 @@ class FrozenAudioEncoder:
 
 
 # The audio-tower layer each window readout reads.
+# The TensorRT engines take eight-second windows only.
+_TENSORRT_SAMPLES = 128_000
 _TASK_LAYERS = {"voice_activity": 9, "turn_end": 18, **dict.fromkeys(TASKS, 12)}
 
 
@@ -179,6 +181,7 @@ class QwenEngine:
         paths: dict[str, Path],
         encoder_only: bool = False,
         encoder_dir: str | Path | None = None,
+        tensorrt_dir: str | Path | None = None,
     ) -> None:
         self.asr: Any
         if encoder_only or encoder_dir is not None:
@@ -207,6 +210,15 @@ class QwenEngine:
         if self.diarization_readouts:
             layers = (*layers, 12)
         self._layers = layers
+        self._tensorrt: Any = None
+        if tensorrt_dir is not None:
+            from ._tensorrt import TensorRTEncoder
+
+            if not runtime.device.startswith("cuda"):
+                raise ValueError("TensorRT engines need the model on a CUDA device")
+            # Engines and their stream live on the device the tower runs on.
+            with torch.cuda.device(runtime.device):
+                self._tensorrt = TensorRTEncoder(tensorrt_dir)
         self._hooks = [
             self.thinker.audio_tower.layers[layer - 1].register_forward_hook(
                 partial(self._capture, layer)
@@ -304,6 +316,10 @@ class QwenEngine:
         if known:
             wanted &= {_TASK_LAYERS[task] for task in tasks or ()}
         last = max(wanted) if known and wanted else len(tower.layers)
+        if self._tensorrt is not None and known and wanted and samples == _TENSORRT_SAMPLES:
+            with torch.inference_mode():
+                states = self._tensorrt.captures(self._log_mel(windows), wanted)
+            return self._rows(_EncodedBatch(states, None, self.head), None, len(windows))
         with torch.inference_mode():
             mel = self._log_mel(windows).to(self.asr.model.dtype)
             batch, bins = mel.shape[:2]
@@ -335,7 +351,10 @@ class QwenEngine:
             audio = None
             if not known:
                 audio = tower.proj2(tower.act(tower.proj1(tower.ln_post(hidden))))
-        encoded = _EncodedBatch(captures, audio, self.head)
+        return self._rows(_EncodedBatch(captures, audio, self.head), audio, batch)
+
+    @staticmethod
+    def _rows(encoded: _EncodedBatch, audio: Any, batch: int) -> list[Any]:
         length = 0 if audio is None else audio.shape[1]
         return [
             {

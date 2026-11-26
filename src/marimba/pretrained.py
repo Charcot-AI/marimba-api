@@ -363,6 +363,7 @@ def load_pretrained(
     pii_detector: PIIDetector | None = None,
     encoder_only: bool = False,
     encoder_dir: str | Path | None = None,
+    tensorrt_dir: str | Path | None = None,
 ) -> Marimba:
     encoder_only = encoder_only or encoder_dir is not None
     if backend not in ("auto", "torch"):
@@ -373,5 +374,5 @@ def load_pretrained(
         from ._qwen import QwenEngine
     except ImportError as error:
         raise ImportError("Install marimba-audio[torch] to load Qwen3-ASR model lanes") from error
-    engine = QwenEngine(runtime, paths, encoder_only, encoder_dir)
+    engine = QwenEngine(runtime, paths, encoder_only, encoder_dir, tensorrt_dir)
     return PretrainedMarimba(runtime, engine, manifest, pii_detector, encoder_only)

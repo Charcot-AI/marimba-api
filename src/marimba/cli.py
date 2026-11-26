@@ -255,6 +255,13 @@ def main(argv: list[str] | None = None) -> int:
         help="Write the audio encoder alone, without the text decoder, to a directory",
     )
     export.add_argument("directory", type=Path)
+    tensorrt = commands.add_parser(
+        "build-tensorrt",
+        help="Build the TensorRT encoder engines for this GPU into a directory",
+    )
+    tensorrt.add_argument("directory", type=Path)
+    tensorrt.add_argument("--onnx-dir", type=Path, help="float16 part_a.onnx and part_b.onnx")
+    tensorrt.add_argument("--max-batch", type=int, default=32)
     args = parser.parse_args(argv)
     if args.command == "serve":
         return run_server(args)
@@ -264,6 +271,12 @@ def main(argv: list[str] | None = None) -> int:
         path = export_audio_encoder(args.directory)
         size = sum(file.stat().st_size for file in path.iterdir())
         print(json.dumps({"directory": str(path), "bytes": size}))
+        return 0
+    if args.command == "build-tensorrt":
+        from ._tensorrt import build_engines
+
+        seconds = build_engines(args.directory, args.onnx_dir, args.max_batch)
+        print(json.dumps({"directory": str(args.directory), "build_seconds": seconds}))
         return 0
     if args.command == "doctor":
         report = detect_runtime()

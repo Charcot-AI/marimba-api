@@ -238,6 +238,7 @@ class Marimba:
         pii_detector: PIIDetector | None = None,
         encoder_only: bool = False,
         encoder_dir: str | Path | None = None,
+        tensorrt_dir: str | Path | None = None,
     ) -> Marimba:
         """Load the pinned model.
 
@@ -245,12 +246,22 @@ class Marimba:
         answer as before and ``language``, ``term`` and ``pii`` become unavailable.
         ``encoder_dir`` reads that tower from a directory written by
         ``marimba export-encoder`` instead of the full encoder checkpoint, and implies
-        ``encoder_only``.
+        ``encoder_only``. ``tensorrt_dir`` runs batched encoder-only window passes through
+        the engines ``marimba build-tensorrt`` wrote there for this GPU; other passes stay
+        on torch.
         """
         from .pretrained import load_pretrained
 
         return load_pretrained(
-            repo, revision, device, backend, dtype, pii_detector, encoder_only, encoder_dir
+            repo,
+            revision,
+            device,
+            backend,
+            dtype,
+            pii_detector,
+            encoder_only,
+            encoder_dir,
+            tensorrt_dir,
         )
 
     @property

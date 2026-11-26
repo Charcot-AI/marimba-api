@@ -15,6 +15,7 @@ dependencies = ["numpy>=1.24", "soundfile>=0.12", "soxr>=0.3", "huggingface_hub>
 [project.optional-dependencies]
 torch = ["torch==2.8.0", "torchaudio==2.8.0", "transformers==4.57.6", "accelerate==1.12.0"]
 onnx = ["onnxruntime>=1.20"]
+tensorrt = ["marimba-audio[torch]", "tensorrt-cu12==10.12.0.36"]
 datasets = ["datasets>=3"]
 demo = ["gradio>=5"]
 server = ["fastapi>=0.115", "uvicorn>=0.30"]
@@ -51,7 +52,7 @@ files = ["src", ".runpod/handler.py"]
 module = ["marimba._vendor.*"]
 ignore_errors = true
 [[tool.mypy.overrides]]
-module = ["soundfile", "soxr", "torch", "torch.*", "transformers", "onnxruntime", "qwen_asr", "qwen_asr.*", "runpod"]
+module = ["soundfile", "soxr", "torch", "torch.*", "transformers", "onnxruntime", "qwen_asr", "qwen_asr.*", "runpod", "tensorrt"]
 ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = ["pipecat.*", "livekit.*"]
